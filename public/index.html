@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Email Client</title>
+  <style>
+    body {font-family: Arial, sans-serif; margin: 0; padding: 20px; background:#f5f5f5;}
+    h1 {text-align:center;}
+    #emails {max-width:800px; margin:0 auto; background:#fff; border-radius:8px; padding:20px; box-shadow:0 2px 4px rgba(0,0,0,.1);}
+    ul {list-style:none; padding:0; margin:0;}
+    li {padding:12px; border-bottom:1px solid #eee; cursor:pointer;}
+    li:hover {background:#fafafa;}
+    .sub {font-weight:bold;}
+    .meta {font-size:.9em; color:#666;}
+    pre {white-space:pre-wrap; background:#fafafa; padding:15px; border-radius:4px;}
+  </style>
+</head>
+<body>
+  <h1>Email Client</h1>
+  <div id="emails">
+    <div style="margin-bottom:15px; display:flex; gap:10px;">
+      <button id="composeBtn" style="background:#4CAF50; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer;">✉ Compose</button>
+      <button id="testSendBtn" style="background:#2196F3; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer;">📧 Send Test Email</button>
+    </div>
+    <div id="composeForm" style="display:none; background:#f9f9f9; padding:15px; border-radius:4px; margin-bottom:15px;">
+      <h3>Compose Email</h3>
+      <input type="email" id="toEmail" placeholder="To:" style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ddd; border-radius:4px;">
+      <input type="text" id="subjectEmail" placeholder="Subject:" style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ddd; border-radius:4px;">
+      <textarea id="bodyEmail" placeholder="Message:" style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ddd; border-radius:4px; min-height:150px;"></textarea>
+      <div style="display:flex; gap:10px;">
+        <button id="sendBtn" style="background:#4CAF50; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer;">Send</button>
+        <button id="cancelBtn" style="background:#999; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer;">Cancel</button>
+      </div>
+    </div>
+    <ul id="list"></ul>
+    <div id="detail" style="display:none">
+      <button id="back">← Back</button>
+      <h2 id="d-sub"></h2>
+      <p class="meta"><span id="d-from"></span> – <span id="d-date"></span></p>
+      <pre id="d-body"></pre>
+    </div>
+  </div>
+  <script>
+    const listEl = document.getElementById('list');
+    const detailEl = document.getElementById('detail');
+    const backBtn = document.getElementById('back');
+    
+    async function load() {
+      try {
+        listEl.innerHTML = '<li>Loading emails...</li>';
+        const res = await fetch('/api/emails?limit=50');
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText || `HTTP ${res.status}` };
+          }
+          const errorMsg = errorData.error || 'Failed to load emails';
+          const errorCode = errorData.code ? ` (${errorData.code})` : '';
+          listEl.innerHTML = `<li style="color:red; padding:20px; background:#ffe6e6; border:1px solid #ff9999; border-radius:4px;">
+            <strong>Error:</strong> ${errorMsg}${errorCode}<br>
+            <small>Status: ${res.status}</small>
+            ${errorData.details ? `<br><small style="font-family:monospace; font-size:0.8em;">${errorData.details}</small>` : ''}
+          </li>`;
+          console.error('API error:', errorData, res.status);
+          return;
+        }
+        
+        const data = await res.json();
+        
+        if (!data.success) {
+          listEl.innerHTML = `<li style="color:red; padding:20px;">Error: ${data.error || 'Failed to load emails'}</li>`;
+          console.error('API error:', data);
+          return;
+        }
+        
+        const emails = data.emails || [];
+        listEl.innerHTML='';
+        
+        if (emails.length === 0) {
+          listEl.innerHTML = '<li>No emails found in inbox</li>';
+          return;
+        }
+        
+        emails.forEach(e=>{
+          const li=document.createElement('li');
+          li.innerHTML = `<div class="sub">${e.subject||'No subject'}</div><div class="meta">${e.from||''} – ${new Date(e.date).toLocaleString()}</div>`;
+          li.onclick=()=>show(e.uid);
+          listEl.appendChild(li);
+        });
+      } catch (err) {
+        listEl.innerHTML = `<li style="color:red;">Error loading emails: ${err.message}</li>`;
+        console.error('Fetch error:', err);
+      }
+    }
+    
+    async function show(uid){
+      try {
+        const res = await fetch('/api/emails/'+uid);
+        const data = await res.json();
+        if (!data.success) {
+          alert('Error: ' + (data.error || 'Failed to load email'));
+          return;
+        }
+        document.getElementById('d-body').textContent = data.source || 'No content';
+        document.getElementById('d-sub').textContent = '';
+        document.getElementById('d-from').textContent = '';
+        document.getElementById('d-date').textContent = '';
+        listEl.style.display='none';
+        detailEl.style.display='block';
+      } catch (err) {
+        alert('Error: ' + err.message);
+        console.error('Fetch error:', err);
+      }
+    }
+    
+    backBtn.onclick=()=>{detailEl.style.display='none'; listEl.style.display='block';};
+    
+    // Compose email handlers
+    const composeBtn = document.getElementById('composeBtn');
+    const composeForm = document.getElementById('composeForm');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    const testSendBtn = document.getElementById('testSendBtn');
+    
+    composeBtn.onclick = () => {
+      composeForm.style.display = composeForm.style.display === 'none' ? 'block' : 'none';
+    };
+    
+    cancelBtn.onclick = () => {
+      composeForm.style.display = 'none';
+      document.getElementById('toEmail').value = '';
+      document.getElementById('subjectEmail').value = '';
+      document.getElementById('bodyEmail').value = '';
+    };
+    
+    sendBtn.onclick = async () => {
+      const to = document.getElementById('toEmail').value;
+      const subject = document.getElementById('subjectEmail').value;
+      const text = document.getElementById('bodyEmail').value;
+      
+      if (!to || !subject || !text) {
+        alert('Please fill in all fields');
+        return;
+      }
+      
+      try {
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Sending...';
+        const res = await fetch('/api/email/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to, subject, text })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('Email sent successfully!\nMessage ID: ' + (data.messageId || 'N/A'));
+          composeForm.style.display = 'none';
+          document.getElementById('toEmail').value = '';
+          document.getElementById('subjectEmail').value = '';
+          document.getElementById('bodyEmail').value = '';
+        } else {
+          const errorMsg = data.error || 'Unknown error';
+          const errorCode = data.code ? ` (Code: ${data.code})` : '';
+          alert('Error sending email:\n' + errorMsg + errorCode);
+          console.error('Send email error:', data);
+        }
+      } catch (err) {
+        alert('Error sending email: ' + err.message);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send';
+      }
+    };
+    
+    // Test send email to eric.brilliant@gmail.com
+    testSendBtn.onclick = async () => {
+      if (!confirm('Send test email to eric.brilliant@gmail.com?')) return;
+      try {
+        testSendBtn.disabled = true;
+        testSendBtn.textContent = 'Sending...';
+        const res = await fetch('/api/email/test', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          alert('Test email sent successfully to ' + data.to + '!');
+        } else {
+          const errorMsg = data.error || 'Unknown error';
+          const errorCode = data.code ? ` (Code: ${data.code})` : '';
+          alert('Error sending email:\n' + errorMsg + errorCode);
+          console.error('Send email error:', data);
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        testSendBtn.disabled = false;
+        testSendBtn.textContent = '📧 Send Test Email';
+      }
+    };
+    
+    load();
+  </script>
+</body>
+</html>
+
