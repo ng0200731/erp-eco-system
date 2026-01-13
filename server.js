@@ -8,10 +8,11 @@ import { fileURLToPath } from 'url';
 
 // ---------- ENV ----------
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, 'env') });
+dotenv.config({ path: path.join(__dirname, 'env'), override: true });
+
 const {
   MAIL_USER,
-  MAIL_PASS = rawPassword?.replace(/^["']|["']$/g, ''), // Remove quotes if present
+  MAIL_PASS: rawPassword,
   IMAP_HOST = 'imap.bbmail.com.hk',
   IMAP_PORT = 993,
   IMAP_TLS = 'true',
@@ -20,6 +21,18 @@ const {
   SMTP_SECURE = 'true',
   PORT = 3000,
 } = process.env;
+
+// Process password (remove quotes)
+const MAIL_PASS = rawPassword?.replace(/^["']|["']$/g, '') || rawPassword;
+
+// Log loaded config for debugging
+console.log('=== Loaded Environment Config ===');
+console.log('SMTP_HOST:', SMTP_HOST);
+console.log('SMTP_PORT:', SMTP_PORT);
+console.log('SMTP_SECURE:', SMTP_SECURE);
+console.log('IMAP_HOST:', IMAP_HOST);
+console.log('PORT:', PORT);
+console.log('===============================');
 
 if (!MAIL_USER || !MAIL_PASS) {
   console.error('Missing MAIL_USER or MAIL_PASS in environment. Exiting.');
@@ -115,18 +128,49 @@ connectImap().catch(err => {
 // Note: We don't set up event listeners on the initial client since it might be replaced
 
 // ---------- SMTP ----------
-const smtpTransport = nodemailer.createTransport({
+// Create SMTP transport - try with connection retry
+const smtpConfig = {
   host: SMTP_HOST,
   port: Number(SMTP_PORT),
-  secure: SMTP_SECURE === 'true', // true for 465, false for 587 + STARTTLS
+  secure: SMTP_SECURE === 'true', // true for 465 (SSL/TLS), false for 587 (STARTTLS)
   auth: {
     user: MAIL_USER,
     pass: MAIL_PASS, // Password already processed (quotes removed)
   },
   tls: {
-    rejectUnauthorized: false, // Allow self-signed certificates
+    rejectUnauthorized: false, // Accept all certificates (接受所有憑證)
+    // Let Node.js auto-negotiate TLS version
   },
+  connectionTimeout: 20000, // 20 seconds
+  greetingTimeout: 15000,   // 15 seconds
+  socketTimeout: 20000,      // 20 seconds
+  pool: false, // Disable connection pooling
+  ignoreTLS: false,
+  // Enable debug logging
+  debug: true,
+  logger: true,
+};
+
+// For port 587 (STARTTLS), require TLS upgrade
+if (SMTP_SECURE !== 'true') {
+  smtpConfig.requireTLS = true;
+}
+
+console.log('SMTP Configuration:', {
+  host: SMTP_HOST,
+  port: SMTP_PORT,
+  secure: SMTP_SECURE === 'true',
+  method: SMTP_SECURE === 'true' ? 'SSL/TLS (direct)' : 'STARTTLS (upgrade)'
 });
+
+// Create SMTP transport - we'll recreate it for each request to avoid connection reuse issues
+let smtpTransport = null;
+
+function createSmtpTransport() {
+  return nodemailer.createTransport(smtpConfig);
+}
+
+smtpTransport = createSmtpTransport();
 
 // ---------- Express ----------
 const app = express();
@@ -296,20 +340,11 @@ app.post('/api/email/send', async (req, res) => {
     console.log(`SMTP config: ${SMTP_HOST}:${SMTP_PORT}, secure: ${SMTP_SECURE === 'true'}`);
     console.log(`From: ${MAIL_USER}`);
     
-    // Verify SMTP connection first
-    try {
-      await smtpTransport.verify();
-      console.log('SMTP connection verified');
-    } catch (verifyErr) {
-      console.error('SMTP verification failed:', verifyErr.message);
-      return res.status(500).json({ 
-        success: false, 
-        error: `SMTP connection failed: ${verifyErr.message}. Check your SMTP settings.`,
-        code: verifyErr.code
-      });
-    }
+    // Create fresh transport for this request
+    const transport = createSmtpTransport();
     
-    const info = await smtpTransport.sendMail({ 
+    // Try to send directly (verify happens during sendMail)
+    const info = await transport.sendMail({ 
       from: `"ERP System" <${MAIL_USER}>`,
       to, 
       subject, 
@@ -318,6 +353,10 @@ app.post('/api/email/send', async (req, res) => {
     });
     console.log('Email sent successfully:', info.messageId);
     console.log('Server response:', info.response);
+    
+    // Close transport after sending
+    transport.close();
+    
     res.json({ success: true, messageId: info.messageId, response: info.response });
   } catch (err) {
     console.error('========== SEND EMAIL ERROR ==========');
@@ -337,27 +376,117 @@ app.post('/api/email/send', async (req, res) => {
       errorMsg = 'SMTP connection timeout. Server may be down or unreachable.';
     }
     
-    res.status(500).json({ 
+    const errorResponse = {
       success: false, 
       error: errorMsg,
-      code: err.code
-    });
+      code: err.code || 'UNKNOWN',
+      host: SMTP_HOST || 'homegw.bbmail.com.hk',
+      port: Number(SMTP_PORT) || 465,
+      secure: SMTP_SECURE === 'true',
+      originalError: err.message
+    };
+    
+    console.log('Send email error response:', errorResponse);
+    res.status(500).json(errorResponse);
   }
 });
 
 // Test SMTP connection endpoint
 app.get('/api/smtp/test', async (req, res) => {
+  // Ensure we have the values
+  const smtpHost = SMTP_HOST || 'homegw.bbmail.com.hk';
+  const smtpPort = Number(SMTP_PORT) || 465;
+  const smtpSecure = SMTP_SECURE === 'true';
+  
   try {
     console.log('Testing SMTP connection...');
-    await smtpTransport.verify();
-    res.json({ success: true, message: 'SMTP connection successful' });
-  } catch (err) {
-    console.error('SMTP connection test error:', err);
-    res.status(500).json({ 
-      success: false, 
-      error: err.message || 'SMTP connection failed',
-      code: err.code
+    console.log(`Connecting to: ${smtpHost}:${smtpPort}`);
+    console.log(`Secure (SSL/TLS): ${smtpSecure}`);
+    console.log(`User: ${MAIL_USER}`);
+    
+    // Create fresh transport for test
+    const testTransport = createSmtpTransport();
+    await testTransport.verify();
+    
+    // Close test transport
+    testTransport.close();
+    
+    res.json({ 
+      success: true, 
+      message: 'SMTP connection successful',
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure
     });
+  } catch (err) {
+    console.error('========== SMTP CONNECTION TEST ERROR ==========');
+    console.error('Error:', err.message);
+    console.error('Error code:', err.code);
+    console.error('SMTP_HOST:', SMTP_HOST);
+    console.error('SMTP_PORT:', SMTP_PORT);
+    console.error('SMTP_SECURE:', SMTP_SECURE);
+    console.error('Full error:', err);
+    console.error('===============================================');
+    
+    let errorMsg = err.message || 'SMTP connection failed';
+    const troubleshooting = err.code === 'ESOCKET' || err.code === 'ETIMEDOUT' ? 
+      'This usually means:\n' +
+      '1. Port ' + smtpPort + ' is blocked by firewall\n' +
+      '2. Network restrictions prevent connection\n' +
+      '3. SMTP server requires VPN or specific network\n' +
+      '4. Server is temporarily unavailable\n\n' +
+      'Try:\n' +
+      '- Check Windows Firewall settings\n' +
+      '- Connect to VPN if required\n' +
+      '- Test from different network\n' +
+      '- Contact IT about SMTP access' : '';
+    
+    if (err.code === 'ESOCKET' || err.code === 'ETIMEDOUT') {
+      errorMsg = `Cannot connect to ${smtpHost}:${smtpPort}. ` + troubleshooting;
+    } else if (err.code === 'EAUTH') {
+      errorMsg = 'SMTP authentication failed. Check your email and password.';
+    }
+    
+    const errorResponse = { 
+      success: false, 
+      error: errorMsg,
+      code: err.code || 'UNKNOWN',
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure,
+      troubleshooting: troubleshooting,
+      originalError: err.message
+    };
+    
+    console.log('========== SENDING ERROR RESPONSE ==========');
+    console.log('Error response object:', errorResponse);
+    console.log('SMTP_HOST from env:', SMTP_HOST);
+    console.log('SMTP_PORT from env:', SMTP_PORT);
+    console.log('SMTP_SECURE from env:', SMTP_SECURE);
+    console.log('===========================================');
+    
+    // Add diagnostic info
+    errorResponse.diagnostic = {
+      serverIP: 'Resolved from ' + smtpHost,
+      configuredPort: smtpPort,
+      configuredSecure: smtpSecure,
+      possibleCauses: [
+        `Port ${smtpPort} is blocked by firewall`,
+        'Network restrictions prevent connection',
+        'The SMTP server firewall is blocking your IP address',
+        'VPN connection required to access this server',
+        'Corporate firewall blocking SMTP ports'
+      ],
+      solutions: [
+        'Check Windows Firewall: Control Panel > Windows Defender Firewall > Advanced Settings > Outbound Rules',
+        'Try connecting from a different network (mobile hotspot)',
+        'Connect to VPN if this is a corporate server',
+        smtpPort === 465 ? 'Try port 587 with STARTTLS (change SMTP_PORT=587 and SMTP_SECURE=false in env file)' : 'Try port 465 with SSL/TLS (change SMTP_PORT=465 and SMTP_SECURE=true in env file)',
+        'Contact IT/Email admin about SMTP access'
+      ]
+    };
+    
+    res.status(500).json(errorResponse);
   }
 });
 
@@ -387,11 +516,27 @@ app.post('/api/email/test', async (req, res) => {
       to: testEmail.to
     });
   } catch (err) {
-    console.error('Test email error:', err);
+    console.error('========== TEST EMAIL ERROR ==========');
+    console.error('Error:', err.message);
+    console.error('Error code:', err.code);
+    console.error('Full error:', err);
+    console.error('======================================');
+    
+    let errorMsg = err.message || 'Failed to send test email';
+    if (err.code === 'ESOCKET' || err.code === 'ETIMEDOUT') {
+      errorMsg = `Cannot connect to ${SMTP_HOST}:${SMTP_PORT}. Connection timeout.`;
+    } else if (err.code === 'EAUTH') {
+      errorMsg = 'SMTP authentication failed. Check your email and password.';
+    }
+    
     res.status(500).json({ 
       success: false, 
-      error: err.message || 'Failed to send test email',
-      code: err.code
+      error: errorMsg,
+      code: err.code || 'UNKNOWN',
+      host: SMTP_HOST || 'homegw.bbmail.com.hk',
+      port: Number(SMTP_PORT) || 465,
+      secure: SMTP_SECURE === 'true',
+      originalError: err.message
     });
   }
 });

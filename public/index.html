@@ -19,9 +19,10 @@
 <body>
   <h1>Email Client</h1>
   <div id="emails">
-    <div style="margin-bottom:15px; display:flex; gap:10px;">
+    <div style="margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap;">
       <button id="composeBtn" style="background:#4CAF50; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer;">✉ Compose</button>
       <button id="testSendBtn" style="background:#2196F3; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer;">📧 Send Test Email</button>
+      <button id="testSmtpBtn" style="background:#FF9800; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer;">🔌 Test SMTP Connection</button>
     </div>
     <div id="composeForm" style="display:none; background:#f9f9f9; padding:15px; border-radius:4px; margin-bottom:15px;">
       <h3>Compose Email</h3>
@@ -166,7 +167,29 @@
         } else {
           const errorMsg = data.error || 'Unknown error';
           const errorCode = data.code ? ` (Code: ${data.code})` : '';
-          alert('Error sending email:\n' + errorMsg + errorCode);
+          const fullError = `Error sending email:\n${errorMsg}${errorCode}`;
+          const errorText = `SMTP Error:\n${errorMsg}${errorCode}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
+          
+          // Show error and allow copying
+          const copyChoice = confirm(fullError + '\n\nClick OK to copy error details to clipboard.');
+          if (copyChoice) {
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(errorText).then(() => {
+                  alert('Error details copied to clipboard!');
+                }).catch(() => {
+                  // Fallback: show in prompt
+                  prompt('Copy this error message:', errorText);
+                });
+              } else {
+                // Fallback: show in prompt
+                prompt('Copy this error message:', errorText);
+              }
+            } catch (e) {
+              // Fallback: show in prompt
+              prompt('Copy this error message:', errorText);
+            }
+          }
           console.error('Send email error:', data);
         }
       } catch (err) {
@@ -174,6 +197,50 @@
       } finally {
         sendBtn.disabled = false;
         sendBtn.textContent = 'Send';
+      }
+    };
+    
+    // Test SMTP connection
+    const testSmtpBtn = document.getElementById('testSmtpBtn');
+    testSmtpBtn.onclick = async () => {
+      try {
+        testSmtpBtn.disabled = true;
+        testSmtpBtn.textContent = 'Testing...';
+        console.log('Testing SMTP connection...');
+        const res = await fetch('/api/smtp/test');
+        const data = await res.json();
+        if (data.success) {
+          alert(`✅ SMTP Connection Successful!\n\nHost: ${data.host}\nPort: ${data.port}\nSecure: ${data.secure ? 'SSL/TLS' : 'STARTTLS'}`);
+        } else {
+          const errorMsg = data.error || 'Unknown error';
+          const errorCode = data.code ? ` (Code: ${data.code})` : '';
+          const fullError = `❌ SMTP Connection Failed:\n${errorMsg}${errorCode}\n\nHost: ${data.host || 'N/A'}\nPort: ${data.port || 'N/A'}\nSecure: ${data.secure ? 'SSL/TLS' : 'STARTTLS'}\n\n${data.troubleshooting || ''}`;
+          const errorText = `SMTP Connection Error:\n${errorMsg}${errorCode}\n\nHost: ${data.host || 'N/A'}\nPort: ${data.port || 'N/A'}\nSecure: ${data.secure ? 'SSL/TLS' : 'STARTTLS'}\n\n${data.troubleshooting || ''}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
+          
+          const copyChoice = confirm(fullError + '\n\nClick OK to copy error details to clipboard.');
+          if (copyChoice) {
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(errorText).then(() => {
+                  alert('Error details copied to clipboard!');
+                }).catch(() => {
+                  prompt('Copy this error message:', errorText);
+                });
+              } else {
+                prompt('Copy this error message:', errorText);
+              }
+            } catch (e) {
+              prompt('Copy this error message:', errorText);
+            }
+          }
+          console.error('SMTP test error:', data);
+        }
+      } catch (err) {
+        alert('Error testing SMTP: ' + err.message);
+        console.error('SMTP test error:', err);
+      } finally {
+        testSmtpBtn.disabled = false;
+        testSmtpBtn.textContent = '🔌 Test SMTP Connection';
       }
     };
     
@@ -190,8 +257,26 @@
         } else {
           const errorMsg = data.error || 'Unknown error';
           const errorCode = data.code ? ` (Code: ${data.code})` : '';
-          alert('Error sending email:\n' + errorMsg + errorCode);
-          console.error('Send email error:', data);
+          const fullError = `Error: ${errorMsg}${errorCode}`;
+          const errorText = `Test Email Error:\n${errorMsg}${errorCode}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
+          
+          const copyChoice = confirm(fullError + '\n\nClick OK to copy error details to clipboard.');
+          if (copyChoice) {
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(errorText).then(() => {
+                  alert('Error details copied to clipboard!');
+                }).catch(() => {
+                  prompt('Copy this error message:', errorText);
+                });
+              } else {
+                prompt('Copy this error message:', errorText);
+              }
+            } catch (e) {
+              prompt('Copy this error message:', errorText);
+            }
+          }
+          console.error('Test email error:', data);
         }
       } catch (err) {
         alert('Error: ' + err.message);
