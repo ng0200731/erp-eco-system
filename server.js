@@ -55,6 +55,9 @@ function createImapClient() {
     tlsOptions: {
       rejectUnauthorized: false, // Allow self-signed certificates
     },
+    // Add connection timeouts to prevent hanging
+    connectionTimeout: 10000, // 10 seconds for initial connection
+    greetingTimeout: 5000,    // 5 seconds for server greeting
   });
 }
 
@@ -185,6 +188,55 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Server is running', timestamp: new Date().toISOString() });
 });
 
+// Diagnostic endpoint for IMAP
+app.get('/api/imap/diagnostic', async (req, res) => {
+  try {
+    const diagnostics = {
+      imapClientExists: !!imapClient,
+      imapClientState: imapClient?.state || null,
+      imapClientStateName: imapClient?.state === 0 ? 'disconnected' : 
+                          imapClient?.state === 1 ? 'connecting' : 
+                          imapClient?.state === 2 ? 'authenticated' : 
+                          imapClient?.state === 3 ? 'selected' : 
+                          imapClient?.state === 4 ? 'idle' : 'unknown',
+      imapHost: IMAP_HOST,
+      imapPort: IMAP_PORT,
+      mailUser: MAIL_USER ? `${MAIL_USER.substring(0, 3)}***` : 'not set'
+    };
+    
+    // Try to connect
+    try {
+      await connectImap();
+      diagnostics.connectionTest = 'success';
+      diagnostics.imapClientStateAfterConnect = imapClient?.state || null;
+      
+      // Try to open mailbox
+      if (imapClient && imapClient.state >= 2) {
+        try {
+          const mailbox = await imapClient.mailboxOpen('INBOX', { readOnly: true });
+          diagnostics.mailboxTest = 'success';
+          diagnostics.mailboxExists = mailbox.exists;
+          diagnostics.mailboxUidValidity = mailbox.uidValidity;
+        } catch (mbErr) {
+          diagnostics.mailboxTest = 'failed';
+          diagnostics.mailboxError = mbErr.message;
+        }
+      }
+    } catch (connErr) {
+      diagnostics.connectionTest = 'failed';
+      diagnostics.connectionError = connErr.message;
+    }
+    
+    res.json({ success: true, diagnostics });
+  } catch (err) {
+    res.status(500).json({ 
+      success: false, 
+      error: err.message,
+      diagnostics: { error: err.message }
+    });
+  }
+});
+
 // Test IMAP connection endpoint
 app.get('/api/test-connection', async (req, res) => {
   try {
@@ -252,25 +304,62 @@ app.get('/api/emails', async (req, res) => {
     const start = Math.max(mailbox.exists - limit + 1, 1);
     const messages = [];
 
-    // Fetch headers for the range
+    // Fetch headers for the range with timeout
     try {
-      for await (const msg of imapClient.fetch(`${start}:*`, {
-        envelope: true,
-        uid: true,
-        source: false,
-      })) {
-        messages.push({
-          uid: msg.uid,
-          subject: msg.envelope.subject || '(No subject)',
-          from: msg.envelope.from?.map((a) => `${a.name || ''} <${a.address}>`).join(', ') || 'Unknown',
-          date: msg.envelope.date || new Date(),
-        });
-      }
+      console.log(`Fetching messages from sequence ${start} to end...`);
+      
+      // Add timeout wrapper
+      const fetchPromise = (async () => {
+        const fetchedMessages = [];
+        for await (const msg of imapClient.fetch(`${start}:*`, {
+          envelope: true,
+          uid: true,
+          source: false,
+        })) {
+          fetchedMessages.push({
+            uid: msg.uid,
+            subject: msg.envelope.subject || '(No subject)',
+            from: msg.envelope.from?.map((a) => `${a.name || ''} <${a.address}>`).join(', ') || 'Unknown',
+            date: msg.envelope.date || new Date(),
+          });
+          
+          // Log progress every 10 messages
+          if (fetchedMessages.length % 10 === 0) {
+            console.log(`Fetched ${fetchedMessages.length} messages so far...`);
+          }
+        }
+        return fetchedMessages;
+      })();
+      
+      // Add 20 second timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('IMAP fetch operation timed out after 20 seconds')), 20000);
+      });
+      
+      const fetchedMessages = await Promise.race([fetchPromise, timeoutPromise]);
+      messages.push(...fetchedMessages);
+      
+      console.log(`Successfully fetched ${messages.length} messages`);
     } catch (fetchErr) {
-      console.error('Failed to fetch messages:', fetchErr);
+      console.error('========== FETCH MESSAGES ERROR ==========');
+      console.error('Error message:', fetchErr.message);
+      console.error('Error code:', fetchErr.code);
+      console.error('Error responseCode:', fetchErr.responseCode);
+      console.error('Error responseText:', fetchErr.responseText);
+      console.error('Full error:', fetchErr);
+      console.error('==========================================');
+      
+      // If timeout, try to reset IMAP connection
+      if (fetchErr.message.includes('timeout') || fetchErr.message.includes('timed out')) {
+        console.log('Resetting IMAP connection due to timeout...');
+        imapClient = null;
+      }
+      
       return res.status(500).json({ 
         success: false, 
-        error: `Failed to fetch messages: ${fetchErr.message}` 
+        error: `Failed to fetch messages: ${fetchErr.message}`,
+        code: fetchErr.code || fetchErr.responseCode || 'UNKNOWN',
+        responseText: fetchErr.responseText
       });
     }
 
@@ -316,16 +405,169 @@ app.get('/api/emails', async (req, res) => {
 app.get('/api/emails/:uid', async (req, res) => {
   try {
     const uid = Number(req.params.uid);
+    if (!uid || isNaN(uid)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid email UID. Must be a number.' 
+      });
+    }
+
     await connectImap();
 
-    let bodyText = '';
-    for await (const msg of imapClient.fetch(uid, { source: true })) {
-      bodyText = msg.source.toString();
+    // Check if client is connected
+    if (!imapClient || imapClient.state < 2) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'IMAP client is not connected. Please try again.' 
+      });
     }
+
+    // Select INBOX first
+    let mailbox;
+    try {
+      mailbox = await imapClient.mailboxOpen('INBOX');
+      console.log(`Opened INBOX. Total messages: ${mailbox.exists}, UID validity: ${mailbox.uidValidity}`);
+    } catch (mailboxErr) {
+      console.error('Failed to open INBOX:', mailboxErr);
+      return res.status(500).json({ 
+        success: false, 
+        error: `Failed to open INBOX: ${mailboxErr.message}`,
+        code: mailboxErr.code || mailboxErr.responseCode || 'UNKNOWN'
+      });
+    }
+
+    // Check if UID is in valid range
+    if (mailbox.exists === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Mailbox is empty',
+        uid: uid
+      });
+    }
+
+    // Get sequence number for this UID using search
+    // Note: We'll do this in the fetch section below, not here
+
+    let bodyText = '';
+    let found = false;
+    
+    try {
+      // The issue: ImapFlow's fetch() interprets numbers as sequence numbers, not UIDs
+      // Solution: Use search() to find the sequence number for this UID, then fetch by sequence
+      console.log(`Fetching email with UID: ${uid}`);
+      
+      // Step 1: Search for the UID to get its sequence number
+      let seqNum = null;
+      try {
+        const searchResult = await imapClient.search({ uid: uid });
+        if (searchResult && searchResult.length > 0) {
+          seqNum = searchResult[0];
+          console.log(`Found UID ${uid} at sequence number ${seqNum}`);
+        } else {
+          return res.status(404).json({ 
+            success: false, 
+            error: `Email with UID ${uid} not found in mailbox`,
+            code: 'EMAIL_NOT_FOUND',
+            uid: uid
+          });
+        }
+      } catch (searchErr) {
+        console.error('Search failed:', searchErr);
+        return res.status(500).json({ 
+          success: false, 
+          error: `Failed to search for email: ${searchErr.message}`,
+          code: searchErr.code || 'SEARCH_FAILED',
+          uid: uid
+        });
+      }
+      
+      // Step 2: Fetch by sequence number (not UID)
+      const fetchOptions = {
+        source: true,
+        uid: true  // Include UID in response for verification
+      };
+      
+      console.log(`Fetching sequence number ${seqNum} (UID: ${uid})`);
+      for await (const msg of imapClient.fetch(seqNum, fetchOptions)) {
+        console.log(`Received message - UID: ${msg.uid}, Seq: ${msg.seq}`);
+        // Verify this is the correct message
+        if (msg.uid === uid) {
+          bodyText = msg.source ? msg.source.toString() : '';
+          found = true;
+          console.log(`Successfully fetched email UID ${uid}, body length: ${bodyText.length}`);
+          break;
+        }
+      }
+    } catch (fetchErr) {
+      console.error('========== FETCH EMAIL ERROR ==========');
+      console.error('UID:', uid);
+      console.error('Error message:', fetchErr.message);
+      console.error('Error code:', fetchErr.code);
+      console.error('Error name:', fetchErr.name);
+      console.error('Error response:', fetchErr.response);
+      console.error('Error responseCode:', fetchErr.responseCode);
+      console.error('Error responseText:', fetchErr.responseText);
+      console.error('Error command:', fetchErr.command);
+      console.error('Full error object:', fetchErr);
+      if (fetchErr.stack) {
+        console.error('Stack trace:', fetchErr.stack);
+      }
+      console.error('=======================================');
+      
+      // Extract more detailed error information
+      let errorMsg = fetchErr.message || 'Failed to fetch email';
+      let errorCode = fetchErr.code || fetchErr.responseCode || 'UNKNOWN';
+      
+      // Provide more specific error messages
+      if (fetchErr.responseCode === 'NO') {
+        errorMsg = `Email not found or cannot be accessed. UID: ${uid}`;
+      } else if (fetchErr.responseCode === 'BAD') {
+        errorMsg = `Invalid command or server error. UID: ${uid}`;
+      } else if (fetchErr.message?.includes('not found') || fetchErr.message?.includes('does not exist')) {
+        errorMsg = `Email with UID ${uid} does not exist in the mailbox`;
+        errorCode = 'EMAIL_NOT_FOUND';
+      } else if (fetchErr.message?.includes('Command failed')) {
+        errorMsg = `IMAP command failed. The email may have been deleted or moved. UID: ${uid}`;
+        if (fetchErr.responseText) {
+          errorMsg += `\nServer response: ${fetchErr.responseText}`;
+        }
+      }
+      
+      return res.status(500).json({ 
+        success: false, 
+        error: errorMsg,
+        code: errorCode,
+        uid: uid,
+        responseCode: fetchErr.responseCode,
+        responseText: fetchErr.responseText,
+        command: fetchErr.command
+      });
+    }
+
+    if (!found) {
+      return res.status(404).json({ 
+        success: false, 
+        error: `Email with UID ${uid} not found` 
+      });
+    }
+
     res.json({ success: true, uid, source: bodyText });
   } catch (err) {
-    console.error('Fetch email error:', err);
-    res.status(500).json({ success: false, error: 'Failed to fetch email' });
+    console.error('========== FETCH EMAIL ERROR ==========');
+    console.error('Error message:', err.message);
+    console.error('Error code:', err.code);
+    console.error('Error type:', err.name);
+    console.error('Full error:', err);
+    if (err?.stack) {
+      console.error('Stack trace:', err.stack);
+    }
+    console.error('=======================================');
+    
+    res.status(500).json({ 
+      success: false, 
+      error: err.message || 'Failed to fetch email',
+      code: err.code || 'UNKNOWN'
+    });
   }
 });
 

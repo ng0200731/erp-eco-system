@@ -47,10 +47,65 @@
     const detailEl = document.getElementById('detail');
     const backBtn = document.getElementById('back');
     
-    async function load() {
+    // Store current email list for quick access
+    let currentEmails = [];
+    let currentLoadController = null; // Track current load request
+    
+    async function load(showLoading = true) {
       try {
-        listEl.innerHTML = '<li>Loading emails...</li>';
-        const res = await fetch('/api/emails?limit=50');
+        // Cancel any existing load request
+        if (currentLoadController) {
+          console.log('Cancelling previous load request');
+          currentLoadController.abort();
+        }
+        
+        // Create new abort controller for this request
+        currentLoadController = new AbortController();
+        const controller = currentLoadController;
+        
+        if (showLoading) {
+          console.log('Loading emails...');
+          listEl.innerHTML = '<li>Loading emails...</li>';
+          listEl.style.display = 'block';
+          detailEl.style.display = 'none';
+        } else {
+          console.log('Refreshing emails in background...');
+        }
+        
+        // Add timeout to fetch request
+        const timeoutId = setTimeout(() => {
+          if (!controller.signal.aborted) {
+            console.log('Request timeout, aborting...');
+            controller.abort();
+          }
+        }, 30000); // 30 second timeout
+        
+        let res;
+        try {
+          res = await fetch('/api/emails?limit=50', { 
+            signal: controller.signal,
+            cache: 'no-cache' // Prevent caching
+          });
+          clearTimeout(timeoutId);
+          currentLoadController = null; // Clear on success
+        } catch (fetchErr) {
+          clearTimeout(timeoutId);
+          currentLoadController = null; // Clear on error
+          
+          if (fetchErr.name === 'AbortError') {
+            // Only show error if we were showing loading state
+            if (showLoading) {
+              throw new Error('Request timeout - server took too long to respond');
+            } else {
+              // Background refresh failed, just log it
+              console.warn('Background refresh failed:', fetchErr.message);
+              return;
+            }
+          }
+          throw fetchErr;
+        }
+        
+        console.log('Response status:', res.status, res.statusText);
         
         if (!res.ok) {
           const errorText = await res.text();
@@ -72,6 +127,7 @@
         }
         
         const data = await res.json();
+        console.log('Received data:', data);
         
         if (!data.success) {
           listEl.innerHTML = `<li style="color:red; padding:20px;">Error: ${data.error || 'Failed to load emails'}</li>`;
@@ -80,46 +136,230 @@
         }
         
         const emails = data.emails || [];
-        listEl.innerHTML='';
+        console.log('Loaded emails:', emails.length);
+        currentEmails = emails; // Store for reference
         
-        if (emails.length === 0) {
-          listEl.innerHTML = '<li>No emails found in inbox</li>';
-          return;
+        // Render the email list (only if showLoading was true, otherwise we're in background)
+        if (showLoading) {
+          renderEmailList(emails);
+          console.log('Email list rendered successfully');
+        } else {
+          // Background refresh - update cache and re-render if list is visible
+          currentEmails = emails;
+          if (listEl.style.display !== 'none' && detailEl.style.display === 'none') {
+            // List is visible, update it
+            renderEmailList(emails);
+            console.log('Email list refreshed in background');
+          } else {
+            console.log('Email list cached (detail view is active)');
+          }
         }
-        
-        emails.forEach(e=>{
-          const li=document.createElement('li');
-          li.innerHTML = `<div class="sub">${e.subject||'No subject'}</div><div class="meta">${e.from||''} – ${new Date(e.date).toLocaleString()}</div>`;
-          li.onclick=()=>show(e.uid);
-          listEl.appendChild(li);
-        });
       } catch (err) {
-        listEl.innerHTML = `<li style="color:red;">Error loading emails: ${err.message}</li>`;
-        console.error('Fetch error:', err);
+        console.error('Load function error:', err);
+        // Only show error if we were showing loading state
+        if (showLoading) {
+          listEl.innerHTML = `<li style="color:red; padding:20px;">Error loading emails: ${err.message}<br><small>Check browser console (F12) for details</small></li>`;
+        }
+        // Background refresh errors are already logged above
       }
     }
     
     async function show(uid){
       try {
-        const res = await fetch('/api/emails/'+uid);
-        const data = await res.json();
-        if (!data.success) {
-          alert('Error: ' + (data.error || 'Failed to load email'));
-          return;
-        }
-        document.getElementById('d-body').textContent = data.source || 'No content';
+        // Show loading state
+        detailEl.style.display='block';
+        listEl.style.display='none';
+        document.getElementById('d-body').textContent = 'Loading email...';
         document.getElementById('d-sub').textContent = '';
         document.getElementById('d-from').textContent = '';
         document.getElementById('d-date').textContent = '';
+        
+        const res = await fetch('/api/emails/'+uid);
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText || `HTTP ${res.status}` };
+          }
+          const errorMsg = errorData.error || 'Failed to fetch email';
+          const errorCode = errorData.code ? ` (Code: ${errorData.code})` : '';
+          const fullError = `Error: ${errorMsg}${errorCode}\n\nUID: ${uid}\nStatus: ${res.status}\n\nFull details:\n${JSON.stringify(errorData, null, 2)}`;
+          showCopyableError('Fetch Email Error', fullError);
+          console.error('Fetch email error:', errorData);
+          // Go back to list on error
+          detailEl.style.display='none';
+          listEl.style.display='block';
+          return;
+        }
+        
+        const data = await res.json();
+        if (!data.success) {
+          const errorMsg = data.error || 'Failed to load email';
+          const errorCode = data.code ? ` (Code: ${data.code})` : '';
+          const fullError = `Error: ${errorMsg}${errorCode}\n\nUID: ${uid}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
+          showCopyableError('Email Error', fullError);
+          console.error('API error:', data);
+          // Go back to list on error
+          detailEl.style.display='none';
+          listEl.style.display='block';
+          return;
+        }
+        
+        // Parse email headers from source
+        const source = data.source || '';
+        let subject = '';
+        let from = '';
+        let date = '';
+        
+        // Try to extract headers from raw email source
+        const subjectMatch = source.match(/^Subject:\s*(.+)$/mi);
+        const fromMatch = source.match(/^From:\s*(.+)$/mi);
+        const dateMatch = source.match(/^Date:\s*(.+)$/mi);
+        
+        if (subjectMatch) subject = subjectMatch[1].trim();
+        if (fromMatch) from = fromMatch[1].trim();
+        if (dateMatch) date = dateMatch[1].trim();
+        
+        // Display email
+        document.getElementById('d-body').textContent = source || 'No content';
+        document.getElementById('d-sub').textContent = subject || '(No subject)';
+        document.getElementById('d-from').textContent = from || 'Unknown';
+        document.getElementById('d-date').textContent = date || '';
+        
         listEl.style.display='none';
         detailEl.style.display='block';
       } catch (err) {
-        alert('Error: ' + err.message);
+        const fullError = `Error fetching email: ${err.message}\n\nUID: ${uid}\n\nStack trace:\n${err.stack || 'N/A'}`;
+        showCopyableError('Network Error', fullError);
         console.error('Fetch error:', err);
+        // Go back to list on error
+        detailEl.style.display='none';
+        listEl.style.display='block';
       }
     }
     
-    backBtn.onclick=()=>{detailEl.style.display='none'; listEl.style.display='block';};
+    // Helper function to show copyable error
+    function showCopyableError(title, errorText) {
+      // Create modal overlay
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; display:flex; align-items:center; justify-content:center;';
+      
+      // Create modal box
+      const modal = document.createElement('div');
+      modal.style.cssText = 'background:white; padding:20px; border-radius:8px; max-width:600px; max-height:80vh; overflow:auto; box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+      
+      // Title
+      const titleEl = document.createElement('h3');
+      titleEl.textContent = title;
+      titleEl.style.cssText = 'margin:0 0 15px 0; color:#d32f2f;';
+      
+      // Textarea for error (copyable)
+      const textarea = document.createElement('textarea');
+      textarea.value = errorText;
+      textarea.readOnly = true;
+      textarea.style.cssText = 'width:100%; min-height:200px; padding:10px; border:1px solid #ccc; border-radius:4px; font-family:monospace; font-size:12px; resize:vertical; box-sizing:border-box;';
+      
+      // Buttons container
+      const buttonsDiv = document.createElement('div');
+      buttonsDiv.style.cssText = 'margin-top:15px; display:flex; gap:10px; justify-content:flex-end;';
+      
+      // Copy button
+      const copyBtn = document.createElement('button');
+      copyBtn.textContent = '📋 Copy Error';
+      copyBtn.style.cssText = 'padding:8px 16px; background:#1976d2; color:white; border:none; border-radius:4px; cursor:pointer;';
+      copyBtn.onclick = () => {
+        textarea.select();
+        document.execCommand('copy');
+        copyBtn.textContent = '✅ Copied!';
+        setTimeout(() => {
+          copyBtn.textContent = '📋 Copy Error';
+        }, 2000);
+      };
+      
+      // Close button
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = 'Close';
+      closeBtn.style.cssText = 'padding:8px 16px; background:#666; color:white; border:none; border-radius:4px; cursor:pointer;';
+      closeBtn.onclick = () => {
+        document.body.removeChild(overlay);
+      };
+      
+      // Assemble modal
+      modal.appendChild(titleEl);
+      modal.appendChild(textarea);
+      buttonsDiv.appendChild(copyBtn);
+      buttonsDiv.appendChild(closeBtn);
+      modal.appendChild(buttonsDiv);
+      overlay.appendChild(modal);
+      
+      // Add to page
+      document.body.appendChild(overlay);
+      
+      // Auto-select text for easy copying
+      setTimeout(() => {
+        textarea.select();
+      }, 100);
+      
+      // Close on overlay click
+      overlay.onclick = (e) => {
+        if (e.target === overlay) {
+          document.body.removeChild(overlay);
+        }
+      };
+    }
+    
+    backBtn.onclick=()=>{
+      console.log('Back button clicked');
+      detailEl.style.display='none'; 
+      listEl.style.display='block';
+      
+      // If we have cached emails, show them immediately
+      if (currentEmails && currentEmails.length > 0) {
+        console.log('Using cached email list:', currentEmails.length);
+        renderEmailList(currentEmails);
+        // Optionally refresh in background (silently, no loading indicator)
+        // Only refresh if not already loading
+        if (!currentLoadController || currentLoadController.signal.aborted) {
+          load(false).catch(err => {
+            console.warn('Background refresh failed:', err.message);
+            // Silently fail - we already have cached emails displayed
+          });
+        }
+      } else {
+        // No cache, must load with loading indicator
+        load(true).catch(err => {
+          console.error('Error loading emails after back:', err);
+          listEl.innerHTML = `<li style="color:red; padding:20px;">Error loading emails: ${err.message}</li>`;
+        });
+      }
+    };
+    
+    // Helper function to render email list
+    function renderEmailList(emails) {
+      listEl.innerHTML='';
+      
+      if (emails.length === 0) {
+        listEl.innerHTML = '<li>No emails found in inbox</li>';
+        return;
+      }
+      
+      emails.forEach(e=>{
+        const li=document.createElement('li');
+        li.innerHTML = `<div class="sub">${e.subject||'No subject'}</div><div class="meta">${e.from||''} – ${new Date(e.date).toLocaleString()}</div>`;
+        li.style.cursor = 'pointer';
+        li.onclick=()=>{
+          console.log('Clicking email UID:', e.uid);
+          show(e.uid);
+        };
+        listEl.appendChild(li);
+      });
+      
+      listEl.style.display='block';
+      detailEl.style.display='none';
+    }
     
     // Compose email handlers
     const composeBtn = document.getElementById('composeBtn');
@@ -167,33 +407,12 @@
         } else {
           const errorMsg = data.error || 'Unknown error';
           const errorCode = data.code ? ` (Code: ${data.code})` : '';
-          const fullError = `Error sending email:\n${errorMsg}${errorCode}`;
-          const errorText = `SMTP Error:\n${errorMsg}${errorCode}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
-          
-          // Show error and allow copying
-          const copyChoice = confirm(fullError + '\n\nClick OK to copy error details to clipboard.');
-          if (copyChoice) {
-            try {
-              if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(errorText).then(() => {
-                  alert('Error details copied to clipboard!');
-                }).catch(() => {
-                  // Fallback: show in prompt
-                  prompt('Copy this error message:', errorText);
-                });
-              } else {
-                // Fallback: show in prompt
-                prompt('Copy this error message:', errorText);
-              }
-            } catch (e) {
-              // Fallback: show in prompt
-              prompt('Copy this error message:', errorText);
-            }
-          }
+          const errorText = `Error sending email:\n${errorMsg}${errorCode}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
+          showCopyableError('Send Email Error', errorText);
           console.error('Send email error:', data);
         }
       } catch (err) {
-        alert('Error sending email: ' + err.message);
+        showCopyableError('Send Email Error', `Error sending email: ${err.message}\n\nStack trace:\n${err.stack || 'N/A'}`);
       } finally {
         sendBtn.disabled = false;
         sendBtn.textContent = 'Send';
@@ -214,29 +433,12 @@
         } else {
           const errorMsg = data.error || 'Unknown error';
           const errorCode = data.code ? ` (Code: ${data.code})` : '';
-          const fullError = `❌ SMTP Connection Failed:\n${errorMsg}${errorCode}\n\nHost: ${data.host || 'N/A'}\nPort: ${data.port || 'N/A'}\nSecure: ${data.secure ? 'SSL/TLS' : 'STARTTLS'}\n\n${data.troubleshooting || ''}`;
-          const errorText = `SMTP Connection Error:\n${errorMsg}${errorCode}\n\nHost: ${data.host || 'N/A'}\nPort: ${data.port || 'N/A'}\nSecure: ${data.secure ? 'SSL/TLS' : 'STARTTLS'}\n\n${data.troubleshooting || ''}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
-          
-          const copyChoice = confirm(fullError + '\n\nClick OK to copy error details to clipboard.');
-          if (copyChoice) {
-            try {
-              if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(errorText).then(() => {
-                  alert('Error details copied to clipboard!');
-                }).catch(() => {
-                  prompt('Copy this error message:', errorText);
-                });
-              } else {
-                prompt('Copy this error message:', errorText);
-              }
-            } catch (e) {
-              prompt('Copy this error message:', errorText);
-            }
-          }
+          const errorText = `❌ SMTP Connection Failed:\n${errorMsg}${errorCode}\n\nHost: ${data.host || 'N/A'}\nPort: ${data.port || 'N/A'}\nSecure: ${data.secure ? 'SSL/TLS' : 'STARTTLS'}\n\n${data.troubleshooting || ''}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
+          showCopyableError('SMTP Connection Error', errorText);
           console.error('SMTP test error:', data);
         }
       } catch (err) {
-        alert('Error testing SMTP: ' + err.message);
+        showCopyableError('SMTP Test Error', `Error testing SMTP: ${err.message}\n\nStack trace:\n${err.stack || 'N/A'}`);
         console.error('SMTP test error:', err);
       } finally {
         testSmtpBtn.disabled = false;
@@ -257,29 +459,12 @@
         } else {
           const errorMsg = data.error || 'Unknown error';
           const errorCode = data.code ? ` (Code: ${data.code})` : '';
-          const fullError = `Error: ${errorMsg}${errorCode}`;
           const errorText = `Test Email Error:\n${errorMsg}${errorCode}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
-          
-          const copyChoice = confirm(fullError + '\n\nClick OK to copy error details to clipboard.');
-          if (copyChoice) {
-            try {
-              if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(errorText).then(() => {
-                  alert('Error details copied to clipboard!');
-                }).catch(() => {
-                  prompt('Copy this error message:', errorText);
-                });
-              } else {
-                prompt('Copy this error message:', errorText);
-              }
-            } catch (e) {
-              prompt('Copy this error message:', errorText);
-            }
-          }
+          showCopyableError('Test Email Error', errorText);
           console.error('Test email error:', data);
         }
       } catch (err) {
-        alert('Error: ' + err.message);
+        showCopyableError('Test Email Error', `Error: ${err.message}\n\nStack trace:\n${err.stack || 'N/A'}`);
       } finally {
         testSendBtn.disabled = false;
         testSendBtn.textContent = '📧 Send Test Email';
