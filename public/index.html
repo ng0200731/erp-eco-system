@@ -458,11 +458,48 @@
       try {
         sendBtn.disabled = true;
         sendBtn.textContent = 'Sending...';
-        const res = await fetch('/api/email/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to, subject, text })
-        });
+        
+        // Add timeout to fetch request
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          if (!controller.signal.aborted) {
+            controller.abort();
+          }
+        }, 30000); // 30 second timeout
+        
+        let res;
+        try {
+          res = await fetch('/api/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to, subject, text }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+        } catch (fetchErr) {
+          clearTimeout(timeoutId);
+          if (fetchErr.name === 'AbortError') {
+            throw new Error('Request timeout - server took too long to respond');
+          }
+          throw new Error(`Network error: ${fetchErr.message}`);
+        }
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error: errorText || `HTTP ${res.status}` };
+          }
+          const errorMsg = errorData.error || 'Failed to send email';
+          const errorCode = errorData.code ? ` (Code: ${errorData.code})` : '';
+          const fullError = `Error sending email:\n${errorMsg}${errorCode}\n\nStatus: ${res.status}\n\nFull details:\n${JSON.stringify(errorData, null, 2)}`;
+          showCopyableError('Send Email Error', fullError);
+          console.error('Send email error:', errorData);
+          return;
+        }
+        
         const data = await res.json();
         if (data.success) {
           alert('Email sent successfully!\nMessage ID: ' + (data.messageId || 'N/A'));
@@ -478,7 +515,9 @@
           console.error('Send email error:', data);
         }
       } catch (err) {
-        showCopyableError('Send Email Error', `Error sending email: ${err.message}\n\nStack trace:\n${err.stack || 'N/A'}`);
+        const errorText = `Error sending email: ${err.message}\n\nStack trace:\n${err.stack || 'N/A'}`;
+        showCopyableError('Send Email Error', errorText);
+        console.error('Send email error:', err);
       } finally {
         sendBtn.disabled = false;
         sendBtn.textContent = 'Send';
