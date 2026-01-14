@@ -146,9 +146,9 @@ const smtpConfig = {
     rejectUnauthorized: false, // Accept all certificates (接受所有憑證)
     // Let Node.js auto-negotiate TLS version
   },
-  connectionTimeout: 20000, // 20 seconds
-  greetingTimeout: 15000,   // 15 seconds
-  socketTimeout: 20000,      // 20 seconds
+  connectionTimeout: 30000, // 30 seconds (increased for idle reconnection)
+  greetingTimeout: 20000,   // 20 seconds (increased for idle reconnection)
+  socketTimeout: 30000,      // 30 seconds (increased for idle reconnection)
   pool: false, // Disable connection pooling
   ignoreTLS: false,
   // Enable debug logging
@@ -690,60 +690,118 @@ app.post('/api/email/send', async (req, res) => {
   if (!to || !subject || (!text && !html)) {
     return res.status(400).json({ success: false, error: 'to, subject, and text|html are required' });
   }
-  try {
-    console.log(`Sending email to: ${to}, subject: ${subject}`);
-    console.log(`SMTP config: ${SMTP_HOST}:${SMTP_PORT}, secure: ${SMTP_SECURE === 'true'}`);
-    console.log(`From: ${MAIL_USER}`);
-    
-    // Create fresh transport for this request
-    const transport = createSmtpTransport();
-    
-    // Try to send directly (verify happens during sendMail)
-    const info = await transport.sendMail({ 
-      from: `"ERP System" <${MAIL_USER}>`,
-      to, 
-      subject, 
-      text: text || html?.replace(/<[^>]*>/g, ''), // Strip HTML if only html provided
-      html: html || text?.replace(/\n/g, '<br>') // Convert newlines to <br> if only text provided
-    });
-    console.log('Email sent successfully:', info.messageId);
-    console.log('Server response:', info.response);
-    
-    // Close transport after sending
-    transport.close();
-    
-    res.json({ success: true, messageId: info.messageId, response: info.response });
-  } catch (err) {
-    console.error('========== SEND EMAIL ERROR ==========');
-    console.error('Error message:', err.message);
-    console.error('Error code:', err.code);
-    console.error('Error response:', err.response);
-    console.error('Error responseCode:', err.responseCode);
-    console.error('Full error:', err);
-    console.error('======================================');
-    
-    let errorMsg = err.message || 'Failed to send email';
-    if (err.code === 'EAUTH') {
-      errorMsg = 'SMTP authentication failed. Check your email and password.';
-    } else if (err.code === 'ECONNECTION') {
-      errorMsg = `Cannot connect to SMTP server ${SMTP_HOST}:${SMTP_PORT}. Check network/firewall.`;
-    } else if (err.code === 'ETIMEDOUT') {
-      errorMsg = 'SMTP connection timeout. Server may be down or unreachable.';
+  
+  let transport = null;
+  const maxRetries = 2; // Try up to 2 times (initial + 1 retry)
+  let lastError = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[Attempt ${attempt}/${maxRetries}] Sending email to: ${to}, subject: ${subject}`);
+      console.log(`SMTP config: ${SMTP_HOST}:${SMTP_PORT}, secure: ${SMTP_SECURE === 'true'}`);
+      console.log(`From: ${MAIL_USER}`);
+      
+      // Clean up previous transport if retrying
+      if (transport) {
+        try {
+          transport.close();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
+      
+      // Create fresh transport for this attempt
+      transport = createSmtpTransport();
+      
+      // Try to send with increased timeout (no timeout limit - let it try)
+      const sendPromise = transport.sendMail({ 
+        from: `"ERP System" <${MAIL_USER}>`,
+        to, 
+        subject, 
+        text: text || html?.replace(/<[^>]*>/g, ''), // Strip HTML if only html provided
+        html: html || text?.replace(/\n/g, '<br>') // Convert newlines to <br> if only text provided
+      });
+      
+      // Add 60 second timeout (increased from default)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('SMTP send operation timed out after 60 seconds')), 60000);
+      });
+      
+      const info = await Promise.race([sendPromise, timeoutPromise]);
+      
+      console.log('Email sent successfully:', info.messageId);
+      console.log('Server response:', info.response);
+      
+      // Close transport after sending
+      transport.close();
+      
+      return res.json({ success: true, messageId: info.messageId, response: info.response });
+      
+    } catch (err) {
+      lastError = err;
+      console.error(`========== SEND EMAIL ERROR (Attempt ${attempt}/${maxRetries}) ==========`);
+      console.error('Error message:', err.message);
+      console.error('Error code:', err.code);
+      console.error('Error response:', err.response);
+      console.error('Error responseCode:', err.responseCode);
+      console.error('Full error:', err);
+      console.error('======================================');
+      
+      // Clean up transport on error
+      if (transport) {
+        try {
+          transport.close();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+        transport = null;
+      }
+      
+      // If it's a connection/timeout error and we have retries left, retry
+      const isRetryableError = 
+        err.code === 'ECONNECTION' || 
+        err.code === 'ETIMEDOUT' || 
+        err.code === 'ESOCKET' ||
+        err.message?.includes('timeout') ||
+        err.message?.includes('Failed to fetch') ||
+        err.message?.includes('Network error');
+      
+      if (isRetryableError && attempt < maxRetries) {
+        console.log(`Connection/timeout error detected. Retrying in 2 seconds... (${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+        continue; // Retry
+      } else {
+        // Not retryable or no retries left, break and return error
+        break;
+      }
     }
-    
-    const errorResponse = {
-      success: false, 
-      error: errorMsg,
-      code: err.code || 'UNKNOWN',
-      host: SMTP_HOST || 'homegw.bbmail.com.hk',
-      port: Number(SMTP_PORT) || 465,
-      secure: SMTP_SECURE === 'true',
-      originalError: err.message
-    };
-    
-    console.log('Send email error response:', errorResponse);
-    res.status(500).json(errorResponse);
   }
+  
+  // All retries exhausted or non-retryable error
+  let errorMsg = lastError.message || 'Failed to send email';
+  if (lastError.code === 'EAUTH') {
+    errorMsg = 'SMTP authentication failed. Check your email and password.';
+  } else if (lastError.code === 'ECONNECTION') {
+    errorMsg = `Cannot connect to SMTP server ${SMTP_HOST}:${SMTP_PORT}. Check network/firewall. Connection may have timed out after idle period.`;
+  } else if (lastError.code === 'ETIMEDOUT' || lastError.message?.includes('timeout')) {
+    errorMsg = 'SMTP connection timeout. Server may be down or unreachable. This may happen after idle period.';
+  } else if (lastError.message?.includes('Failed to fetch') || lastError.message?.includes('Network error')) {
+    errorMsg = 'Network error - connection lost. This may happen after idle period. Please try again.';
+  }
+  
+  const errorResponse = {
+    success: false, 
+    error: errorMsg,
+    code: lastError.code || 'UNKNOWN',
+    host: SMTP_HOST || 'homegw.bbmail.com.hk',
+    port: Number(SMTP_PORT) || 465,
+    secure: SMTP_SECURE === 'true',
+    originalError: lastError.message,
+    retriesAttempted: maxRetries
+  };
+  
+  console.log('Send email error response (all retries exhausted):', errorResponse);
+  res.status(500).json(errorResponse);
 });
 
 // Test SMTP connection endpoint

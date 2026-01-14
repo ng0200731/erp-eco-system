@@ -165,17 +165,21 @@
     }
     
     async function show(uid){
-      try {
-        // Show loading state
-        detailEl.style.display='block';
-        listEl.style.display='none';
-        document.getElementById('d-body').textContent = 'Loading email...';
-        document.getElementById('d-sub').textContent = '';
-        document.getElementById('d-from').textContent = '';
-        document.getElementById('d-date').textContent = '';
-        
-        console.log(`Fetching email UID: ${uid}`);
-        
+      // NOTE: after long idle, the browser may throw "TypeError: Failed to fetch" even though
+      // the backend can reconnect. We retry once automatically to avoid showing an error popup.
+      const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+      // Show loading state
+      detailEl.style.display='block';
+      listEl.style.display='none';
+      document.getElementById('d-body').textContent = 'Loading email...';
+      document.getElementById('d-sub').textContent = '';
+      document.getElementById('d-from').textContent = '';
+      document.getElementById('d-date').textContent = '';
+
+      async function fetchEmailOnce(attempt){
+        console.log(`Fetching email UID: ${uid} (attempt ${attempt})`);
+
         // Add timeout to fetch request
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
@@ -183,60 +187,101 @@
             console.log('Email fetch timeout, aborting...');
             controller.abort();
           }
-        }, 30000); // 30 second timeout (increased to allow for reconnection + search + fetch)
-        
-        let res;
+        }, 30000); // 30 second timeout
+
         try {
-          res = await fetch('/api/emails/'+uid, {
+          const res = await fetch('/api/emails/'+uid, {
             signal: controller.signal,
             cache: 'no-cache'
           });
           clearTimeout(timeoutId);
+
+          console.log(`Email fetch response status: ${res.status}`);
+
+          if (!res.ok) {
+            const errorText = await res.text();
+            let errorData;
+            try {
+              errorData = JSON.parse(errorText);
+            } catch {
+              errorData = { error: errorText || `HTTP ${res.status}` };
+            }
+            const errorMsg = errorData.error || 'Failed to fetch email';
+            const errorCode = errorData.code ? ` (Code: ${errorData.code})` : '';
+            const fullError = `Error: ${errorMsg}${errorCode}\n\nUID: ${uid}\nStatus: ${res.status}\n\nFull details:\n${JSON.stringify(errorData, null, 2)}`;
+            const err = new Error(errorMsg);
+            err.__isHttpError = true;
+            err.__fullError = fullError;
+            throw err;
+          }
+
+          const data = await res.json();
+          if (!data.success) {
+            const errorMsg = data.error || 'Failed to load email';
+            const errorCode = data.code ? ` (Code: ${data.code})` : '';
+            const fullError = `Error: ${errorMsg}${errorCode}\n\nUID: ${uid}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
+            const err = new Error(errorMsg);
+            err.__isApiError = true;
+            err.__fullError = fullError;
+            throw err;
+          }
+
+          return data;
         } catch (fetchErr) {
           clearTimeout(timeoutId);
-          if (fetchErr.name === 'AbortError') {
-            throw new Error('Request timeout - server took too long to respond. The connection may have timed out after idle period.');
+
+          // Normalize "idle timeout" style errors so we can retry once.
+          const isAbort = fetchErr?.name === 'AbortError';
+          const msg = fetchErr?.message || '';
+          const isNetwork = msg.includes('Failed to fetch') || msg.includes('NetworkError') || fetchErr instanceof TypeError;
+          const isRetryable = isAbort || isNetwork;
+
+          if (isRetryable) {
+            const err = new Error(isAbort
+              ? 'Request timeout - server took too long to respond'
+              : 'Network error - connection lost');
+            err.__retryable = true;
+            err.__original = fetchErr;
+            throw err;
           }
-          // Check if it's a network error (connection lost)
-          if (fetchErr.message?.includes('Failed to fetch') || fetchErr.message?.includes('NetworkError')) {
-            throw new Error('Network error - connection lost. This may happen after idle period. Please try again.');
-          }
+
           throw fetchErr;
         }
-        
-        console.log(`Email fetch response status: ${res.status}`);
-        
-        if (!res.ok) {
-          const errorText = await res.text();
-          let errorData;
+      }
+
+      let data;
+      try {
+        data = await fetchEmailOnce(1);
+      } catch (err1) {
+        // Retry once automatically for idle network/timeout issues
+        if (err1?.__retryable) {
+          document.getElementById('d-body').textContent = 'Connection timed out (idle). Reconnecting… (retrying)';
+          await sleep(1500);
           try {
-            errorData = JSON.parse(errorText);
-          } catch {
-            errorData = { error: errorText || `HTTP ${res.status}` };
+            data = await fetchEmailOnce(2);
+          } catch (err2) {
+            const fullError = `Error fetching email: ${err2.message}\n\nUID: ${uid}\n\nStack trace:\n${err2.stack || 'N/A'}`;
+            showCopyableError('Network Error', fullError);
+            console.error('Fetch error (after retry):', err2);
+            detailEl.style.display='none';
+            listEl.style.display='block';
+            return;
           }
-          const errorMsg = errorData.error || 'Failed to fetch email';
-          const errorCode = errorData.code ? ` (Code: ${errorData.code})` : '';
-          const fullError = `Error: ${errorMsg}${errorCode}\n\nUID: ${uid}\nStatus: ${res.status}\n\nFull details:\n${JSON.stringify(errorData, null, 2)}`;
-          showCopyableError('Fetch Email Error', fullError);
-          console.error('Fetch email error:', errorData);
-          // Go back to list on error
+        } else if (err1?.__fullError) {
+          showCopyableError(err1.__isHttpError ? 'Fetch Email Error' : 'Email Error', err1.__fullError);
+          console.error('Fetch email error:', err1);
+          detailEl.style.display='none';
+          listEl.style.display='block';
+          return;
+        } else {
+          const fullError = `Error fetching email: ${err1.message}\n\nUID: ${uid}\n\nStack trace:\n${err1.stack || 'N/A'}`;
+          showCopyableError('Network Error', fullError);
+          console.error('Fetch error:', err1);
           detailEl.style.display='none';
           listEl.style.display='block';
           return;
         }
-        
-        const data = await res.json();
-        if (!data.success) {
-          const errorMsg = data.error || 'Failed to load email';
-          const errorCode = data.code ? ` (Code: ${data.code})` : '';
-          const fullError = `Error: ${errorMsg}${errorCode}\n\nUID: ${uid}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
-          showCopyableError('Email Error', fullError);
-          console.error('API error:', data);
-          // Go back to list on error
-          detailEl.style.display='none';
-          listEl.style.display='block';
-          return;
-        }
+      }
         
         // Parse email from source
         const source = data.source || '';
@@ -301,14 +346,6 @@
         
         listEl.style.display='none';
         detailEl.style.display='block';
-      } catch (err) {
-        const fullError = `Error fetching email: ${err.message}\n\nUID: ${uid}\n\nStack trace:\n${err.stack || 'N/A'}`;
-        showCopyableError('Network Error', fullError);
-        console.error('Fetch error:', err);
-        // Go back to list on error
-        detailEl.style.display='none';
-        listEl.style.display='block';
-      }
     }
     
     // Helper function to show copyable error
@@ -463,13 +500,13 @@
         sendBtn.disabled = true;
         sendBtn.textContent = 'Sending...';
         
-        // Add timeout to fetch request
+        // Add timeout to fetch request (increased for idle reconnection)
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
           if (!controller.signal.aborted) {
             controller.abort();
           }
-        }, 30000); // 30 second timeout
+        }, 60000); // 60 second timeout (increased to allow for SMTP reconnection)
         
         let res;
         try {
