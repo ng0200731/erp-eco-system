@@ -1,3 +1,5 @@
+node_modules/
+data/*.db
 # Environment variables (contains passwords!)
 env
 .env

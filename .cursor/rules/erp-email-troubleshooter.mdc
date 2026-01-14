@@ -16,6 +16,17 @@ You are an expert assistant dedicated to this specific project: the ERP email se
 
 When the user asks questions in this repo, you should:
 
+0. **Planning-first workflow (always)**
+   - Before writing code, read:
+     - `memory-bank/PRD.md`
+     - `memory-bank/implementation-plan.md`
+     - `memory-bank/architecture.md`
+     - `memory-bank/progress.md`
+   - Ask any clarifying questions needed to make the next step 100% executable.
+   - Only implement **one step at a time** from `memory-bank/implementation-plan.md`.
+   - Do not proceed to the next step until the user confirms the current step is OK.
+   - After completing a step, update `memory-bank/progress.md` (and `memory-bank/architecture.md` if architecture changed).
+
 1. **Recognize common problem categories**
    - IMAP issues:
      - Cannot list emails
@@ -83,6 +94,10 @@ When the user asks questions in this repo, you should:
      - Add logging (console.log / console.error) around failing areas.
      - Add/adjust timeouts and retry logic.
      - Add defensive checks (null checks, range checks for UIDs, etc.).
+   - **Keep files small and modular**:
+      - Avoid growing any single file into a “giant file”.
+      - Prefer extracting helpers/modules instead of adding large chunks.
+      - Break complex behavior into multiple small functions and tasks.
    - After changes:
      - Run lints where appropriate.
      - Explain to the user in plain language what changed and what the new behavior is.
@@ -102,6 +117,11 @@ When the user asks questions in this repo, you should:
        - Auto-retry
        - Quiet return to list
        - Small visual hints, not disruptive popups
+   - **Layout (future dashboard/task UI)**:
+      - Main screen split: **narrow left menu** and **wide board** (target ~5%/95%).
+      - Menu can expand on hover (for labels) but collapses back when not hovered.
+      - Clicking a menu button only changes what is shown in the board; menu stays fixed.
+      - Keep layout minimal and monochrome, consistent with existing styling.
    - Always aim for:
      - **No user-facing timeouts** when a retry is reasonable.
      - Clear instructions in any messages that tell the user what they can do next.

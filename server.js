@@ -5,10 +5,14 @@ import { ImapFlow } from 'imapflow';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs/promises';
+import { createTask, getTaskById, listTasks, TASK_STATUS, updateTaskStatus } from './db/tasksDb.js';
+import { listProfiles, getProfileById, createProfile, updateProfile, setActiveProfile, deleteProfile, getActiveProfile } from './db/profilesDb.js';
 
 // ---------- ENV ----------
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, 'env'), override: true });
+const envPath = path.join(__dirname, 'env');
+dotenv.config({ path: envPath, override: true });
 
 const {
   MAIL_USER,
@@ -185,9 +189,268 @@ app.use(express.json());
 // serve static UI
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ success: true, message: 'Server is running', timestamp: new Date().toISOString() });
+// Health check endpoint with connection diagnostics
+app.get('/api/health', async (req, res) => {
+  const health = {
+    success: true,
+    message: 'Server is running',
+    timestamp: new Date().toISOString(),
+    connections: {
+      imap: {
+        connected: false,
+        state: null,
+        stateName: 'unknown'
+      },
+      smtp: {
+        configured: true,
+        host: SMTP_HOST,
+        port: SMTP_PORT
+      }
+    }
+  };
+
+  // Check IMAP connection state
+  if (imapClient) {
+    health.connections.imap.connected = imapClient.state >= 2;
+    health.connections.imap.state = imapClient.state;
+    health.connections.imap.stateName = 
+      imapClient.state === 0 ? 'disconnected' :
+      imapClient.state === 1 ? 'connecting' :
+      imapClient.state === 2 ? 'authenticated' :
+      imapClient.state === 3 ? 'selected' :
+      imapClient.state === 4 ? 'idle' : 'unknown';
+  }
+
+  res.json(health);
+});
+
+// Email/IMAP/SMTP config endpoints (read + write env file)
+app.get('/api/config', (req, res) => {
+  // NOTE: Values here reflect what the server started with.
+  res.json({
+    success: true,
+    config: {
+      MAIL_USER,
+      MAIL_PASS,
+      IMAP_HOST,
+      IMAP_PORT,
+      IMAP_TLS,
+      SMTP_HOST,
+      SMTP_PORT,
+      SMTP_SECURE,
+      PORT,
+    },
+    note: 'Changes require server restart (close window and run start.bat again).',
+  });
+});
+
+// Profiles API endpoints
+app.get('/api/profiles', async (req, res) => {
+  try {
+    const profiles = await listProfiles();
+    res.json({ success: true, profiles });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/profiles/:id', async (req, res) => {
+  try {
+    const profile = await getProfileById(Number(req.params.id));
+    if (!profile) {
+      return res.status(404).json({ success: false, error: 'Profile not found' });
+    }
+    res.json({ success: true, profile });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/profiles', async (req, res) => {
+  try {
+    const id = await createProfile(req.body);
+    res.json({ success: true, id });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/profiles/:id', async (req, res) => {
+  try {
+    await updateProfile(Number(req.params.id), req.body);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/profiles/:id/activate', async (req, res) => {
+  try {
+    await setActiveProfile(Number(req.params.id));
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/profiles/:id', async (req, res) => {
+  try {
+    await deleteProfile(Number(req.params.id));
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/config', async (req, res) => {
+  try {
+    const {
+      MAIL_USER: nextUser,
+      MAIL_PASS: nextPass,
+      IMAP_HOST: nextImapHost,
+      IMAP_PORT: nextImapPort,
+      IMAP_TLS: nextImapTls,
+      SMTP_HOST: nextSmtpHost,
+      SMTP_PORT: nextSmtpPort,
+      SMTP_SECURE: nextSmtpSecure,
+      PORT: nextPort,
+    } = req.body || {};
+
+    if (!nextUser || !nextPass) {
+      return res.status(400).json({
+        success: false,
+        error: 'MAIL_USER and MAIL_PASS are required',
+      });
+    }
+
+    const lines = [
+      `MAIL_USER=${nextUser}`,
+      `MAIL_PASS=${nextPass}`,
+      `IMAP_HOST=${nextImapHost || IMAP_HOST}`,
+      `IMAP_PORT=${nextImapPort || IMAP_PORT}`,
+      `IMAP_TLS=${String(nextImapTls ?? IMAP_TLS)}`,
+      `SMTP_HOST=${nextSmtpHost || SMTP_HOST}`,
+      `SMTP_PORT=${nextSmtpPort || SMTP_PORT}`,
+      `SMTP_SECURE=${String(nextSmtpSecure ?? SMTP_SECURE)}`,
+      `PORT=${nextPort || PORT}`,
+      '',
+    ].join('\n');
+
+    await fs.writeFile(envPath, lines, 'utf8');
+
+    res.json({
+      success: true,
+      message: 'Configuration saved to env file. Please restart server (close window and run start.bat) so changes take effect.',
+      envPath,
+      config: {
+        MAIL_USER: nextUser,
+        IMAP_HOST: nextImapHost || IMAP_HOST,
+        IMAP_PORT: nextImapPort || IMAP_PORT,
+        IMAP_TLS: String(nextImapTls ?? IMAP_TLS),
+        SMTP_HOST: nextSmtpHost || SMTP_HOST,
+        SMTP_PORT: nextSmtpPort || SMTP_PORT,
+        SMTP_SECURE: String(nextSmtpSecure ?? SMTP_SECURE),
+        PORT: nextPort || PORT,
+      },
+    });
+  } catch (err) {
+    console.error('Error writing env config:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Failed to save configuration',
+    });
+  }
+});
+
+// ---------- Tasks (SQLite) ----------
+// MVP APIs for task ecosystem (Step B1)
+
+app.get('/api/tasks', async (req, res) => {
+  try {
+    const status = req.query.status ? String(req.query.status) : undefined;
+    const tasks = await listTasks({ status });
+    res.json({ success: true, tasks });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Failed to list tasks',
+      code: err.code || 'UNKNOWN',
+    });
+  }
+});
+
+app.get('/api/tasks/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid task id' });
+    }
+    const task = await getTaskById(id);
+    if (!task) {
+      return res.status(404).json({ success: false, error: 'Task not found' });
+    }
+    res.json({ success: true, task });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Failed to get task',
+      code: err.code || 'UNKNOWN',
+    });
+  }
+});
+
+app.post('/api/tasks', async (req, res) => {
+  try {
+    const {
+      type,
+      status,
+      sourceEmailUid,
+      sourceSubject,
+      customerEmail,
+      notes,
+    } = req.body || {};
+
+    const created = await createTask({
+      type,
+      status: status || TASK_STATUS.NEW,
+      sourceEmailUid: sourceEmailUid ?? null,
+      sourceSubject: sourceSubject ?? null,
+      customerEmail: customerEmail ?? null,
+      notes: notes ?? null,
+    });
+
+    res.json({ success: true, task: created });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      error: err.message || 'Failed to create task',
+      code: err.code || 'BAD_REQUEST',
+    });
+  }
+});
+
+app.post('/api/tasks/:id/status', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { status } = req.body || {};
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid task id' });
+    }
+    if (!status || typeof status !== 'string') {
+      return res.status(400).json({ success: false, error: 'Invalid status' });
+    }
+    const updated = await updateTaskStatus(id, status);
+    if (!updated) {
+      return res.status(404).json({ success: false, error: 'Task not found' });
+    }
+    res.json({ success: true, task: updated });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Failed to update task status',
+      code: err.code || 'UNKNOWN',
+    });
+  }
 });
 
 // Diagnostic endpoint for IMAP
@@ -265,7 +528,13 @@ app.get('/api/emails', async (req, res) => {
     } catch (connectErr) {
       return res.status(500).json({ 
         success: false, 
-        error: `IMAP connection failed: ${connectErr.message}. Check your credentials and network.` 
+        error: `IMAP connection failed: ${connectErr.message}. Check your credentials and network.`,
+        troubleshooting: [
+          'Verify IMAP_HOST, IMAP_PORT, MAIL_USER, MAIL_PASS in env file',
+          'Check network connectivity to ' + IMAP_HOST + ':' + IMAP_PORT,
+          'Try restarting the server with start.bat',
+          'Check server console logs for detailed error messages'
+        ]
       });
     }
 
@@ -373,11 +642,22 @@ app.get('/api/emails', async (req, res) => {
         imapClient = null;
       }
       
+      const troubleshooting = [];
+      if (fetchErr.message.includes('timeout')) {
+        troubleshooting.push('IMAP server is slow or unreachable');
+        troubleshooting.push('Try refreshing the email list');
+        troubleshooting.push('Check server console for connection state');
+      } else {
+        troubleshooting.push('Check server console logs for detailed error');
+        troubleshooting.push('Try restarting server with start.bat');
+      }
+
       return res.status(500).json({ 
         success: false, 
         error: `Failed to fetch messages: ${fetchErr.message}`,
         code: fetchErr.code || fetchErr.responseCode || 'UNKNOWN',
-        responseText: fetchErr.responseText
+        responseText: fetchErr.responseText,
+        troubleshooting: troubleshooting
       });
     }
 
@@ -536,12 +816,21 @@ app.get('/api/emails/:uid', async (req, res) => {
         console.error('==================================');
         
         // Search failed - return error
-        return res.status(500).json({ 
-          success: false, 
-          error: `Failed to search for email: ${searchErr.message}`,
-          code: searchErr.code || 'SEARCH_FAILED',
-          uid: uid
-        });
+      return res.status(500).json({ 
+        success: false, 
+        error: `Failed to search for email: ${searchErr.message}`,
+        code: searchErr.code || 'SEARCH_FAILED',
+        uid: uid,
+        troubleshooting: searchErr.message.includes('timeout') ? [
+          'IMAP server may be slow or unreachable',
+          'Try clicking the email again after a few seconds',
+          'Check server console for detailed timeout logs'
+        ] : [
+          'Email may have been deleted or moved',
+          'Try refreshing the email list',
+          'Check server console for detailed error logs'
+        ]
+      });
       }
       
       // Step 2: Fetch by sequence number (not UID) with timeout
@@ -630,6 +919,20 @@ app.get('/api/emails/:uid', async (req, res) => {
         }
       }
       
+      const troubleshooting = [];
+      if (errorCode === 'EMAIL_NOT_FOUND') {
+        troubleshooting.push('Email may have been deleted or moved');
+        troubleshooting.push('Try refreshing the email list');
+      } else if (fetchErr.message?.includes('timeout')) {
+        troubleshooting.push('IMAP server took too long to respond');
+        troubleshooting.push('Try clicking the email again');
+        troubleshooting.push('Check server console for connection issues');
+      } else {
+        troubleshooting.push('Check server console logs for detailed error');
+        troubleshooting.push('Try refreshing the email list');
+        troubleshooting.push('If persists, restart server with start.bat');
+      }
+
       return res.status(500).json({ 
         success: false, 
         error: errorMsg,
@@ -637,7 +940,8 @@ app.get('/api/emails/:uid', async (req, res) => {
         uid: uid,
         responseCode: fetchErr.responseCode,
         responseText: fetchErr.responseText,
-        command: fetchErr.command
+        command: fetchErr.command,
+        troubleshooting: troubleshooting
       });
     }
 
@@ -789,6 +1093,20 @@ app.post('/api/email/send', async (req, res) => {
     errorMsg = 'Network error - connection lost. This may happen after idle period. Please try again.';
   }
   
+  const troubleshooting = [];
+  if (lastError.code === 'EAUTH') {
+    troubleshooting.push('Check MAIL_USER and MAIL_PASS in env file');
+    troubleshooting.push('Verify email account credentials are correct');
+  } else if (lastError.code === 'ECONNECTION' || lastError.code === 'ETIMEDOUT' || lastError.code === 'ESOCKET') {
+    troubleshooting.push('Check network connectivity to ' + SMTP_HOST + ':' + SMTP_PORT);
+    troubleshooting.push('Verify SMTP_HOST, SMTP_PORT, SMTP_SECURE in env file');
+    troubleshooting.push('Check Windows Firewall settings');
+    troubleshooting.push('Try restarting server with start.bat');
+  } else {
+    troubleshooting.push('Check server console logs for detailed error');
+    troubleshooting.push('Try sending again after a few seconds');
+  }
+
   const errorResponse = {
     success: false, 
     error: errorMsg,
@@ -797,7 +1115,8 @@ app.post('/api/email/send', async (req, res) => {
     port: Number(SMTP_PORT) || 465,
     secure: SMTP_SECURE === 'true',
     originalError: lastError.message,
-    retriesAttempted: maxRetries
+    retriesAttempted: maxRetries,
+    troubleshooting: troubleshooting
   };
   
   console.log('Send email error response (all retries exhausted):', errorResponse);

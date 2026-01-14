@@ -12,8 +12,8 @@
     "dotenv": "^16.1.4",
     "express": "^4.18.2",
     "imapflow": "^1.0.92",
-    "nodemailer": "^6.9.12"
+    "nodemailer": "^6.9.12",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
   }
 }
-
-

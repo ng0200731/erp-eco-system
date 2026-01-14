@@ -6,9 +6,32 @@
   <title>Email Client</title>
   <style>
     /* STRICT monochrome: only black (#000) and white (#fff) */
-    body {font-family: Arial, sans-serif; margin: 0; padding: 20px; background:#fff; color:#000;}
-    h1 {text-align:center;}
-    #emails {max-width:800px; margin:0 auto; background:#fff; border:1px solid #000; padding:20px;}
+    body {font-family: Arial, sans-serif; margin: 0; padding: 0; background:#fff; color:#000;}
+    h1 {margin:0 0 16px 0;}
+
+    /* Layout: 20% menu (left) + 80% board (right) */
+    #layout{
+      display:flex;
+      min-height:100vh;
+    }
+    #sidebar{
+      flex:0 0 5%;
+      min-width:60px;
+      border-right:1px solid #000;
+      padding:20px;
+      box-sizing:border-box;
+      transition:flex-basis 0.2s ease;
+    }
+    #sidebar:hover{
+      flex-basis:20%;
+    }
+    #board{
+      flex:1;
+      padding:20px;
+      box-sizing:border-box;
+    }
+
+    #emails {max-width:800px; margin:0; background:#fff; border:1px solid #000; padding:20px;}
     ul {list-style:none; padding:0; margin:0;}
     li {padding:12px; border-bottom:1px solid #000; cursor:pointer;}
     li:hover {background:#000; color:#fff;}
@@ -96,42 +119,389 @@
       color:#000;
       font-weight:700;
     }
+
+    /* Tabs (board top) */
+    .tabs-bar{
+      display:flex;
+      gap:4px;
+      margin-bottom:10px;
+    }
+    .tab{
+      border:1px solid #000;
+      background:#fff;
+      color:#000;
+      padding:6px 10px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    .tab-active{
+      background:#000;
+      color:#fff;
+    }
   </style>
 </head>
 <body>
-  <h1>Email Client</h1>
-  <div id="emails">
-    <div class="topbar">
-      <button id="composeBtn" class="page-btn">Compose</button>
-      <button id="testSendBtn" class="page-btn">Send Test Email</button>
-      <button id="testSmtpBtn" class="page-btn">Test SMTP Connection</button>
+  <div id="layout">
+    <div id="sidebar">
+      <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
     </div>
-    <div id="composeForm" style="display:none; background:#fff; padding:15px; border:1px solid #000; margin-bottom:15px;">
-      <h3>Compose Email</h3>
-      <input type="email" id="toEmail" placeholder="To:" style="margin-bottom:10px;">
-      <input type="text" id="subjectEmail" placeholder="Subject:" style="margin-bottom:10px;">
-      <textarea id="bodyEmail" placeholder="Message:" style="margin-bottom:10px;"></textarea>
-      <div class="row">
-        <button id="sendBtn" class="page-btn">Send</button>
-        <button id="cancelBtn" class="page-btn">Cancel</button>
+    <div id="board">
+      <div id="tabsBar" class="tabs-bar"></div>
+
+      <!-- Welcome / future dashboard -->
+      <div id="welcomePanel" style="border:1px solid #000; padding:20px; margin-bottom:20px;">
+        <h3>Welcome</h3>
+        <p class="meta">
+          This board will become the main dashboard: open tasks, follow-ups, and status overview.
+          For now, use the left menu to open <strong>Setting</strong> and configure email profiles.
+        </p>
       </div>
-    </div>
-    <ul id="list"></ul>
-    <div id="detail" style="display:none">
-      <button id="back">← Back</button>
-      <h2 id="d-sub"></h2>
-      <p class="meta"><span id="d-from"></span> – <span id="d-date"></span></p>
-      <pre id="d-body"></pre>
+
+      <!-- Profiles list (landing page for settings) -->
+      <div id="profilesListPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <h3>Email Profiles</h3>
+          <button id="addProfileBtn" class="page-btn" style="font-size:18px; padding:8px 16px;">+</button>
+        </div>
+        <div id="profilesList"></div>
+      </div>
+
+      <!-- Settings board (IMAP/SMTP profile edit form) -->
+      <div id="settingsPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
+        <h3>Profile &amp; Connection Settings</h3>
+        <div class="row" style="margin-bottom:10px;">
+          <div style="flex:1;">
+            <label for="cfgMailUser">MAIL_USER</label>
+            <input id="cfgMailUser" type="email">
+          </div>
+          <div style="flex:1;">
+            <label for="cfgMailPass">MAIL_PASS</label>
+            <input id="cfgMailPass" type="password">
+          </div>
+        </div>
+
+        <h4>IMAP (incoming)</h4>
+        <div class="row" style="margin-bottom:10px;">
+          <div style="flex:2;">
+            <label for="cfgImapHost">IMAP_HOST</label>
+            <input id="cfgImapHost" type="text">
+          </div>
+          <div style="flex:1;">
+            <label for="cfgImapPort">IMAP_PORT</label>
+            <input id="cfgImapPort" type="number">
+          </div>
+          <div style="flex:1;">
+            <label for="cfgImapTls">IMAP_TLS (true/false)</label>
+            <input id="cfgImapTls" type="text">
+          </div>
+        </div>
+
+        <h4>SMTP (outgoing)</h4>
+        <div class="row" style="margin-bottom:10px;">
+          <div style="flex:2;">
+            <label for="cfgSmtpHost">SMTP_HOST</label>
+            <input id="cfgSmtpHost" type="text">
+          </div>
+          <div style="flex:1;">
+            <label for="cfgSmtpPort">SMTP_PORT</label>
+            <input id="cfgSmtpPort" type="number">
+          </div>
+          <div style="flex:1;">
+            <label for="cfgSmtpSecure">SMTP_SECURE (true/false)</label>
+            <input id="cfgSmtpSecure" type="text">
+          </div>
+        </div>
+
+        <h4>Server</h4>
+        <div class="row" style="margin-bottom:10px;">
+          <div style="flex:1;">
+            <label for="cfgPort">PORT</label>
+            <input id="cfgPort" type="number">
+          </div>
+        </div>
+
+        <div class="row">
+          <button id="saveConfigBtn" class="page-btn">Save Settings</button>
+        </div>
+        <p class="meta" id="settingsNote"></p>
+      </div>
+
+      <!-- Email UI (next step; hidden for now) -->
+      <div id="emails" style="margin:0; display:none;">
+        <div class="topbar">
+          <button id="composeBtn" class="page-btn">Compose</button>
+          <button id="testSendBtn" class="page-btn">Send Test Email</button>
+          <button id="testSmtpBtn" class="page-btn">Test SMTP Connection</button>
+        </div>
+        <div id="composeForm" style="display:none; background:#fff; padding:15px; border:1px solid #000; margin-bottom:15px;">
+          <h3>Compose Email</h3>
+          <input type="email" id="toEmail" placeholder="To:" style="margin-bottom:10px;">
+          <input type="text" id="subjectEmail" placeholder="Subject:" style="margin-bottom:10px;">
+          <textarea id="bodyEmail" placeholder="Message:" style="margin-bottom:10px;"></textarea>
+          <div class="row">
+            <button id="sendBtn" class="page-btn">Send</button>
+            <button id="cancelBtn" class="page-btn">Cancel</button>
+          </div>
+        </div>
+        <ul id="list"></ul>
+        <div id="detail" style="display:none">
+          <div class="row" style="margin-bottom:10px;">
+            <button id="back" class="page-btn">← Back</button>
+            <button id="createTaskBtn" class="page-btn">Create Task</button>
+          </div>
+          <h2 id="d-sub"></h2>
+          <p class="meta"><span id="d-from"></span> – <span id="d-date"></span></p>
+          <pre id="d-body"></pre>
+        </div>
+      </div>
     </div>
   </div>
   <script>
+    const tabsBar = document.getElementById('tabsBar');
+    const welcomePanel = document.getElementById('welcomePanel');
+    const profilesListPanel = document.getElementById('profilesListPanel');
+    const settingsPanel = document.getElementById('settingsPanel');
+
     const listEl = document.getElementById('list');
     const detailEl = document.getElementById('detail');
     const backBtn = document.getElementById('back');
+    const createTaskBtn = document.getElementById('createTaskBtn');
+    const menuSettingsBtn = document.getElementById('menuSettings');
+    const addProfileBtn = document.getElementById('addProfileBtn');
+    const profilesListEl = document.getElementById('profilesList');
+    const settingsNoteEl = document.getElementById('settingsNote');
     
     // Store current email list for quick access
     let currentEmails = [];
     let currentLoadController = null; // Track current load request
+    let currentEmailMeta = null; // Track currently shown email (for task creation)
+
+    // -------- SETTINGS (board) --------
+    const cfgMailUser = document.getElementById('cfgMailUser');
+    const cfgMailPass = document.getElementById('cfgMailPass');
+    const cfgImapHost = document.getElementById('cfgImapHost');
+    const cfgImapPort = document.getElementById('cfgImapPort');
+    const cfgImapTls = document.getElementById('cfgImapTls');
+    const cfgSmtpHost = document.getElementById('cfgSmtpHost');
+    const cfgSmtpPort = document.getElementById('cfgSmtpPort');
+    const cfgSmtpSecure = document.getElementById('cfgSmtpSecure');
+    const cfgPort = document.getElementById('cfgPort');
+    const saveConfigBtn = document.getElementById('saveConfigBtn');
+
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/config', { cache: 'no-cache' });
+        const data = await res.json();
+        if (!data.success) {
+          await showCopyableError('Load Settings Error', JSON.stringify(data, null, 2));
+          return;
+        }
+        const cfg = data.config || {};
+        cfgMailUser.value = cfg.MAIL_USER || '';
+        cfgMailPass.value = cfg.MAIL_PASS || '';
+        cfgImapHost.value = cfg.IMAP_HOST || '';
+        cfgImapPort.value = cfg.IMAP_PORT || '';
+        cfgImapTls.value = cfg.IMAP_TLS || '';
+        cfgSmtpHost.value = cfg.SMTP_HOST || '';
+        cfgSmtpPort.value = cfg.SMTP_PORT || '';
+        cfgSmtpSecure.value = cfg.SMTP_SECURE || '';
+        cfgPort.value = cfg.PORT || '';
+        settingsNoteEl.textContent = data.note || 'Changes require server restart.';
+      } catch (err) {
+        await showCopyableError('Load Settings Error', `Error loading config: ${err.message}`);
+      }
+    }
+
+    saveConfigBtn.onclick = async () => {
+      try {
+        const payload = {
+          MAIL_USER: cfgMailUser.value.trim(),
+          MAIL_PASS: cfgMailPass.value,
+          IMAP_HOST: cfgImapHost.value.trim(),
+          IMAP_PORT: cfgImapPort.value.trim(),
+          IMAP_TLS: cfgImapTls.value.trim(),
+          SMTP_HOST: cfgSmtpHost.value.trim(),
+          SMTP_PORT: cfgSmtpPort.value.trim(),
+          SMTP_SECURE: cfgSmtpSecure.value.trim(),
+          PORT: cfgPort.value.trim(),
+        };
+
+        const res = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!data.success) {
+          await showCopyableError('Save Settings Error', JSON.stringify(data, null, 2));
+          return;
+        }
+        await showModal({
+          title: 'Settings Saved',
+          body: 'Settings saved to env file.\nPlease restart server (close window and run start.bat) so changes take effect.',
+        });
+      } catch (err) {
+        await showCopyableError('Save Settings Error', `Error saving config: ${err.message}`);
+      }
+    };
+
+    // --- Tabs handling (welcome + future boards) ---
+    function ensureTab(id, label) {
+      let tab = tabsBar.querySelector(`[data-tab-id="${id}"]`);
+      if (!tab) {
+        tab = document.createElement('button');
+        tab.className = 'tab';
+        tab.dataset.tabId = id;
+        tab.textContent = label;
+        tab.onclick = () => activateTab(id);
+        tabsBar.appendChild(tab);
+      }
+      return tab;
+    }
+
+    function activateTab(id) {
+      // Visual active state
+      Array.from(tabsBar.children).forEach(el => {
+        if (el.dataset.tabId === id) {
+          el.classList.add('tab-active');
+        } else {
+          el.classList.remove('tab-active');
+        }
+      });
+
+      // Panels
+      if (id === 'welcome') {
+        welcomePanel.style.display = 'block';
+        profilesListPanel.style.display = 'none';
+        settingsPanel.style.display = 'none';
+      } else if (id === 'profiles') {
+        welcomePanel.style.display = 'none';
+        profilesListPanel.style.display = 'block';
+        settingsPanel.style.display = 'none';
+        loadProfilesList().catch(() => {});
+      } else if (id === 'settings') {
+        welcomePanel.style.display = 'none';
+        profilesListPanel.style.display = 'none';
+        settingsPanel.style.display = 'block';
+        loadConfig().catch(() => {});
+      }
+    }
+
+    // Profiles list functions
+    async function loadProfilesList() {
+      try {
+        const res = await fetch('/api/profiles', { cache: 'no-cache' });
+        const data = await res.json();
+        if (!data.success) {
+          await showCopyableError('Load Profiles Error', JSON.stringify(data, null, 2));
+          return;
+        }
+        const profiles = data.profiles || [];
+        
+        // If no profiles, create default "longriver.com"
+        if (profiles.length === 0) {
+          await createDefaultProfile();
+          return loadProfilesList(); // Reload after creating default
+        }
+
+        profilesListEl.innerHTML = '';
+        profiles.forEach(p => {
+          const item = document.createElement('div');
+          item.style.cssText = 'padding:12px; border-bottom:1px solid #000; cursor:pointer;';
+          item.innerHTML = `
+            <div style="font-weight:700;">${p.name || 'Unnamed'}</div>
+            <div class="meta">${p.remark || ''}</div>
+            <div class="meta" style="font-size:0.85em;">${p.mailUser || ''} | Active: ${p.isActive ? 'Yes' : 'No'}</div>
+          `;
+          item.onclick = () => {
+            // When clicking a profile, show its IMAP/SMTP attributes in the form
+            ensureTab('settings', 'Setting');
+            activateTab('settings');
+            cfgMailUser.value = p.mailUser || '';
+            cfgMailPass.value = p.mailPass || '';
+            cfgImapHost.value = p.imapHost || '';
+            cfgImapPort.value = p.imapPort || '';
+            cfgImapTls.value = p.imapTls || 'true';
+            cfgSmtpHost.value = p.smtpHost || '';
+            cfgSmtpPort.value = p.smtpPort || '';
+            cfgSmtpSecure.value = p.smtpSecure || 'true';
+            cfgPort.value = p.port || '';
+          };
+          profilesListEl.appendChild(item);
+        });
+      } catch (err) {
+        await showCopyableError('Load Profiles Error', `Error: ${err.message}`);
+      }
+    }
+
+    async function createDefaultProfile() {
+      try {
+        // Get current config from server
+        const configRes = await fetch('/api/config', { cache: 'no-cache' });
+        const configData = await configRes.json();
+        const cfg = configData.config || {};
+
+        const res = await fetch('/api/profiles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'longriver.com',
+            remark: 'longriver.com',
+            mailUser: cfg.MAIL_USER || '',
+            mailPass: cfg.MAIL_PASS || '',
+            imapHost: cfg.IMAP_HOST || 'imap.bbmail.com.hk',
+            imapPort: Number(cfg.IMAP_PORT) || 993,
+            imapTls: cfg.IMAP_TLS || 'true',
+            smtpHost: cfg.SMTP_HOST || 'homegw.bbmail.com.hk',
+            smtpPort: Number(cfg.SMTP_PORT) || 465,
+            smtpSecure: cfg.SMTP_SECURE || 'true',
+            port: Number(cfg.PORT) || 3001,
+            isActive: 1
+          })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          console.error('Failed to create default profile:', data);
+        }
+      } catch (err) {
+        console.error('Error creating default profile:', err);
+      }
+    }
+
+    // Initial state: Welcome tab
+    ensureTab('welcome', 'Welcome');
+    activateTab('welcome');
+
+    // Button hover: show "S" normally, "Setting" on hover
+    menuSettingsBtn.onmouseenter = () => {
+      menuSettingsBtn.textContent = menuSettingsBtn.dataset.full || 'Setting';
+    };
+    menuSettingsBtn.onmouseleave = () => {
+      menuSettingsBtn.textContent = menuSettingsBtn.dataset.short || 'S';
+    };
+
+    // Menu click: show profiles list (settings landing page)
+    menuSettingsBtn.onclick = () => {
+      ensureTab('profiles', 'Setting');
+      activateTab('profiles');
+      loadProfilesList();
+    };
+
+    // Add profile button
+    addProfileBtn.onclick = () => {
+      ensureTab('settings', 'Setting');
+      activateTab('settings');
+      // Clear form for new profile
+      cfgMailUser.value = '';
+      cfgMailPass.value = '';
+      cfgImapHost.value = '';
+      cfgImapPort.value = '';
+      cfgImapTls.value = 'true';
+      cfgSmtpHost.value = '';
+      cfgSmtpPort.value = '';
+      cfgSmtpSecure.value = 'true';
+      cfgPort.value = '3001';
+    };
     
     async function load(showLoading = true) {
       try {
@@ -442,6 +812,22 @@
         document.getElementById('d-sub').textContent = subject || '(No subject)';
         document.getElementById('d-from').textContent = from || 'Unknown';
         document.getElementById('d-date').textContent = date || '';
+
+        // Extract plain email address from From header if possible
+        let emailAddress = null;
+        if (from) {
+          const m = from.match(/<([^>]+)>/);
+          emailAddress = m ? m[1].trim() : from.trim();
+        }
+
+        // Remember current email meta for task creation
+        currentEmailMeta = {
+          uid,
+          subject: subject || '',
+          from: from || '',
+          email: emailAddress || null,
+          date: date || ''
+        };
         
         listEl.style.display='none';
         detailEl.style.display='block';
@@ -561,6 +947,74 @@
           console.error('Error loading emails after back:', err);
           listEl.innerHTML = `<li style="padding:20px; border:1px solid #000;">Error loading emails: ${err.message}</li>`;
         });
+      }
+    };
+
+    // Create Task from currently shown email (Step B2)
+    createTaskBtn.onclick = async () => {
+      try {
+        if (!currentEmailMeta || !currentEmailMeta.uid) {
+          await showModal({
+            title: 'No email selected',
+            body: 'Open an email first, then create a task from it.'
+          });
+          return;
+        }
+
+        const payload = {
+          type: 'erp-enquiry', // default type for now; can extend later
+          status: 'new',
+          sourceEmailUid: currentEmailMeta.uid,
+          sourceSubject: currentEmailMeta.subject,
+          customerEmail: currentEmailMeta.email
+        };
+
+        // Add simple timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          if (!controller.signal.aborted) controller.abort();
+        }, 15000);
+
+        let res;
+        try {
+          res = await fetch('/api/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+        } catch (err) {
+          clearTimeout(timeoutId);
+          const msg = err.name === 'AbortError'
+            ? 'Request timeout while creating task.'
+            : `Network error while creating task: ${err.message}`;
+          await showModal({ title: 'Create Task Error', body: msg });
+          return;
+        }
+
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { success: false, error: text || 'Invalid JSON response from server' };
+        }
+
+        if (!res.ok || !data.success) {
+          const fullError = `Error creating task\n\nStatus: ${res.status}\nPayload:\n${JSON.stringify(payload, null, 2)}\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+          await showCopyableError('Create Task Error', fullError);
+          return;
+        }
+
+        const task = data.task || {};
+        await showModal({
+          title: 'Task Created',
+          body: `Task #${task.id} created.\nType: ${task.type}\nStatus: ${task.status}`
+        });
+      } catch (err) {
+        const fullError = `Unexpected error creating task:\n${err.message}\n\nStack:\n${err.stack || 'N/A'}`;
+        await showCopyableError('Create Task Error', fullError);
       }
     };
     
