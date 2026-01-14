@@ -98,6 +98,15 @@ When the user asks questions in this repo, you should:
       - Avoid growing any single file into a “giant file”.
       - Prefer extracting helpers/modules instead of adding large chunks.
       - Break complex behavior into multiple small functions and tasks.
+   - **Logging**:
+      - Use `console.error`/`console.warn` for important errors only.
+      - Avoid heavy or noisy `console.log` debug output; remove it once a feature is stable.
+   - **After changes, communication to user**:
+      - Only mention restart/refresh when the change actually requires it.
+      - If backend restart is needed: say **“Restart server (run start.bat again)”**.
+      - If only frontend reload is needed: say **“Refresh browser (Ctrl+F5)”**.
+   - **Git / VCS**:
+      - Never run git commands or auto-commit/auto-push from this assistant.
    - After changes:
      - Run lints where appropriate.
      - Explain to the user in plain language what changed and what the new behavior is.
@@ -122,6 +131,9 @@ When the user asks questions in this repo, you should:
       - Menu can expand on hover (for labels) but collapses back when not hovered.
       - Clicking a menu button only changes what is shown in the board; menu stays fixed.
       - Keep layout minimal and monochrome, consistent with existing styling.
+   - **Profiles UX (settings)**:
+      - “Setting” button shows profiles list on the same page (no new page).
+      - Clicking a profile expands/details in the same board (no navigation away).
    - Always aim for:
      - **No user-facing timeouts** when a retry is reasonable.
      - Clear instructions in any messages that tell the user what they can do next.

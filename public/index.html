@@ -133,10 +133,29 @@
       padding:6px 10px;
       cursor:pointer;
       font-weight:600;
+      position:relative;
+      display:flex;
+      align-items:center;
+      gap:6px;
     }
     .tab-active{
       background:#000;
       color:#fff;
+    }
+    .tab-close{
+      display:none;
+      border:none;
+      background:transparent;
+      color:inherit;
+      cursor:pointer;
+      padding:0;
+      width:16px;
+      height:16px;
+      font-size:14px;
+      line-height:1;
+    }
+    .tab:hover .tab-close{
+      display:block;
     }
   </style>
 </head>
@@ -246,11 +265,11 @@
         <ul id="list"></ul>
         <div id="detail" style="display:none">
           <div class="row" style="margin-bottom:10px;">
-            <button id="back" class="page-btn">← Back</button>
+            <button id="back" class="page-btn">??Back</button>
             <button id="createTaskBtn" class="page-btn">Create Task</button>
           </div>
           <h2 id="d-sub"></h2>
-          <p class="meta"><span id="d-from"></span> – <span id="d-date"></span></p>
+          <p class="meta"><span id="d-from"></span> ??<span id="d-date"></span></p>
           <pre id="d-body"></pre>
         </div>
       </div>
@@ -336,6 +355,7 @@
           await showCopyableError('Save Settings Error', JSON.stringify(data, null, 2));
           return;
         }
+        settingsHasUnsavedChanges = false; // Mark as saved
         await showModal({
           title: 'Settings Saved',
           body: 'Settings saved to env file.\nPlease restart server (close window and run start.bat) so changes take effect.',
@@ -345,18 +365,78 @@
       }
     };
 
+    // Track changes to settings form
+    [cfgMailUser, cfgMailPass, cfgImapHost, cfgImapPort, cfgImapTls, cfgSmtpHost, cfgSmtpPort, cfgSmtpSecure, cfgPort].forEach(input => {
+      input.addEventListener('input', () => {
+        settingsHasUnsavedChanges = true;
+      });
+    });
+
+    // Track if settings have unsaved changes
+    let settingsHasUnsavedChanges = false;
+
     // --- Tabs handling (welcome + future boards) ---
     function ensureTab(id, label) {
       let tab = tabsBar.querySelector(`[data-tab-id="${id}"]`);
       if (!tab) {
-        tab = document.createElement('button');
+        tab = document.createElement('div');
         tab.className = 'tab';
         tab.dataset.tabId = id;
-        tab.textContent = label;
+        
+        const labelSpan = document.createElement('span');
+        labelSpan.textContent = label;
+        tab.appendChild(labelSpan);
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'tab-close';
+        closeBtn.textContent = '×';
+        closeBtn.onclick = async (e) => {
+          e.stopPropagation();
+          await closeTab(id);
+        };
+        tab.appendChild(closeBtn);
+        
         tab.onclick = () => activateTab(id);
         tabsBar.appendChild(tab);
       }
       return tab;
+    }
+
+    async function closeTab(id) {
+      // Always prompt to save before closing profiles tab
+      if (id === 'profiles') {
+        const confirmed = await showModal({
+          title: 'Save before closing',
+          body: 'Do you want to save settings before closing this tab?',
+          okText: 'Save & Close',
+          cancelText: 'Cancel'
+        });
+        if (!confirmed) {
+          return; // Do not close if user cancels
+        }
+        // Save first; if save fails, keep tab open
+        try {
+          await saveConfigBtn.click();
+        } catch (e) {
+          return;
+        }
+      }
+      
+      // Hide all panels first
+      settingsPanel.style.display = 'none';
+      profilesListPanel.style.display = 'none';
+      
+      // Remove tab
+      const tab = tabsBar.querySelector(`[data-tab-id="${id}"]`);
+      if (tab) {
+        tab.remove();
+      }
+      
+      // Always switch to welcome when closing a tab
+      activateTab('welcome');
+      
+      // Reset unsaved changes flag
+      settingsHasUnsavedChanges = false;
     }
 
     function activateTab(id) {
@@ -370,20 +450,13 @@
       });
 
       // Panels
-      if (id === 'welcome') {
-        welcomePanel.style.display = 'block';
-        profilesListPanel.style.display = 'none';
-        settingsPanel.style.display = 'none';
-      } else if (id === 'profiles') {
-        welcomePanel.style.display = 'none';
-        profilesListPanel.style.display = 'block';
-        settingsPanel.style.display = 'none';
+      welcomePanel.style.display = id === 'welcome' ? 'block' : 'none';
+      profilesListPanel.style.display = id === 'profiles' ? 'block' : 'none';
+      // settingsPanel is shown inline within profiles when a profile is clicked
+      settingsPanel.style.display = 'none';
+
+      if (id === 'profiles') {
         loadProfilesList().catch(() => {});
-      } else if (id === 'settings') {
-        welcomePanel.style.display = 'none';
-        profilesListPanel.style.display = 'none';
-        settingsPanel.style.display = 'block';
-        loadConfig().catch(() => {});
       }
     }
 
@@ -414,9 +487,8 @@
             <div class="meta" style="font-size:0.85em;">${p.mailUser || ''} | Active: ${p.isActive ? 'Yes' : 'No'}</div>
           `;
           item.onclick = () => {
-            // When clicking a profile, show its IMAP/SMTP attributes in the form
-            ensureTab('settings', 'Setting');
-            activateTab('settings');
+            // When clicking a profile, show its IMAP/SMTP attributes inline (same tab)
+            settingsPanel.style.display = 'block';
             cfgMailUser.value = p.mailUser || '';
             cfgMailPass.value = p.mailPass || '';
             cfgImapHost.value = p.imapHost || '';
@@ -489,9 +561,8 @@
 
     // Add profile button
     addProfileBtn.onclick = () => {
-      ensureTab('settings', 'Setting');
-      activateTab('settings');
-      // Clear form for new profile
+      // Stay in profiles tab; show empty form inline
+      settingsPanel.style.display = 'block';
       cfgMailUser.value = '';
       cfgMailPass.value = '';
       cfgImapHost.value = '';
@@ -507,7 +578,7 @@
       try {
         // Cancel any existing load request
         if (currentLoadController) {
-          console.log('Cancelling previous load request');
+          
           currentLoadController.abort();
         }
         
@@ -516,18 +587,18 @@
         const controller = currentLoadController;
         
         if (showLoading) {
-          console.log('Loading emails...');
+          
           listEl.innerHTML = '<li>Loading emails...</li>';
           listEl.style.display = 'block';
           detailEl.style.display = 'none';
         } else {
-          console.log('Refreshing emails in background...');
+          
         }
         
         // Add timeout to fetch request
         const timeoutId = setTimeout(() => {
           if (!controller.signal.aborted) {
-            console.log('Request timeout, aborting...');
+            
             controller.abort();
           }
         }, 30000); // 30 second timeout
@@ -557,7 +628,7 @@
           throw fetchErr;
         }
         
-        console.log('Response status:', res.status, res.statusText);
+        
         
         if (!res.ok) {
           const errorText = await res.text();
@@ -580,7 +651,7 @@
         }
         
         const data = await res.json();
-        console.log('Received data:', data);
+        
         
         if (!data.success) {
           listEl.innerHTML = `<li style="padding:20px; border:1px solid #000;">Error: ${data.error || 'Failed to load emails'}</li>`;
@@ -589,22 +660,22 @@
         }
         
         const emails = data.emails || [];
-        console.log('Loaded emails:', emails.length);
+        
         currentEmails = emails; // Store for reference
         
         // Render the email list (only if showLoading was true, otherwise we're in background)
         if (showLoading) {
           renderEmailList(emails);
-          console.log('Email list rendered successfully');
+          
         } else {
           // Background refresh - update cache and re-render if list is visible
           currentEmails = emails;
           if (listEl.style.display !== 'none' && detailEl.style.display === 'none') {
             // List is visible, update it
             renderEmailList(emails);
-            console.log('Email list refreshed in background');
+            
           } else {
-            console.log('Email list cached (detail view is active)');
+            
           }
         }
       } catch (err) {
@@ -631,13 +702,13 @@
       document.getElementById('d-date').textContent = '';
 
       async function fetchEmailOnce(attempt){
-        console.log(`Fetching email UID: ${uid} (attempt ${attempt})`);
+        
 
         // Add timeout to fetch request
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
           if (!controller.signal.aborted) {
-            console.log('Email fetch timeout, aborting...');
+            
             controller.abort();
           }
         }, 30000); // 30 second timeout
@@ -649,7 +720,7 @@
           });
           clearTimeout(timeoutId);
 
-          console.log(`Email fetch response status: ${res.status}`);
+          
 
           if (!res.ok) {
             const errorText = await res.text();
@@ -709,7 +780,7 @@
         // Retry once automatically for idle network/timeout issues
         if (err1?.__retryable) {
           // Inform user we are reconnecting, but do not show any popup
-          document.getElementById('d-body').textContent = 'Connection timed out (idle). Reconnecting… (retrying)';
+          document.getElementById('d-body').textContent = 'Connection timed out (idle). Reconnecting??(retrying)';
           
           // Refresh email list/cache in the background so we truly "reconnect"
           try {
@@ -925,13 +996,13 @@
     }
     
     backBtn.onclick=()=>{
-      console.log('Back button clicked');
+      
       detailEl.style.display='none'; 
       listEl.style.display='block';
       
       // If we have cached emails, show them immediately
       if (currentEmails && currentEmails.length > 0) {
-        console.log('Using cached email list:', currentEmails.length);
+        
         renderEmailList(currentEmails);
         // Optionally refresh in background (silently, no loading indicator)
         // Only refresh if not already loading
@@ -1029,10 +1100,10 @@
       
       emails.forEach(e=>{
         const li=document.createElement('li');
-        li.innerHTML = `<div class="sub">${e.subject||'No subject'}</div><div class="meta">${e.from||''} – ${new Date(e.date).toLocaleString()}</div>`;
+        li.innerHTML = `<div class="sub">${e.subject||'No subject'}</div><div class="meta">${e.from||''} ??${new Date(e.date).toLocaleString()}</div>`;
         li.style.cursor = 'pointer';
         li.onclick=()=>{
-          console.log('Clicking email UID:', e.uid);
+          
           show(e.uid);
         };
         listEl.appendChild(li);
@@ -1148,7 +1219,7 @@
       try {
         testSmtpBtn.disabled = true;
         testSmtpBtn.textContent = 'Testing...';
-        console.log('Testing SMTP connection...');
+        
         const res = await fetch('/api/smtp/test');
         const data = await res.json();
         if (data.success) {
@@ -1159,7 +1230,7 @@
         } else {
           const errorMsg = data.error || 'Unknown error';
           const errorCode = data.code ? ` (Code: ${data.code})` : '';
-          const errorText = `❌ SMTP Connection Failed:\n${errorMsg}${errorCode}\n\nHost: ${data.host || 'N/A'}\nPort: ${data.port || 'N/A'}\nSecure: ${data.secure ? 'SSL/TLS' : 'STARTTLS'}\n\n${data.troubleshooting || ''}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
+          const errorText = `??SMTP Connection Failed:\n${errorMsg}${errorCode}\n\nHost: ${data.host || 'N/A'}\nPort: ${data.port || 'N/A'}\nSecure: ${data.secure ? 'SSL/TLS' : 'STARTTLS'}\n\n${data.troubleshooting || ''}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
           showCopyableError('SMTP Connection Error', errorText);
           console.error('SMTP test error:', data);
         }
@@ -1168,7 +1239,7 @@
         console.error('SMTP test error:', err);
       } finally {
         testSmtpBtn.disabled = false;
-        testSmtpBtn.textContent = '🔌 Test SMTP Connection';
+        testSmtpBtn.textContent = '?? Test SMTP Connection';
       }
     };
     
@@ -1199,7 +1270,7 @@
         showCopyableError('Test Email Error', `Error: ${err.message}\n\nStack trace:\n${err.stack || 'N/A'}`);
       } finally {
         testSendBtn.disabled = false;
-        testSendBtn.textContent = '📧 Send Test Email';
+        testSendBtn.textContent = '?�� Send Test Email';
       }
     };
     

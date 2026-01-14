@@ -7,7 +7,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import { createTask, getTaskById, listTasks, TASK_STATUS, updateTaskStatus } from './db/tasksDb.js';
-import { listProfiles, getProfileById, createProfile, updateProfile, setActiveProfile, deleteProfile, getActiveProfile } from './db/profilesDb.js';
 
 // ---------- ENV ----------
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -30,13 +29,13 @@ const {
 const MAIL_PASS = rawPassword?.replace(/^["']|["']$/g, '') || rawPassword;
 
 // Log loaded config for debugging
-console.log('=== Loaded Environment Config ===');
-console.log('SMTP_HOST:', SMTP_HOST);
-console.log('SMTP_PORT:', SMTP_PORT);
-console.log('SMTP_SECURE:', SMTP_SECURE);
-console.log('IMAP_HOST:', IMAP_HOST);
-console.log('PORT:', PORT);
-console.log('===============================');
+
+
+
+
+
+
+
 
 if (!MAIL_USER || !MAIL_PASS) {
   console.error('Missing MAIL_USER or MAIL_PASS in environment. Exiting.');
@@ -73,7 +72,7 @@ async function connectImap() {
     if (imapClient && imapClient.state >= 2) {
       // Check if socket is still connected by checking the state
       // If state is valid, assume connection is good (we'll catch errors during operations)
-      console.log(`IMAP already connected (state: ${imapClient.state})`);
+      
       return; // Reuse existing connection
     }
     
@@ -90,14 +89,14 @@ async function connectImap() {
     }
     
     // Create fresh client instance
-    console.log('Creating new IMAP client instance...');
+    
     imapClient = createImapClient();
     
-    console.log(`Connecting to IMAP server: ${IMAP_HOST}:${IMAP_PORT} (TLS: ${IMAP_TLS === 'true'})`);
-    console.log(`User: ${MAIL_USER}`);
-    console.log(`Password length: ${MAIL_PASS ? MAIL_PASS.length : 0} characters`);
+    
+    
+    
     await imapClient.connect();
-    console.log(`IMAP connected successfully (state: ${imapClient.state})`);
+    
   } catch (err) {
     console.error('========== IMAP CONNECTION ERROR ==========');
     console.error('Error message:', err.message);
@@ -147,7 +146,7 @@ const smtpConfig = {
     pass: MAIL_PASS, // Password already processed (quotes removed)
   },
   tls: {
-    rejectUnauthorized: false, // Accept all certificates (接受所有憑證)
+    rejectUnauthorized: false, // Accept all certificates (?��??�?��?�?
     // Let Node.js auto-negotiate TLS version
   },
   connectionTimeout: 30000, // 30 seconds (increased for idle reconnection)
@@ -165,12 +164,7 @@ if (SMTP_SECURE !== 'true') {
   smtpConfig.requireTLS = true;
 }
 
-console.log('SMTP Configuration:', {
-  host: SMTP_HOST,
-  port: SMTP_PORT,
-  secure: SMTP_SECURE === 'true',
-  method: SMTP_SECURE === 'true' ? 'SSL/TLS (direct)' : 'STARTTLS (upgrade)'
-});
+// (SMTP configuration logged once above if needed during debugging)
 
 // Create SMTP transport - we'll recreate it for each request to avoid connection reuse issues
 let smtpTransport = null;
@@ -244,62 +238,97 @@ app.get('/api/config', (req, res) => {
   });
 });
 
-// Profiles API endpoints
-app.get('/api/profiles', async (req, res) => {
-  try {
-    const profiles = await listProfiles();
-    res.json({ success: true, profiles });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+// Profiles API (simple, in-memory; longriver default from env)
+let profilesMemory = null;
+function getProfilesMemory() {
+  if (!profilesMemory) {
+    profilesMemory = [
+      {
+        id: 1,
+        name: 'longriver.com',
+        remark: 'longriver.com',
+        mailUser: MAIL_USER || '',
+        mailPass: MAIL_PASS || '',
+        imapHost: IMAP_HOST || 'imap.bbmail.com.hk',
+        imapPort: Number(IMAP_PORT) || 993,
+        imapTls: IMAP_TLS || 'true',
+        smtpHost: SMTP_HOST || 'homegw.bbmail.com.hk',
+        smtpPort: Number(SMTP_PORT) || 465,
+        smtpSecure: SMTP_SECURE || 'true',
+        port: Number(PORT) || 3001,
+        isActive: 1,
+      },
+    ];
   }
+  return profilesMemory;
+}
+
+app.get('/api/profiles', (req, res) => {
+  res.json({ success: true, profiles: getProfilesMemory() });
 });
 
-app.get('/api/profiles/:id', async (req, res) => {
-  try {
-    const profile = await getProfileById(Number(req.params.id));
-    if (!profile) {
-      return res.status(404).json({ success: false, error: 'Profile not found' });
-    }
-    res.json({ success: true, profile });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+app.get('/api/profiles/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const profile = getProfilesMemory().find(p => p.id === id);
+  if (!profile) return res.status(404).json({ success: false, error: 'Profile not found' });
+  res.json({ success: true, profile });
 });
 
-app.post('/api/profiles', async (req, res) => {
-  try {
-    const id = await createProfile(req.body);
-    res.json({ success: true, id });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+app.post('/api/profiles', (req, res) => {
+  const list = getProfilesMemory();
+  const nextId = Math.max(...list.map(p => p.id)) + 1;
+  const payload = req.body || {};
+  const profile = {
+    id: nextId,
+    name: payload.name || 'Unnamed',
+    remark: payload.remark || '',
+    mailUser: payload.mailUser || '',
+    mailPass: payload.mailPass || '',
+    imapHost: payload.imapHost || '',
+    imapPort: Number(payload.imapPort) || 993,
+    imapTls: payload.imapTls || 'true',
+    smtpHost: payload.smtpHost || '',
+    smtpPort: Number(payload.smtpPort) || 465,
+    smtpSecure: payload.smtpSecure || 'true',
+    port: Number(payload.port) || 3001,
+    isActive: payload.isActive ? 1 : 0,
+  };
+  list.push(profile);
+  res.json({ success: true, id: nextId });
 });
 
-app.put('/api/profiles/:id', async (req, res) => {
-  try {
-    await updateProfile(Number(req.params.id), req.body);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+app.put('/api/profiles/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const list = getProfilesMemory();
+  const idx = list.findIndex(p => p.id === id);
+  if (idx === -1) return res.status(404).json({ success: false, error: 'Profile not found' });
+  const payload = req.body || {};
+  list[idx] = {
+    ...list[idx],
+    ...payload,
+    id,
+    imapPort: Number(payload.imapPort ?? list[idx].imapPort) || 993,
+    smtpPort: Number(payload.smtpPort ?? list[idx].smtpPort) || 465,
+    port: Number(payload.port ?? list[idx].port) || 3001,
+    isActive: payload.isActive ? 1 : 0,
+  };
+  res.json({ success: true });
 });
 
-app.post('/api/profiles/:id/activate', async (req, res) => {
-  try {
-    await setActiveProfile(Number(req.params.id));
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+app.post('/api/profiles/:id/activate', (req, res) => {
+  const id = Number(req.params.id);
+  const list = getProfilesMemory();
+  list.forEach(p => (p.isActive = p.id === id ? 1 : 0));
+  res.json({ success: true });
 });
 
-app.delete('/api/profiles/:id', async (req, res) => {
-  try {
-    await deleteProfile(Number(req.params.id));
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+app.delete('/api/profiles/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const list = getProfilesMemory();
+  const idx = list.findIndex(p => p.id === id);
+  if (idx === -1) return res.status(404).json({ success: false, error: 'Profile not found' });
+  list.splice(idx, 1);
+  res.json({ success: true });
 });
 
 app.post('/api/config', async (req, res) => {
@@ -518,7 +547,7 @@ app.get('/api/test-connection', async (req, res) => {
 
 // List latest N emails (default 20)
 app.get('/api/emails', async (req, res) => {
-  console.log('=== /api/emails endpoint called ===');
+  
   try {
     const limit = Math.min(Number(req.query.limit) || 20, 100);
     
@@ -542,12 +571,6 @@ app.get('/api/emails', async (req, res) => {
     // ImapFlow state: 0=disconnected, 1=connecting, 2=authenticated, 3=selected, 4=idle
     const state = imapClient?.state;
     
-    console.log('IMAP connection check:', { 
-      clientExists: !!imapClient, 
-      state,
-      stateName: state === 0 ? 'disconnected' : state === 1 ? 'connecting' : state === 2 ? 'authenticated' : state === 3 ? 'selected' : state === 4 ? 'idle' : 'unknown'
-    });
-    
     if (!imapClient || state < 2) {
       return res.status(500).json({ 
         success: false, 
@@ -559,17 +582,17 @@ app.get('/api/emails', async (req, res) => {
     let mailbox;
     try {
       mailbox = await imapClient.mailboxOpen('INBOX', { readOnly: true });
-      console.log(`Opened INBOX. Total messages: ${mailbox.exists}`);
+      
     } catch (mailboxErr) {
       console.error('Failed to open INBOX:', mailboxErr);
       // If mailbox open fails, try reconnecting
       if (mailboxErr.message?.includes('timeout') || mailboxErr.message?.includes('closed') || mailboxErr.message?.includes('disconnected')) {
-        console.log('Connection appears stale, attempting reconnect...');
+        
         try {
           imapClient = null;
           await connectImap();
           mailbox = await imapClient.mailboxOpen('INBOX', { readOnly: true });
-          console.log(`Opened INBOX after reconnect. Total messages: ${mailbox.exists}`);
+          
         } catch (retryErr) {
           return res.status(500).json({ 
             success: false, 
@@ -593,7 +616,7 @@ app.get('/api/emails', async (req, res) => {
 
     // Fetch headers for the range with timeout
     try {
-      console.log(`Fetching messages from sequence ${start} to end...`);
+      
       
       // Add timeout wrapper
       const fetchPromise = (async () => {
@@ -612,7 +635,7 @@ app.get('/api/emails', async (req, res) => {
           
           // Log progress every 10 messages
           if (fetchedMessages.length % 10 === 0) {
-            console.log(`Fetched ${fetchedMessages.length} messages so far...`);
+            
           }
         }
         return fetchedMessages;
@@ -626,7 +649,7 @@ app.get('/api/emails', async (req, res) => {
       const fetchedMessages = await Promise.race([fetchPromise, timeoutPromise]);
       messages.push(...fetchedMessages);
       
-      console.log(`Successfully fetched ${messages.length} messages`);
+      
     } catch (fetchErr) {
       console.error('========== FETCH MESSAGES ERROR ==========');
       console.error('Error message:', fetchErr.message);
@@ -638,7 +661,7 @@ app.get('/api/emails', async (req, res) => {
       
       // If timeout, try to reset IMAP connection
       if (fetchErr.message.includes('timeout') || fetchErr.message.includes('timed out')) {
-        console.log('Resetting IMAP connection due to timeout...');
+        
         imapClient = null;
       }
       
@@ -702,7 +725,7 @@ app.get('/api/emails', async (req, res) => {
     try {
       if (imapClient && imapClient.state >= 3) {
         await imapClient.mailboxClose();
-        console.log('Mailbox closed after list operation.');
+        
       }
     } catch (closeErr) {
       console.warn('Error closing mailbox in finally block:', closeErr.message);
@@ -724,20 +747,20 @@ app.get('/api/emails/:uid', async (req, res) => {
       });
     }
 
-    console.log(`=== Fetching email UID ${uid} with fresh connection ===`);
+    
     
     // Create a fresh IMAP client for this request
     fetchClient = createImapClient();
-    console.log(`Connecting fresh IMAP client for UID ${uid}...`);
+    
     await fetchClient.connect();
-    console.log(`Fresh IMAP client connected (state: ${fetchClient.state})`);
+    
 
     // Open INBOX
     let mailbox;
     try {
-      console.log('Opening INBOX for email fetch...');
+      
       mailbox = await fetchClient.mailboxOpen('INBOX');
-      console.log(`Opened INBOX. Total messages: ${mailbox.exists}, UID validity: ${mailbox.uidValidity}`);
+      
     } catch (mailboxErr) {
       console.error('Failed to open INBOX:', mailboxErr);
       return res.status(500).json({ 
@@ -765,7 +788,7 @@ app.get('/api/emails/:uid', async (req, res) => {
     try {
       // The issue: ImapFlow's fetch() interprets numbers as sequence numbers, not UIDs
       // Solution: Use search() to find the sequence number for this UID, then fetch by sequence
-      console.log(`Fetching email with UID: ${uid}`);
+      
       
       // Step 1: Search for the UID to get its sequence number (with timeout)
       // Double-check mailbox is still open before searching
@@ -782,7 +805,7 @@ app.get('/api/emails/:uid', async (req, res) => {
       
       let seqNum = null;
       try {
-        console.log(`Searching for UID ${uid} (mailbox state: ${fetchClient.state}, path: ${fetchClient.mailbox?.path})...`);
+        
         const searchStartTime = Date.now();
         const searchPromise = fetchClient.search({ uid: uid });
         const searchTimeout = new Promise((_, reject) => {
@@ -795,11 +818,11 @@ app.get('/api/emails/:uid', async (req, res) => {
         
         const searchResult = await Promise.race([searchPromise, searchTimeout]);
         const searchDuration = Date.now() - searchStartTime;
-        console.log(`Search completed in ${searchDuration}ms`);
+        
         
         if (searchResult && searchResult.length > 0) {
           seqNum = searchResult[0];
-          console.log(`Found UID ${uid} at sequence number ${seqNum}`);
+          
         } else {
           return res.status(404).json({ 
             success: false, 
@@ -852,20 +875,20 @@ app.get('/api/emails/:uid', async (req, res) => {
         throw new Error('Mailbox is not open. Cannot fetch.');
       }
       
-      console.log(`Fetching sequence number ${seqNum} (UID: ${uid})...`);
+      
       const fetchStartTime = Date.now();
       
       const fetchPromise = (async () => {
         let messageReceived = false;
         for await (const msg of fetchClient.fetch(seqNum, fetchOptions)) {
-          console.log(`Received message - UID: ${msg.uid}, Seq: ${msg.seq}`);
+          
           messageReceived = true;
           // Verify this is the correct message
           if (msg.uid === uid) {
             bodyText = msg.source ? msg.source.toString() : '';
             found = true;
             const fetchDuration = Date.now() - fetchStartTime;
-            console.log(`Successfully fetched email UID ${uid} in ${fetchDuration}ms, body length: ${bodyText.length}`);
+            
             break;
           }
         }
@@ -975,11 +998,11 @@ app.get('/api/emails/:uid', async (req, res) => {
       try {
         if (fetchClient.state >= 3) {
           await fetchClient.mailboxClose();
-          console.log('Mailbox closed after fetch operation.');
+          
         }
         if (fetchClient.state >= 2) {
           await fetchClient.logout();
-          console.log('Fresh IMAP client logged out.');
+          
         }
       } catch (closeErr) {
         console.warn('Error closing fresh IMAP client:', closeErr.message);
@@ -1001,9 +1024,9 @@ app.post('/api/email/send', async (req, res) => {
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`[Attempt ${attempt}/${maxRetries}] Sending email to: ${to}, subject: ${subject}`);
-      console.log(`SMTP config: ${SMTP_HOST}:${SMTP_PORT}, secure: ${SMTP_SECURE === 'true'}`);
-      console.log(`From: ${MAIL_USER}`);
+      
+      
+      
       
       // Clean up previous transport if retrying
       if (transport) {
@@ -1033,8 +1056,8 @@ app.post('/api/email/send', async (req, res) => {
       
       const info = await Promise.race([sendPromise, timeoutPromise]);
       
-      console.log('Email sent successfully:', info.messageId);
-      console.log('Server response:', info.response);
+      
+      
       
       // Close transport after sending
       transport.close();
@@ -1071,7 +1094,7 @@ app.post('/api/email/send', async (req, res) => {
         err.message?.includes('Network error');
       
       if (isRetryableError && attempt < maxRetries) {
-        console.log(`Connection/timeout error detected. Retrying in 2 seconds... (${attempt + 1}/${maxRetries})`);
+        
         await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
         continue; // Retry
       } else {
@@ -1119,7 +1142,7 @@ app.post('/api/email/send', async (req, res) => {
     troubleshooting: troubleshooting
   };
   
-  console.log('Send email error response (all retries exhausted):', errorResponse);
+  
   res.status(500).json(errorResponse);
 });
 
@@ -1131,10 +1154,10 @@ app.get('/api/smtp/test', async (req, res) => {
   const smtpSecure = SMTP_SECURE === 'true';
   
   try {
-    console.log('Testing SMTP connection...');
-    console.log(`Connecting to: ${smtpHost}:${smtpPort}`);
-    console.log(`Secure (SSL/TLS): ${smtpSecure}`);
-    console.log(`User: ${MAIL_USER}`);
+    
+    
+    
+    
     
     // Create fresh transport for test
     const testTransport = createSmtpTransport();
@@ -1190,12 +1213,12 @@ app.get('/api/smtp/test', async (req, res) => {
       originalError: err.message
     };
     
-    console.log('========== SENDING ERROR RESPONSE ==========');
-    console.log('Error response object:', errorResponse);
-    console.log('SMTP_HOST from env:', SMTP_HOST);
-    console.log('SMTP_PORT from env:', SMTP_PORT);
-    console.log('SMTP_SECURE from env:', SMTP_SECURE);
-    console.log('===========================================');
+    
+    
+    
+    
+    
+    
     
     // Add diagnostic info
     errorResponse.diagnostic = {
@@ -1232,7 +1255,7 @@ app.post('/api/email/test', async (req, res) => {
   };
   
   try {
-    console.log(`Sending test email to: ${testEmail.to}`);
+    
     const info = await smtpTransport.sendMail({ 
       from: `"ERP System" <${MAIL_USER}>`,
       to: testEmail.to,
@@ -1240,7 +1263,7 @@ app.post('/api/email/test', async (req, res) => {
       text: testEmail.text,
       html: testEmail.html
     });
-    console.log('Test email sent successfully:', info.messageId);
+    
     res.json({ 
       success: true, 
       message: 'Test email sent successfully',
@@ -1290,4 +1313,6 @@ process.on('unhandledRejection', (reason, promise) => {
   // Don't exit - keep server running, but log the error
 });
 
-app.listen(Number(PORT), () => console.log(`Email service running on :${PORT}`));
+app.listen(Number(PORT), () => {
+  // Server started
+});
