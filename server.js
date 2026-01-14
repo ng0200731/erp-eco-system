@@ -365,6 +365,7 @@ app.get('/api/emails', async (req, res) => {
 
     // Sort newest first
     messages.sort((a, b) => b.uid - a.uid);
+    
     res.json({ success: true, emails: messages });
   } catch (err) {
     // Log full error details to console
@@ -398,11 +399,24 @@ app.get('/api/emails', async (req, res) => {
       code: errorCode,
       type: err?.name || typeof err
     });
+  } finally {
+    // ALWAYS close mailbox after operation to ensure clean state
+    try {
+      if (imapClient && imapClient.state >= 3) {
+        await imapClient.mailboxClose();
+        console.log('Mailbox closed after list operation.');
+      }
+    } catch (closeErr) {
+      console.warn('Error closing mailbox in finally block:', closeErr.message);
+    }
   }
 });
 
 // Get a single email body (plain text)
 app.get('/api/emails/:uid', async (req, res) => {
+  // Use a fresh connection for each fetch to avoid state issues
+  let fetchClient = null;
+  
   try {
     const uid = Number(req.params.uid);
     if (!uid || isNaN(uid)) {
@@ -412,27 +426,26 @@ app.get('/api/emails/:uid', async (req, res) => {
       });
     }
 
-    await connectImap();
+    console.log(`=== Fetching email UID ${uid} with fresh connection ===`);
+    
+    // Create a fresh IMAP client for this request
+    fetchClient = createImapClient();
+    console.log(`Connecting fresh IMAP client for UID ${uid}...`);
+    await fetchClient.connect();
+    console.log(`Fresh IMAP client connected (state: ${fetchClient.state})`);
 
-    // Check if client is connected
-    if (!imapClient || imapClient.state < 2) {
-      return res.status(500).json({ 
-        success: false, 
-        error: 'IMAP client is not connected. Please try again.' 
-      });
-    }
-
-    // Select INBOX first
+    // Open INBOX
     let mailbox;
     try {
-      mailbox = await imapClient.mailboxOpen('INBOX');
+      console.log('Opening INBOX for email fetch...');
+      mailbox = await fetchClient.mailboxOpen('INBOX');
       console.log(`Opened INBOX. Total messages: ${mailbox.exists}, UID validity: ${mailbox.uidValidity}`);
     } catch (mailboxErr) {
       console.error('Failed to open INBOX:', mailboxErr);
       return res.status(500).json({ 
         success: false, 
         error: `Failed to open INBOX: ${mailboxErr.message}`,
-        code: mailboxErr.code || mailboxErr.responseCode || 'UNKNOWN'
+        code: mailboxErr.code || 'UNKNOWN'
       });
     }
 
@@ -456,10 +469,36 @@ app.get('/api/emails/:uid', async (req, res) => {
       // Solution: Use search() to find the sequence number for this UID, then fetch by sequence
       console.log(`Fetching email with UID: ${uid}`);
       
-      // Step 1: Search for the UID to get its sequence number
+      // Step 1: Search for the UID to get its sequence number (with timeout)
+      // Double-check mailbox is still open before searching
+      if (!fetchClient || fetchClient.state < 3) {
+        console.error(`Mailbox check failed: client=${!!fetchClient}, state=${fetchClient?.state}`);
+        throw new Error('Mailbox is not open. Cannot search.');
+      }
+      
+      // Verify mailbox is actually INBOX
+      if (!fetchClient.mailbox || fetchClient.mailbox.path !== 'INBOX') {
+        console.error(`Mailbox path mismatch: expected INBOX, got ${fetchClient.mailbox?.path}`);
+        throw new Error('Mailbox is not INBOX. Cannot search.');
+      }
+      
       let seqNum = null;
       try {
-        const searchResult = await imapClient.search({ uid: uid });
+        console.log(`Searching for UID ${uid} (mailbox state: ${fetchClient.state}, path: ${fetchClient.mailbox?.path})...`);
+        const searchStartTime = Date.now();
+        const searchPromise = fetchClient.search({ uid: uid });
+        const searchTimeout = new Promise((_, reject) => {
+          setTimeout(() => {
+            const elapsed = Date.now() - searchStartTime;
+            console.error(`Search timeout after 5 seconds for UID ${uid} (elapsed: ${elapsed}ms, state: ${fetchClient?.state})`);
+            reject(new Error('Search operation timed out after 5 seconds'));
+          }, 5000);
+        });
+        
+        const searchResult = await Promise.race([searchPromise, searchTimeout]);
+        const searchDuration = Date.now() - searchStartTime;
+        console.log(`Search completed in ${searchDuration}ms`);
+        
         if (searchResult && searchResult.length > 0) {
           seqNum = searchResult[0];
           console.log(`Found UID ${uid} at sequence number ${seqNum}`);
@@ -472,7 +511,13 @@ app.get('/api/emails/:uid', async (req, res) => {
           });
         }
       } catch (searchErr) {
-        console.error('Search failed:', searchErr);
+        console.error('========== SEARCH ERROR ==========');
+        console.error('UID:', uid);
+        console.error('Error:', searchErr.message);
+        console.error('Full error:', searchErr);
+        console.error('==================================');
+        
+        // Search failed - return error
         return res.status(500).json({ 
           success: false, 
           error: `Failed to search for email: ${searchErr.message}`,
@@ -481,23 +526,57 @@ app.get('/api/emails/:uid', async (req, res) => {
         });
       }
       
-      // Step 2: Fetch by sequence number (not UID)
+      // Step 2: Fetch by sequence number (not UID) with timeout
       const fetchOptions = {
         source: true,
         uid: true  // Include UID in response for verification
       };
       
-      console.log(`Fetching sequence number ${seqNum} (UID: ${uid})`);
-      for await (const msg of imapClient.fetch(seqNum, fetchOptions)) {
-        console.log(`Received message - UID: ${msg.uid}, Seq: ${msg.seq}`);
-        // Verify this is the correct message
-        if (msg.uid === uid) {
-          bodyText = msg.source ? msg.source.toString() : '';
-          found = true;
-          console.log(`Successfully fetched email UID ${uid}, body length: ${bodyText.length}`);
-          break;
-        }
+      if (!seqNum) {
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Sequence number not found',
+          uid: uid
+        });
       }
+      
+      // Ensure mailbox is still open before fetching
+      if (!fetchClient || fetchClient.state < 3) {
+        throw new Error('Mailbox is not open. Cannot fetch.');
+      }
+      
+      console.log(`Fetching sequence number ${seqNum} (UID: ${uid})...`);
+      const fetchStartTime = Date.now();
+      
+      const fetchPromise = (async () => {
+        let messageReceived = false;
+        for await (const msg of fetchClient.fetch(seqNum, fetchOptions)) {
+          console.log(`Received message - UID: ${msg.uid}, Seq: ${msg.seq}`);
+          messageReceived = true;
+          // Verify this is the correct message
+          if (msg.uid === uid) {
+            bodyText = msg.source ? msg.source.toString() : '';
+            found = true;
+            const fetchDuration = Date.now() - fetchStartTime;
+            console.log(`Successfully fetched email UID ${uid} in ${fetchDuration}ms, body length: ${bodyText.length}`);
+            break;
+          }
+        }
+        if (!messageReceived) {
+          throw new Error('No message received from fetch operation');
+        }
+      })();
+      
+      // Add 10 second timeout to fetch operation (reduced from 12)
+      const fetchTimeout = new Promise((_, reject) => {
+        setTimeout(() => {
+          const elapsed = Date.now() - fetchStartTime;
+          console.error(`Fetch timeout after 10 seconds for UID ${uid}, seqNum ${seqNum} (elapsed: ${elapsed}ms)`);
+          reject(new Error('Fetch operation timed out after 10 seconds'));
+        }, 10000);
+      });
+      
+      await Promise.race([fetchPromise, fetchTimeout]);
     } catch (fetchErr) {
       console.error('========== FETCH EMAIL ERROR ==========');
       console.error('UID:', uid);
@@ -568,6 +647,22 @@ app.get('/api/emails/:uid', async (req, res) => {
       error: err.message || 'Failed to fetch email',
       code: err.code || 'UNKNOWN'
     });
+  } finally {
+    // ALWAYS close and cleanup the fresh connection we created for this request
+    if (fetchClient) {
+      try {
+        if (fetchClient.state >= 3) {
+          await fetchClient.mailboxClose();
+          console.log('Mailbox closed after fetch operation.');
+        }
+        if (fetchClient.state >= 2) {
+          await fetchClient.logout();
+          console.log('Fresh IMAP client logged out.');
+        }
+      } catch (closeErr) {
+        console.warn('Error closing fresh IMAP client:', closeErr.message);
+      }
+    }
   }
 });
 

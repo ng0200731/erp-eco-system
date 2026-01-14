@@ -174,7 +174,33 @@
         document.getElementById('d-from').textContent = '';
         document.getElementById('d-date').textContent = '';
         
-        const res = await fetch('/api/emails/'+uid);
+        console.log(`Fetching email UID: ${uid}`);
+        
+        // Add timeout to fetch request
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          if (!controller.signal.aborted) {
+            console.log('Email fetch timeout, aborting...');
+            controller.abort();
+          }
+        }, 25000); // 25 second timeout (increased to allow for search + fetch)
+        
+        let res;
+        try {
+          res = await fetch('/api/emails/'+uid, {
+            signal: controller.signal,
+            cache: 'no-cache'
+          });
+          clearTimeout(timeoutId);
+        } catch (fetchErr) {
+          clearTimeout(timeoutId);
+          if (fetchErr.name === 'AbortError') {
+            throw new Error('Request timeout - server took too long to respond');
+          }
+          throw fetchErr;
+        }
+        
+        console.log(`Email fetch response status: ${res.status}`);
         
         if (!res.ok) {
           const errorText = await res.text();
@@ -208,13 +234,14 @@
           return;
         }
         
-        // Parse email headers from source
+        // Parse email from source
         const source = data.source || '';
         let subject = '';
         let from = '';
         let date = '';
+        let bodyContent = '';
         
-        // Try to extract headers from raw email source
+        // Extract headers
         const subjectMatch = source.match(/^Subject:\s*(.+)$/mi);
         const fromMatch = source.match(/^From:\s*(.+)$/mi);
         const dateMatch = source.match(/^Date:\s*(.+)$/mi);
@@ -223,8 +250,47 @@
         if (fromMatch) from = fromMatch[1].trim();
         if (dateMatch) date = dateMatch[1].trim();
         
-        // Display email
-        document.getElementById('d-body').textContent = source || 'No content';
+        // Extract body content (skip headers)
+        // Find where headers end (empty line or Content-Type)
+        const headerEndMatch = source.match(/\n\n|\r\n\r\n/);
+        if (headerEndMatch) {
+          const headerEndIndex = headerEndMatch.index + headerEndMatch[0].length;
+          let body = source.substring(headerEndIndex);
+          
+          // Try to extract text/html content from multipart
+          const htmlMatch = body.match(/Content-Type:\s*text\/html[^]*?--000[^]*?<div[^]*?<\/div>/s);
+          const textMatch = body.match(/Content-Type:\s*text\/plain[^]*?--000[^]*?([^]*?)(?=--000|$)/s);
+          
+          if (htmlMatch) {
+            // Extract HTML content
+            const htmlContent = htmlMatch[0].replace(/Content-Type:[^\n]*\n[^\n]*\n[^\n]*\n/, '');
+            bodyContent = htmlContent.replace(/--000[^]*$/, '').trim();
+            // If it's HTML, we can display it as HTML
+            if (bodyContent.includes('<')) {
+              document.getElementById('d-body').innerHTML = bodyContent;
+            } else {
+              document.getElementById('d-body').textContent = bodyContent;
+            }
+          } else if (textMatch) {
+            // Extract plain text content
+            bodyContent = textMatch[1].replace(/--000[^]*$/, '').trim();
+            document.getElementById('d-body').textContent = bodyContent;
+          } else {
+            // Fallback: show everything after headers, but clean it up
+            bodyContent = body.replace(/--000[^]*$/g, '').trim();
+            // Remove Content-Type lines and boundaries
+            bodyContent = bodyContent.replace(/Content-Type:[^\n]*\n/g, '');
+            bodyContent = bodyContent.replace(/charset="[^"]*"\n/g, '');
+            bodyContent = bodyContent.replace(/^--[^\n]*\n/gm, '');
+            document.getElementById('d-body').textContent = bodyContent || 'No readable content found';
+          }
+        } else {
+          // No clear header/body separation, show everything but try to clean it
+          bodyContent = source;
+          document.getElementById('d-body').textContent = bodyContent;
+        }
+        
+        // Display email metadata
         document.getElementById('d-sub').textContent = subject || '(No subject)';
         document.getElementById('d-from').textContent = from || 'Unknown';
         document.getElementById('d-date').textContent = date || '';
