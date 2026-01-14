@@ -1,0 +1,114 @@
+---
+alwaysApply: false
+description: Skill for deeply understanding and debugging the ERP email service (IMAP/SMTP, timeouts, batch scripts) in this repo.
+---
+
+You are an expert assistant dedicated to this specific project: the ERP email service in this repository.
+
+## Project context
+
+- Tech stack: Node.js + Express backend (`server.js`), simple HTML/JS frontend (`public/index.html`), batch files for startup (`start.bat`, test scripts).
+- Email:
+  - **IMAP** via ImapFlow for reading (`/api/emails`, `/api/emails/:uid`).
+  - **SMTP** via Nodemailer for sending (`/api/email/send`, `/api/email/test`, `/api/smtp/test`).
+- Config: `.env`-style file named `env` in project root (loaded in `server.js`).
+- Documentation: `EMAIL_CONFIG_DETAILS.md` contains live documentation and troubleshooting history for this exact setup.
+
+When the user asks questions in this repo, you should:
+
+1. **Recognize common problem categories**
+   - IMAP issues:
+     - Cannot list emails
+     - Cannot open a specific email (UID issues, timeouts, mailbox state problems)
+     - “First email works, second keeps loading” or similar state/timeout problems
+   - SMTP issues:
+     - Cannot send email
+     - `ETIMEDOUT`, `ESOCKET`, `ECONNECTION`, `EAUTH` errors
+   - Frontend issues:
+     - “Failed to fetch”, network/idle timeouts, loading states not updating
+   - Server/runtime issues:
+     - `EADDRINUSE`, server crashes, `ERR_CONNECTION_REFUSED` when refreshing browser
+   - Batch/scripts:
+     - `start.bat` not starting correctly, port-3001 cleanup problems, browser not opening.
+
+2. **Use the project files as the source of truth**
+   - Check and reason about:
+     - `server.js` for backend logic, routes, timeouts, connection handling, retry logic.
+     - `public/index.html` for frontend fetch logic, timeouts, error handling, and UI behavior.
+     - `EMAIL_CONFIG_DETAILS.md` for:
+       - Current IMAP/SMTP host, port, secure settings.
+       - Previously fixed issues and their root causes.
+       - Recommended timeout values and behavior after idle.
+     - Batch files (`start.bat`, `test-connection.bat`, `test-smtp-ports.bat`) for how the user starts/tests things.
+
+3. **When debugging issues, follow this order**
+   1. **Clarify the symptom** in the user’s words:
+      - Are they seeing a browser error, API error JSON, SMTP/IMAP specific code, or server crash?
+   2. **Check server side first**:
+      - Look at the relevant route in `server.js` (IMAP or SMTP).
+      - Confirm there is proper `try/catch` and the error is returned as JSON, not crashing the process.
+      - If an uncaught error could crash the server, propose and apply a fix.
+   3. **Check frontend fetch + timeout behavior**:
+      - Ensure `fetch` calls have `AbortController` timeouts.
+      - Ensure idle/network errors trigger **automatic retry once** and then return gracefully to list view without scary popups.
+   4. **Check environment and configuration**:
+      - Validate `env` matches what `EMAIL_CONFIG_DETAILS.md` says (IMAP/SMTP host, port, SSL/TLS vs STARTTLS).
+   5. **Check for persistent or stale connections**:
+      - IMAP: ensure fresh client for per-email fetch (`/api/emails/:uid`) and clean mailbox close.
+      - SMTP: ensure fresh Nodemailer transport per send/test and proper close.
+
+4. **Behavior for timeouts / idle problems**
+   - For **reading emails**:
+     - Never leave the UI in an infinite “Loading…” state.
+     - Prefer:
+       - 1st failure → auto-retry with a “Reconnecting… (retrying)” message.
+       - If still failing → return to the list and avoid intrusive popups; show at most a gentle inline notice.
+   - For **sending emails**:
+     - Recommend/implement retry on connection/timeout errors with a short delay.
+     - Ensure frontend timeouts are long enough to allow backend retries.
+
+5. **When the server appears “down” (ERR_CONNECTION_REFUSED)**
+   - Always consider:
+     - The Node process may have crashed due to an uncaught exception.
+     - Port 3001 process may have been killed but not restarted.
+   - Guide the user to:
+     - Re-run `start.bat` to bring the server back.
+     - Look at the **last 20–30 lines** of the server console and share them.
+   - In code, make sure:
+     - Route handlers catch and respond instead of letting errors bubble up and crash the process.
+
+6. **When modifying code**
+   - Keep behavior consistent with what is documented in `EMAIL_CONFIG_DETAILS.md`, or update the MD file accordingly.
+   - Prefer small, incremental changes:
+     - Add logging (console.log / console.error) around failing areas.
+     - Add/adjust timeouts and retry logic.
+     - Add defensive checks (null checks, range checks for UIDs, etc.).
+   - After changes:
+     - Run lints where appropriate.
+     - Explain to the user in plain language what changed and what the new behavior is.
+
+7. **Style and UX guidelines**
+   - **Strict black & white only**: UI must use only #000 and #fff (no gray, no colored accents).
+     - Allowed: transparent / rgba black overlays for modals.
+   - **Straight borders only**: never use `border-radius` (no rounded corners, all borders must be straight/square).
+   - **No browser popups**: never use `alert()`, `confirm()`, or `prompt()`.
+   - Use the app’s **own centered modal** (in `public/index.html`) for:
+     - Success messages
+     - Confirmations (OK/Cancel)
+     - Copyable errors
+   - No raw `alert()` calls for errors; instead:
+     - Use the existing `showCopyableError()` pattern when a detailed error must be seen.
+     - For expected transient issues (idle / network blips), prefer:
+       - Auto-retry
+       - Quiet return to list
+       - Small visual hints, not disruptive popups
+   - Always aim for:
+     - **No user-facing timeouts** when a retry is reasonable.
+     - Clear instructions in any messages that tell the user what they can do next.
+
+8. **How to respond to the user in this repo**
+   - Be concise but specific to this project.
+   - Refer to files by their real names (`server.js`, `public/index.html`, `EMAIL_CONFIG_DETAILS.md`).
+   - When proposing a change, prefer actually editing the files (using tools) rather than only describing the change.
+   - Summarize the effect of changes in 2–4 sentences.
+

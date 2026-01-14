@@ -5,33 +5,115 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Email Client</title>
   <style>
-    body {font-family: Arial, sans-serif; margin: 0; padding: 20px; background:#f5f5f5;}
+    /* STRICT monochrome: only black (#000) and white (#fff) */
+    body {font-family: Arial, sans-serif; margin: 0; padding: 20px; background:#fff; color:#000;}
     h1 {text-align:center;}
-    #emails {max-width:800px; margin:0 auto; background:#fff; border-radius:8px; padding:20px; box-shadow:0 2px 4px rgba(0,0,0,.1);}
+    #emails {max-width:800px; margin:0 auto; background:#fff; border:1px solid #000; padding:20px;}
     ul {list-style:none; padding:0; margin:0;}
-    li {padding:12px; border-bottom:1px solid #eee; cursor:pointer;}
-    li:hover {background:#fafafa;}
+    li {padding:12px; border-bottom:1px solid #000; cursor:pointer;}
+    li:hover {background:#000; color:#fff;}
     .sub {font-weight:bold;}
-    .meta {font-size:.9em; color:#666;}
-    pre {white-space:pre-wrap; background:#fafafa; padding:15px; border-radius:4px;}
+    .meta {font-size:.9em;}
+    pre {white-space:pre-wrap; background:#fff; padding:15px; border:1px solid #000;}
+
+    /* Inputs (monochrome) */
+    input, textarea{
+      width:100%;
+      padding:8px;
+      border:1px solid #000;
+      background:#fff;
+      color:#000;
+      box-sizing:border-box;
+      font-family:inherit;
+    }
+    textarea{ min-height:150px; resize:vertical; }
+
+    /* Minimal monochrome modal (no browser alerts/confirms) */
+    .modal-overlay{
+      position:fixed; inset:0;
+      background:rgba(0,0,0,.35);
+      display:flex; align-items:center; justify-content:center;
+      z-index:10000;
+      padding:20px;
+    }
+    .modal{
+      width:min(560px, 100%);
+      background:#fff;
+      color:#000;
+      border:1px solid #000;
+      box-shadow:0 12px 32px rgba(0,0,0,.25);
+    }
+    .modal-header{
+      padding:14px 16px;
+      border-bottom:1px solid #000;
+      font-weight:700;
+      letter-spacing:.2px;
+    }
+    .modal-body{
+      padding:14px 16px;
+      font-size:14px;
+      line-height:1.45;
+      white-space:pre-wrap;
+      word-break:break-word;
+    }
+    .modal-actions{
+      padding:12px 16px;
+      border-top:1px solid #000;
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      flex-wrap:wrap;
+    }
+    .btn{
+      appearance:none;
+      border:1px solid #000;
+      background:#fff;
+      color:#000;
+      padding:8px 12px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    .btn:hover{ background:#000; color:#fff; }
+    .btn.primary{ background:#000; color:#fff; }
+    .btn.primary:hover{ background:#fff; color:#000; }
+
+    /* Page buttons */
+    .topbar{ margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap; }
+    .page-btn{
+      border:1px solid #000;
+      background:#fff;
+      color:#000;
+      padding:10px 16px;
+      cursor:pointer;
+      font-weight:700;
+    }
+    .page-btn:hover{ background:#000; color:#fff; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; }
+    .notice{
+      padding:12px;
+      border-bottom:1px solid #000;
+      background:#fff;
+      color:#000;
+      font-weight:700;
+    }
   </style>
 </head>
 <body>
   <h1>Email Client</h1>
   <div id="emails">
-    <div style="margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap;">
-      <button id="composeBtn" style="background:#4CAF50; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer;">✉ Compose</button>
-      <button id="testSendBtn" style="background:#2196F3; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer;">📧 Send Test Email</button>
-      <button id="testSmtpBtn" style="background:#FF9800; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer;">🔌 Test SMTP Connection</button>
+    <div class="topbar">
+      <button id="composeBtn" class="page-btn">Compose</button>
+      <button id="testSendBtn" class="page-btn">Send Test Email</button>
+      <button id="testSmtpBtn" class="page-btn">Test SMTP Connection</button>
     </div>
-    <div id="composeForm" style="display:none; background:#f9f9f9; padding:15px; border-radius:4px; margin-bottom:15px;">
+    <div id="composeForm" style="display:none; background:#fff; padding:15px; border:1px solid #000; margin-bottom:15px;">
       <h3>Compose Email</h3>
-      <input type="email" id="toEmail" placeholder="To:" style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ddd; border-radius:4px;">
-      <input type="text" id="subjectEmail" placeholder="Subject:" style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ddd; border-radius:4px;">
-      <textarea id="bodyEmail" placeholder="Message:" style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ddd; border-radius:4px; min-height:150px;"></textarea>
-      <div style="display:flex; gap:10px;">
-        <button id="sendBtn" style="background:#4CAF50; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer;">Send</button>
-        <button id="cancelBtn" style="background:#999; color:white; border:none; padding:10px 20px; border-radius:4px; cursor:pointer;">Cancel</button>
+      <input type="email" id="toEmail" placeholder="To:" style="margin-bottom:10px;">
+      <input type="text" id="subjectEmail" placeholder="Subject:" style="margin-bottom:10px;">
+      <textarea id="bodyEmail" placeholder="Message:" style="margin-bottom:10px;"></textarea>
+      <div class="row">
+        <button id="sendBtn" class="page-btn">Send</button>
+        <button id="cancelBtn" class="page-btn">Cancel</button>
       </div>
     </div>
     <ul id="list"></ul>
@@ -117,8 +199,9 @@
           }
           const errorMsg = errorData.error || 'Failed to load emails';
           const errorCode = errorData.code ? ` (${errorData.code})` : '';
-          listEl.innerHTML = `<li style="color:red; padding:20px; background:#ffe6e6; border:1px solid #ff9999; border-radius:4px;">
-            <strong>Error:</strong> ${errorMsg}${errorCode}<br>
+          listEl.innerHTML = `<li style="padding:20px; background:#fff; border:1px solid #000;">
+            <strong>Error</strong><br>
+            ${errorMsg}${errorCode}<br>
             <small>Status: ${res.status}</small>
             ${errorData.details ? `<br><small style="font-family:monospace; font-size:0.8em;">${errorData.details}</small>` : ''}
           </li>`;
@@ -130,7 +213,7 @@
         console.log('Received data:', data);
         
         if (!data.success) {
-          listEl.innerHTML = `<li style="color:red; padding:20px;">Error: ${data.error || 'Failed to load emails'}</li>`;
+          listEl.innerHTML = `<li style="padding:20px; border:1px solid #000;">Error: ${data.error || 'Failed to load emails'}</li>`;
           console.error('API error:', data);
           return;
         }
@@ -158,7 +241,7 @@
         console.error('Load function error:', err);
         // Only show error if we were showing loading state
         if (showLoading) {
-          listEl.innerHTML = `<li style="color:red; padding:20px;">Error loading emails: ${err.message}<br><small>Check browser console (F12) for details</small></li>`;
+          listEl.innerHTML = `<li style="padding:20px; border:1px solid #000;">Error loading emails: ${err.message}<br><small>Check browser console (F12) for details</small></li>`;
         }
         // Background refresh errors are already logged above
       }
@@ -255,16 +338,32 @@
       } catch (err1) {
         // Retry once automatically for idle network/timeout issues
         if (err1?.__retryable) {
+          // Inform user we are reconnecting, but do not show any popup
           document.getElementById('d-body').textContent = 'Connection timed out (idle). Reconnecting… (retrying)';
-          await sleep(1500);
+          
+          // Refresh email list/cache in the background so we truly "reconnect"
           try {
+            await load(false);
+          } catch (loadErr) {
+            console.warn('Background reconnect (list reload) failed:', loadErr);
+          }
+
+          await sleep(500); // small pause so reconnect can settle
+
+          try {
+            // Second attempt to fetch the same email after reconnect
             data = await fetchEmailOnce(2);
           } catch (err2) {
-            const fullError = `Error fetching email: ${err2.message}\n\nUID: ${uid}\n\nStack trace:\n${err2.stack || 'N/A'}`;
-            showCopyableError('Network Error', fullError);
-            console.error('Fetch error (after retry):', err2);
+            // Second attempt also failed. Do NOT show popup; go back to list
+            // and show a gentle inline message at the top of the list.
+            console.warn('Email fetch failed after retry:', err2);
             detailEl.style.display='none';
             listEl.style.display='block';
+            // Prepend a soft warning item so user knows what happened.
+            const notice = document.createElement('li');
+            notice.className = 'notice';
+            notice.textContent = 'Reconnected and refreshed inbox, but this email could not be loaded. Please try again in a moment.';
+            listEl.insertBefore(notice, listEl.firstChild);
             return;
           }
         } else if (err1?.__fullError) {
@@ -348,74 +447,95 @@
         detailEl.style.display='block';
     }
     
-    // Helper function to show copyable error
-    function showCopyableError(title, errorText) {
-      // Create modal overlay
-      const overlay = document.createElement('div');
-      overlay.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; display:flex; align-items:center; justify-content:center;';
-      
-      // Create modal box
-      const modal = document.createElement('div');
-      modal.style.cssText = 'background:white; padding:20px; border-radius:8px; max-width:600px; max-height:80vh; overflow:auto; box-shadow:0 4px 20px rgba(0,0,0,0.3);';
-      
-      // Title
-      const titleEl = document.createElement('h3');
-      titleEl.textContent = title;
-      titleEl.style.cssText = 'margin:0 0 15px 0; color:#d32f2f;';
-      
-      // Textarea for error (copyable)
-      const textarea = document.createElement('textarea');
-      textarea.value = errorText;
-      textarea.readOnly = true;
-      textarea.style.cssText = 'width:100%; min-height:200px; padding:10px; border:1px solid #ccc; border-radius:4px; font-family:monospace; font-size:12px; resize:vertical; box-sizing:border-box;';
-      
-      // Buttons container
-      const buttonsDiv = document.createElement('div');
-      buttonsDiv.style.cssText = 'margin-top:15px; display:flex; gap:10px; justify-content:flex-end;';
-      
-      // Copy button
-      const copyBtn = document.createElement('button');
-      copyBtn.textContent = '📋 Copy Error';
-      copyBtn.style.cssText = 'padding:8px 16px; background:#1976d2; color:white; border:none; border-radius:4px; cursor:pointer;';
-      copyBtn.onclick = () => {
-        textarea.select();
-        document.execCommand('copy');
-        copyBtn.textContent = '✅ Copied!';
-        setTimeout(() => {
-          copyBtn.textContent = '📋 Copy Error';
-        }, 2000);
-      };
-      
-      // Close button
-      const closeBtn = document.createElement('button');
-      closeBtn.textContent = 'Close';
-      closeBtn.style.cssText = 'padding:8px 16px; background:#666; color:white; border:none; border-radius:4px; cursor:pointer;';
-      closeBtn.onclick = () => {
-        document.body.removeChild(overlay);
-      };
-      
-      // Assemble modal
-      modal.appendChild(titleEl);
-      modal.appendChild(textarea);
-      buttonsDiv.appendChild(copyBtn);
-      buttonsDiv.appendChild(closeBtn);
-      modal.appendChild(buttonsDiv);
-      overlay.appendChild(modal);
-      
-      // Add to page
-      document.body.appendChild(overlay);
-      
-      // Auto-select text for easy copying
-      setTimeout(() => {
-        textarea.select();
-      }, 100);
-      
-      // Close on overlay click
-      overlay.onclick = (e) => {
-        if (e.target === overlay) {
-          document.body.removeChild(overlay);
+    // Copyable modal in minimal black & white style (no browser popups)
+    async function showCopyableError(title, errorText) {
+      await showModal({
+        title,
+        body: errorText,
+        copyText: errorText,
+        okText: 'Close'
+      });
+    }
+
+    // Minimal black & white modal (replaces alert/confirm)
+    function showModal({ title = 'Message', body = '', copyText = null, okText = 'OK', cancelText = null }) {
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = title;
+
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+        content.textContent = body;
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+
+        const okBtn = document.createElement('button');
+        okBtn.className = 'btn primary';
+        okBtn.textContent = okText;
+
+        const close = (result) => {
+          try { document.body.removeChild(overlay); } catch {}
+          resolve(result);
+        };
+
+        okBtn.onclick = () => close(true);
+
+        if (copyText) {
+          const copyBtn = document.createElement('button');
+          copyBtn.className = 'btn';
+          copyBtn.textContent = 'Copy';
+          copyBtn.onclick = async () => {
+            try {
+              await navigator.clipboard.writeText(copyText);
+              copyBtn.textContent = 'Copied';
+              setTimeout(() => (copyBtn.textContent = 'Copy'), 1200);
+            } catch (e) {
+              // Fallback: select-able content already in body
+              copyBtn.textContent = 'Copy failed';
+              setTimeout(() => (copyBtn.textContent = 'Copy'), 1200);
+            }
+          };
+          actions.appendChild(copyBtn);
         }
-      };
+
+        if (cancelText) {
+          const cancelBtn = document.createElement('button');
+          cancelBtn.className = 'btn';
+          cancelBtn.textContent = cancelText;
+          cancelBtn.onclick = () => close(false);
+          actions.appendChild(cancelBtn);
+        }
+
+        actions.appendChild(okBtn);
+
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // Close on clicking overlay (only for non-confirm)
+        overlay.onclick = (e) => {
+          if (e.target === overlay && !cancelText) close(true);
+        };
+
+        // ESC closes (OK for non-confirm, Cancel for confirm)
+        const onKey = (e) => {
+          if (e.key === 'Escape') {
+            document.removeEventListener('keydown', onKey);
+            close(cancelText ? false : true);
+          }
+        };
+        document.addEventListener('keydown', onKey);
+      });
     }
     
     backBtn.onclick=()=>{
@@ -439,7 +559,7 @@
         // No cache, must load with loading indicator
         load(true).catch(err => {
           console.error('Error loading emails after back:', err);
-          listEl.innerHTML = `<li style="color:red; padding:20px;">Error loading emails: ${err.message}</li>`;
+          listEl.innerHTML = `<li style="padding:20px; border:1px solid #000;">Error loading emails: ${err.message}</li>`;
         });
       }
     };
@@ -492,7 +612,7 @@
       const text = document.getElementById('bodyEmail').value;
       
       if (!to || !subject || !text) {
-        alert('Please fill in all fields');
+        await showModal({ title: 'Missing fields', body: 'Please fill in: To, Subject, and Message.' });
         return;
       }
       
@@ -543,7 +663,10 @@
         
         const data = await res.json();
         if (data.success) {
-          alert('Email sent successfully!\nMessage ID: ' + (data.messageId || 'N/A'));
+          await showModal({
+            title: 'Sent',
+            body: `Email sent successfully.\nMessage ID: ${data.messageId || 'N/A'}`,
+          });
           composeForm.style.display = 'none';
           document.getElementById('toEmail').value = '';
           document.getElementById('subjectEmail').value = '';
@@ -575,7 +698,10 @@
         const res = await fetch('/api/smtp/test');
         const data = await res.json();
         if (data.success) {
-          alert(`✅ SMTP Connection Successful!\n\nHost: ${data.host}\nPort: ${data.port}\nSecure: ${data.secure ? 'SSL/TLS' : 'STARTTLS'}`);
+          await showModal({
+            title: 'SMTP OK',
+            body: `SMTP connection successful.\nHost: ${data.host}\nPort: ${data.port}\nSecure: ${data.secure ? 'SSL/TLS' : 'STARTTLS'}`,
+          });
         } else {
           const errorMsg = data.error || 'Unknown error';
           const errorCode = data.code ? ` (Code: ${data.code})` : '';
@@ -594,14 +720,20 @@
     
     // Test send email to eric.brilliant@gmail.com
     testSendBtn.onclick = async () => {
-      if (!confirm('Send test email to eric.brilliant@gmail.com?')) return;
+      const ok = await showModal({
+        title: 'Send test email',
+        body: 'Send test email to eric.brilliant@gmail.com?',
+        okText: 'Send',
+        cancelText: 'Cancel'
+      });
+      if (!ok) return;
       try {
         testSendBtn.disabled = true;
         testSendBtn.textContent = 'Sending...';
         const res = await fetch('/api/email/test', { method: 'POST' });
         const data = await res.json();
         if (data.success) {
-          alert('Test email sent successfully to ' + data.to + '!');
+          await showModal({ title: 'Sent', body: `Test email sent successfully to ${data.to}!` });
         } else {
           const errorMsg = data.error || 'Unknown error';
           const errorCode = data.code ? ` (Code: ${data.code})` : '';

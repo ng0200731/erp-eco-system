@@ -954,4 +954,21 @@ app.post('/api/email/test', async (req, res) => {
   }
 });
 
+// Global error handlers to prevent server crashes
+process.on('uncaughtException', (err) => {
+  console.error('========== UNCAUGHT EXCEPTION (Server will stay running) ==========');
+  console.error('Error:', err.message);
+  console.error('Stack:', err.stack);
+  console.error('===================================================================');
+  // Don't exit - keep server running, but log the error
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('========== UNHANDLED REJECTION (Server will stay running) ==========');
+  console.error('Reason:', reason);
+  console.error('Promise:', promise);
+  console.error('====================================================================');
+  // Don't exit - keep server running, but log the error
+});
+
 app.listen(Number(PORT), () => console.log(`Email service running on :${PORT}`));
