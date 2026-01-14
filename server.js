@@ -67,6 +67,8 @@ async function connectImap() {
     // Check if we have a valid connected client
     // ImapFlow state: 0=disconnected, 1=connecting, 2=authenticated, 3=selected, 4=idle
     if (imapClient && imapClient.state >= 2) {
+      // Check if socket is still connected by checking the state
+      // If state is valid, assume connection is good (we'll catch errors during operations)
       console.log(`IMAP already connected (state: ${imapClient.state})`);
       return; // Reuse existing connection
     }
@@ -291,10 +293,26 @@ app.get('/api/emails', async (req, res) => {
       console.log(`Opened INBOX. Total messages: ${mailbox.exists}`);
     } catch (mailboxErr) {
       console.error('Failed to open INBOX:', mailboxErr);
-      return res.status(500).json({ 
-        success: false, 
-        error: `Failed to open INBOX: ${mailboxErr.message}` 
-      });
+      // If mailbox open fails, try reconnecting
+      if (mailboxErr.message?.includes('timeout') || mailboxErr.message?.includes('closed') || mailboxErr.message?.includes('disconnected')) {
+        console.log('Connection appears stale, attempting reconnect...');
+        try {
+          imapClient = null;
+          await connectImap();
+          mailbox = await imapClient.mailboxOpen('INBOX', { readOnly: true });
+          console.log(`Opened INBOX after reconnect. Total messages: ${mailbox.exists}`);
+        } catch (retryErr) {
+          return res.status(500).json({ 
+            success: false, 
+            error: `Failed to open INBOX after reconnect: ${retryErr.message}` 
+          });
+        }
+      } else {
+        return res.status(500).json({ 
+          success: false, 
+          error: `Failed to open INBOX: ${mailboxErr.message}` 
+        });
+      }
     }
     
     if (mailbox.exists === 0) {

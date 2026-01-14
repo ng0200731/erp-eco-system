@@ -183,7 +183,7 @@
             console.log('Email fetch timeout, aborting...');
             controller.abort();
           }
-        }, 25000); // 25 second timeout (increased to allow for search + fetch)
+        }, 30000); // 30 second timeout (increased to allow for reconnection + search + fetch)
         
         let res;
         try {
@@ -195,7 +195,11 @@
         } catch (fetchErr) {
           clearTimeout(timeoutId);
           if (fetchErr.name === 'AbortError') {
-            throw new Error('Request timeout - server took too long to respond');
+            throw new Error('Request timeout - server took too long to respond. The connection may have timed out after idle period.');
+          }
+          // Check if it's a network error (connection lost)
+          if (fetchErr.message?.includes('Failed to fetch') || fetchErr.message?.includes('NetworkError')) {
+            throw new Error('Network error - connection lost. This may happen after idle period. Please try again.');
           }
           throw fetchErr;
         }
