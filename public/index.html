@@ -23,7 +23,7 @@
       transition:flex-basis 0.2s ease;
     }
     #sidebar:hover{
-      flex-basis:20%;
+      flex-basis:10%;
     }
     #board{
       flex:1;
@@ -333,35 +333,64 @@
 
     saveConfigBtn.onclick = async () => {
       try {
+        // Load existing profiles (for duplicate name check)
+        const listRes = await fetch('/api/profiles', { cache: 'no-cache' });
+        const listData = await listRes.json();
+        const profiles = listData?.profiles || [];
+
+        // Prompt for profile name (required)
+        let profileName = '';
+        while (true) {
+          // showModal doesn't support text input; using prompt for now
+          profileName = window.prompt('Profile name (required):', profileName || '') || '';
+          profileName = profileName.trim();
+          if (!profileName) {
+            await showModal({ title: 'Profile name required', body: 'Please enter a profile name.' });
+            continue;
+          }
+          const exists = profiles.some(p => String(p.name || '').toLowerCase() === profileName.toLowerCase());
+          if (exists) {
+            await showModal({ title: 'Name already exists', body: `Profile name "${profileName}" already exists. Please use a different name.` });
+            continue;
+          }
+          break;
+        }
+
         const payload = {
-          MAIL_USER: cfgMailUser.value.trim(),
-          MAIL_PASS: cfgMailPass.value,
-          IMAP_HOST: cfgImapHost.value.trim(),
-          IMAP_PORT: cfgImapPort.value.trim(),
-          IMAP_TLS: cfgImapTls.value.trim(),
-          SMTP_HOST: cfgSmtpHost.value.trim(),
-          SMTP_PORT: cfgSmtpPort.value.trim(),
-          SMTP_SECURE: cfgSmtpSecure.value.trim(),
-          PORT: cfgPort.value.trim(),
+          name: profileName,
+          remark: profileName,
+          mailUser: cfgMailUser.value.trim(),
+          mailPass: cfgMailPass.value,
+          imapHost: cfgImapHost.value.trim(),
+          imapPort: cfgImapPort.value.trim(),
+          imapTls: cfgImapTls.value.trim(),
+          smtpHost: cfgSmtpHost.value.trim(),
+          smtpPort: cfgSmtpPort.value.trim(),
+          smtpSecure: cfgSmtpSecure.value.trim(),
+          port: cfgPort.value.trim(),
+          isActive: 0,
         };
 
-        const res = await fetch('/api/config', {
+        const res = await fetch('/api/profiles', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
         const data = await res.json();
         if (!data.success) {
-          await showCopyableError('Save Settings Error', JSON.stringify(data, null, 2));
+          await showCopyableError('Save Profile Error', JSON.stringify(data, null, 2));
           return;
         }
-        settingsHasUnsavedChanges = false; // Mark as saved
+
+        settingsHasUnsavedChanges = false;
+        await loadProfilesList();
+
         await showModal({
-          title: 'Settings Saved',
-          body: 'Settings saved to env file.\nPlease restart server (close window and run start.bat) so changes take effect.',
+          title: 'Profile Saved',
+          body: `Profile "${profileName}" saved.\nIf you want it to take effect for sending/receiving email, select the profile and implement activation logic (next step).`,
         });
       } catch (err) {
-        await showCopyableError('Save Settings Error', `Error saving config: ${err.message}`);
+        await showCopyableError('Save Profile Error', `Error saving profile: ${err.message}`);
       }
     };
 
@@ -513,6 +542,7 @@
         const configData = await configRes.json();
         const cfg = configData.config || {};
 
+        // Default profile: longriver.com
         const res = await fetch('/api/profiles', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -535,6 +565,30 @@
         if (!data.success) {
           console.error('Failed to create default profile:', data);
         }
+
+        // Additional profile: lcf
+        const resLcf = await fetch('/api/profiles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'lcf',
+            remark: 'lcf',
+            mailUser: 'weiwu@fuchanghk.com',
+            mailPass: 'mrkE190#',
+            imapHost: 'imap.qiye.163.com',
+            imapPort: 993,
+            imapTls: 'true',
+            smtpHost: 'smtp.qiye.163.com',
+            smtpPort: 994,
+            smtpSecure: 'true',
+            port: 3001,
+            isActive: 0
+          })
+        });
+        const dataLcf = await resLcf.json();
+        if (!dataLcf.success) {
+          console.error('Failed to create lcf profile:', dataLcf);
+        }
       } catch (err) {
         console.error('Error creating default profile:', err);
       }
@@ -544,7 +598,6 @@
     ensureTab('welcome', 'Welcome');
     activateTab('welcome');
 
-    // Button hover: show "S" normally, "Setting" on hover
     menuSettingsBtn.onmouseenter = () => {
       menuSettingsBtn.textContent = menuSettingsBtn.dataset.full || 'Setting';
     };
@@ -561,7 +614,7 @@
 
     // Add profile button
     addProfileBtn.onclick = () => {
-      // Stay in profiles tab; show empty form inline
+      // Show blank form for new profile input
       settingsPanel.style.display = 'block';
       cfgMailUser.value = '';
       cfgMailPass.value = '';
@@ -571,7 +624,7 @@
       cfgSmtpHost.value = '';
       cfgSmtpPort.value = '';
       cfgSmtpSecure.value = 'true';
-      cfgPort.value = '3001';
+      cfgPort.value = '';
     };
     
     async function load(showLoading = true) {
