@@ -99,6 +99,7 @@
       display:flex; align-items:center; justify-content:center;
       z-index:10001;
       padding:10px;
+      overflow-y: auto; /* Allow modal overlay to scroll if content is too tall */
     }
     .email-modal{
       width:min(1200px, 95vw);
@@ -109,6 +110,14 @@
       box-shadow:0 12px 32px rgba(0,0,0,.25);
       display:flex;
       flex-direction:column;
+      max-height: 90vh; /* Ensure modal doesn't exceed viewport height */
+    }
+
+    /* Prevent body scroll when modal is open */
+    body.modal-open {
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
     }
     .email-modal-header{
       padding:16px 20px;
@@ -1190,71 +1199,73 @@
           showCopyableError(err1.__isHttpError ? 'Fetch Email Error' : 'Email Error', err1.__fullError);
           console.error('Fetch email error:', err1);
           document.getElementById('emailModal').style.display='none';
+          document.body.classList.remove('modal-open');
           return;
         } else {
           const fullError = `Error fetching email: ${err1.message}\n\nUID: ${uid}\n\nStack trace:\n${err1.stack || 'N/A'}`;
           showCopyableError('Network Error', fullError);
           console.error('Fetch error:', err1);
           document.getElementById('emailModal').style.display='none';
+          document.body.classList.remove('modal-open');
           return;
         }
       }
         
-        // Parse email from source
+        // Parse email from source - simplified to just show context/body
         const source = data.source || '';
         let subject = '';
         let from = '';
         let date = '';
         let bodyContent = '';
-        
+
         // Extract headers
         const subjectMatch = source.match(/^Subject:\s*(.+)$/mi);
         const fromMatch = source.match(/^From:\s*(.+)$/mi);
         const dateMatch = source.match(/^Date:\s*(.+)$/mi);
-        
+
         if (subjectMatch) subject = subjectMatch[1].trim();
         if (fromMatch) from = fromMatch[1].trim();
         if (dateMatch) date = dateMatch[1].trim();
-        
-        // Extract body content (skip headers)
-        // Find where headers end (empty line or Content-Type)
+
+        // Extract just the actual email content (skip headers and boundaries)
         const headerEndMatch = source.match(/\n\n|\r\n\r\n/);
         if (headerEndMatch) {
-          const headerEndIndex = headerEndMatch.index + headerEndMatch[0].length;
-          let body = source.substring(headerEndIndex);
-          
-          // Try to extract text/html content from multipart
-          const htmlMatch = body.match(/Content-Type:\s*text\/html[^]*?--000[^]*?<div[^]*?<\/div>/s);
-          const textMatch = body.match(/Content-Type:\s*text\/plain[^]*?--000[^]*?([^]*?)(?=--000|$)/s);
-          
-          if (htmlMatch) {
-            // Extract HTML content
-            const htmlContent = htmlMatch[0].replace(/Content-Type:[^\n]*\n[^\n]*\n[^\n]*\n/, '');
-            bodyContent = htmlContent.replace(/--000[^]*$/, '').trim();
-            // If it's HTML, we can display it as HTML
-            if (bodyContent.includes('<')) {
-              document.getElementById('emailModalBody').innerHTML = bodyContent;
-            } else {
-              document.getElementById('emailModalBody').textContent = bodyContent;
+          const bodyPart = source.substring(headerEndMatch.index + headerEndMatch[0].length);
+
+          // Simple approach: find the first actual content after headers
+          // Look for content that comes after Content-Type declarations
+          const lines = bodyPart.split('\n');
+          let contentStart = -1;
+
+          for (let i = 0; i < lines.length; i++) {
+            if (lines[i].includes('Content-Type:') && lines[i+1] && lines[i+1].includes('Content-Transfer-Encoding:')) {
+              // Found a content section, the actual content starts 2 lines after the encoding line
+              contentStart = i + 2;
+              break;
             }
-          } else if (textMatch) {
-            // Extract plain text content
-            bodyContent = textMatch[1].replace(/--000[^]*$/, '').trim();
-            document.getElementById('emailModalBody').textContent = bodyContent;
+          }
+
+          if (contentStart >= 0 && contentStart < lines.length) {
+            // Collect content until we hit a boundary
+            const contentLines = [];
+            for (let i = contentStart; i < lines.length; i++) {
+              if (lines[i].startsWith('----_')) {
+                break; // Stop at boundary
+              }
+              contentLines.push(lines[i]);
+            }
+            bodyContent = contentLines.join('\n').trim();
           } else {
-            // Fallback: show everything after headers, but clean it up
-            bodyContent = body.replace(/--000[^]*$/g, '').trim();
-            // Remove Content-Type lines and boundaries
-            bodyContent = bodyContent.replace(/Content-Type:[^\n]*\n/g, '');
-            bodyContent = bodyContent.replace(/charset="[^"]*"\n/g, '');
-            bodyContent = bodyContent.replace(/^--[^\n]*\n/gm, '');
-            document.getElementById('emailModalBody').textContent = bodyContent || 'No readable content found';
+            // Fallback: just remove boundaries and show what's left
+            bodyContent = bodyPart.replace(/----_[^\n]*\n/g, '').replace(/Content-Type:[^\n]*\n/g, '').replace(/Content-Transfer-Encoding:[^\n]*\n/g, '').replace(/^\n+/, '').replace(/\n+$/, '');
           }
         } else {
-          // No clear header/body separation, show everything but try to clean it
+          // Fallback: show the whole source
           bodyContent = source;
-          document.getElementById('emailModalBody').textContent = bodyContent;
         }
+
+        // Display just the actual message content
+        document.getElementById('emailModalBody').textContent = bodyContent || 'No content available';
 
         // Display email metadata in modal
         document.getElementById('emailModalSubject').textContent = subject || '(No subject)';
@@ -1280,6 +1291,7 @@
         // Show email modal
         populateEmailModal(subject, from, date, bodyContent, currentEmailMeta);
         document.getElementById('emailModal').style.display='flex';
+        document.body.classList.add('modal-open');
     }
     
     function randInt(min, max) {
@@ -1811,11 +1823,13 @@
     // Email modal event listeners
     document.getElementById('emailModalClose').onclick = () => {
       document.getElementById('emailModal').style.display = 'none';
+      document.body.classList.remove('modal-open');
     };
 
     document.getElementById('emailModal').onclick = (e) => {
       if (e.target === document.getElementById('emailModal')) {
         document.getElementById('emailModal').style.display = 'none';
+        document.body.classList.remove('modal-open');
       }
     };
 
