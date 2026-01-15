@@ -241,6 +241,7 @@
 
         <div class="row">
           <button id="saveConfigBtn" class="page-btn">Save Settings</button>
+          <button id="dummyFillSettingsBtn" class="page-btn" type="button">Auto Fill (Random)</button>
         </div>
         <p class="meta" id="settingsNote"></p>
       </div>
@@ -260,6 +261,7 @@
           <div class="row">
             <button id="sendBtn" class="page-btn">Send</button>
             <button id="cancelBtn" class="page-btn">Cancel</button>
+            <button id="dummyFillComposeBtn" class="page-btn" type="button" style="margin-left:auto;">Dummy Fill</button>
           </div>
         </div>
         <ul id="list"></ul>
@@ -306,6 +308,7 @@
     const cfgSmtpSecure = document.getElementById('cfgSmtpSecure');
     const cfgPort = document.getElementById('cfgPort');
     const saveConfigBtn = document.getElementById('saveConfigBtn');
+    const dummyFillSettingsBtn = document.getElementById('dummyFillSettingsBtn');
 
     async function loadConfig() {
       try {
@@ -331,24 +334,150 @@
       }
     }
 
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function randomFrom(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function fillDummyForm(panelEl) {
+      const controls = Array.from(panelEl.querySelectorAll('input, textarea, select'));
+
+      for (const el of controls) {
+        if (el.disabled) continue;
+        if (el.tagName === 'INPUT') {
+          const type = (el.type || 'text').toLowerCase();
+          if (type === 'button' || type === 'submit' || type === 'reset' || type === 'hidden') continue;
+        }
+
+        // Skip hidden/inactive elements
+        if (el.offsetParent === null) continue;
+
+        const id = (el.id || '').toLowerCase();
+        const name = (el.name || '').toLowerCase();
+        const labelEl = el.id ? panelEl.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null;
+        const label = (labelEl?.textContent || '').toLowerCase();
+        const hint = `${id} ${name} ${label}`;
+
+        if (el.tagName === 'SELECT') {
+          const enabledOptions = Array.from(el.options).filter(o => !o.disabled && o.value !== '');
+          if (enabledOptions.length) el.value = randomFrom(enabledOptions).value;
+          continue;
+        }
+
+        if (el.tagName === 'TEXTAREA') {
+          if (!el.value.trim()) el.value = 'Dummy text ' + randomInt(1000, 9999);
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          continue;
+        }
+
+        // INPUT types
+        const type = (el.type || 'text').toLowerCase();
+        if (type === 'checkbox') {
+          el.checked = true;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          continue;
+        }
+        if (type === 'radio') {
+          el.checked = true;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          continue;
+        }
+        if (type === 'number') {
+          if (!String(el.value || '').trim()) el.value = String(randomInt(1, 9999));
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          continue;
+        }
+        if (type === 'email') {
+          if (!el.value.trim()) el.value = `dummy${randomInt(10, 999)}@example.com`;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          continue;
+        }
+        if (type === 'password') {
+          if (!el.value) el.value = 'DummyPass' + randomInt(1000, 9999);
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          continue;
+        }
+
+        // Heuristics based on id/label
+        if (!el.value.trim()) {
+          if (hint.includes('imap_host')) el.value = 'imap.example.com';
+          else if (hint.includes('smtp_host')) el.value = 'smtp.example.com';
+          else if (hint.includes('host')) el.value = 'localhost';
+          else if (hint.includes('imap_port')) el.value = '993';
+          else if (hint.includes('smtp_port')) el.value = '465';
+          else if (hint.includes('port')) el.value = '3001';
+          else if (hint.includes('tls') || hint.includes('secure')) el.value = 'true';
+          else el.value = 'Dummy ' + randomInt(1000, 9999);
+        }
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    }
+
+    dummyFillSettingsBtn.onclick = () => {
+      fillDummyForm(settingsPanel);
+    };
+
     saveConfigBtn.onclick = async () => {
       try {
-        // Load existing profiles (for duplicate name check)
+        // 1) Validate settings form completeness FIRST (before any profile-name prompt)
+        const inputs = Array.from(settingsPanel.querySelectorAll('input'));
+        const missingLabels = [];
+
+        for (const input of inputs) {
+          // Skip inputs that are not actionable/visible
+          if (input.disabled) continue;
+          if (input.type === 'button' || input.type === 'submit' || input.type === 'reset') continue;
+
+          // Skip hidden inputs or anything inside a hidden container
+          // (offsetParent is null when display:none or not in layout)
+          if (input.type === 'hidden' || input.offsetParent === null) continue;
+
+          const value = (input.value ?? '').toString().trim();
+          if (value) continue;
+
+          // Derive label from <label for="..."> when possible, fallback to id/name
+          const labelEl = settingsPanel.querySelector(`label[for="${CSS.escape(input.id)}"]`);
+          const label = (labelEl?.textContent || input.name || input.id || 'Unnamed field').trim();
+          missingLabels.push(label);
+        }
+
+        if (missingLabels.length) {
+          await showModal({
+            title: 'Incomplete fields',
+            body: `Please fill in:\n${missingLabels.join('\n')}`
+          });
+          return;
+        }
+
+        // 2) Load existing profiles (for duplicate name check)
         const listRes = await fetch('/api/profiles', { cache: 'no-cache' });
         const listData = await listRes.json();
         const profiles = listData?.profiles || [];
 
-        // Prompt for profile name (required)
-        let profileName = '';
+        // 3) Prompt for profile name (required + unique)
+        let profileName = currentEditingProfileId ? (profiles.find(p => p.id === currentEditingProfileId)?.name || '') : '';
         while (true) {
-          // showModal doesn't support text input; using prompt for now
-          profileName = window.prompt('Profile name (required):', profileName || '') || '';
-          profileName = profileName.trim();
+          const result = await showTextInputModal({
+            title: 'Profile name',
+            label: 'Profile name (required):',
+            initialValue: profileName,
+            okText: 'OK',
+            cancelText: 'Cancel'
+          });
+
+          if (!result.ok) {
+            return; // user cancelled
+          }
+
+          profileName = (result.value || '').trim();
           if (!profileName) {
             await showModal({ title: 'Profile name required', body: 'Please enter a profile name.' });
             continue;
           }
-          const exists = profiles.some(p => String(p.name || '').toLowerCase() === profileName.toLowerCase());
+          const exists = profiles.some(p => String(p.name || '').toLowerCase() === profileName.toLowerCase() && p.id !== currentEditingProfileId);
           if (exists) {
             await showModal({ title: 'Name already exists', body: `Profile name "${profileName}" already exists. Please use a different name.` });
             continue;
@@ -371,8 +500,11 @@
           isActive: 0,
         };
 
-        const res = await fetch('/api/profiles', {
-          method: 'POST',
+        const url = currentEditingProfileId ? `/api/profiles/${currentEditingProfileId}` : '/api/profiles';
+        const method = currentEditingProfileId ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
@@ -389,6 +521,10 @@
           title: 'Profile Saved',
           body: `Profile "${profileName}" saved.\nIf you want it to take effect for sending/receiving email, select the profile and implement activation logic (next step).`,
         });
+
+        // Close editor after saving
+        settingsPanel.style.display = 'none';
+        currentEditingProfileId = null;
       } catch (err) {
         await showCopyableError('Save Profile Error', `Error saving profile: ${err.message}`);
       }
@@ -403,6 +539,7 @@
 
     // Track if settings have unsaved changes
     let settingsHasUnsavedChanges = false;
+    let currentEditingProfileId = null; // null means creating new profile
 
     // --- Tabs handling (welcome + future boards) ---
     function ensureTab(id, label) {
@@ -432,22 +569,16 @@
     }
 
     async function closeTab(id) {
-      // Always prompt to save before closing profiles tab
+      // Always prompt warning before closing profiles tab
       if (id === 'profiles') {
         const confirmed = await showModal({
-          title: 'Save before closing',
-          body: 'Do you want to save settings before closing this tab?',
-          okText: 'Save & Close',
+          title: 'Warning',
+          body: 'Closing this tag will lose everything.',
+          okText: 'Close',
           cancelText: 'Cancel'
         });
         if (!confirmed) {
           return; // Do not close if user cancels
-        }
-        // Save first; if save fails, keep tab open
-        try {
-          await saveConfigBtn.click();
-        } catch (e) {
-          return;
         }
       }
       
@@ -515,18 +646,53 @@
             <div class="meta">${p.remark || ''}</div>
             <div class="meta" style="font-size:0.85em;">${p.mailUser || ''} | Active: ${p.isActive ? 'Yes' : 'No'}</div>
           `;
-          item.onclick = () => {
-            // When clicking a profile, show its IMAP/SMTP attributes inline (same tab)
-            settingsPanel.style.display = 'block';
-            cfgMailUser.value = p.mailUser || '';
-            cfgMailPass.value = p.mailPass || '';
-            cfgImapHost.value = p.imapHost || '';
-            cfgImapPort.value = p.imapPort || '';
-            cfgImapTls.value = p.imapTls || 'true';
-            cfgSmtpHost.value = p.smtpHost || '';
-            cfgSmtpPort.value = p.smtpPort || '';
-            cfgSmtpSecure.value = p.smtpSecure || 'true';
-            cfgPort.value = p.port || '';
+          item.innerHTML += `<div style="margin-top:6px; display:flex; gap:6px;">
+              <button class="btn" data-action="edit">Edit</button>
+              <button class="btn" data-action="delete">Delete</button>
+            </div>`;
+          item.onclick = (e) => {
+            const action = e.target?.dataset?.action;
+            if (action === 'edit') {
+              e.stopPropagation();
+              // Edit profile
+              currentEditingProfileId = p.id;
+              settingsPanel.style.display = 'block';
+              cfgMailUser.value = p.mailUser || '';
+              cfgMailPass.value = p.mailPass || '';
+              cfgImapHost.value = p.imapHost || '';
+              cfgImapPort.value = p.imapPort || '';
+              cfgImapTls.value = p.imapTls || 'true';
+              cfgSmtpHost.value = p.smtpHost || '';
+              cfgSmtpPort.value = p.smtpPort || '';
+              cfgSmtpSecure.value = p.smtpSecure || 'true';
+              cfgPort.value = p.port || '';
+            } else if (action === 'delete') {
+              e.stopPropagation();
+              (async () => {
+                const ok = await showModal({
+                  title: 'Delete profile',
+                  body: `Delete profile "${p.name}"?`,
+                  okText: 'Delete',
+                  cancelText: 'Cancel'
+                });
+                if (!ok) return;
+                await fetch(`/api/profiles/${p.id}`, { method: 'DELETE' });
+                await loadProfilesList();
+              })();
+            } else {
+              // View profile details (same as before)
+              currentEditingProfileId = p.id;
+              settingsPanel.style.display = 'block';
+              cfgMailUser.value = p.mailUser || '';
+              cfgMailPass.value = p.mailPass || '';
+              cfgImapHost.value = p.imapHost || '';
+              cfgImapPort.value = p.imapPort || '';
+              cfgImapTls.value = p.imapTls || 'true';
+              cfgSmtpHost.value = p.smtpHost || '';
+              cfgSmtpPort.value = p.smtpPort || '';
+              cfgSmtpSecure.value = p.smtpSecure || 'true';
+              cfgPort.value = p.port || '';
+            }
           };
           profilesListEl.appendChild(item);
         });
@@ -616,6 +782,7 @@
     addProfileBtn.onclick = () => {
       // Show blank form for new profile input
       settingsPanel.style.display = 'block';
+      currentEditingProfileId = null; // create mode
       cfgMailUser.value = '';
       cfgMailPass.value = '';
       cfgImapHost.value = '';
@@ -957,6 +1124,69 @@
         detailEl.style.display='block';
     }
     
+    function randInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function randPick(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function randString(len) {
+      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      let out = '';
+      for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+      return out;
+    }
+
+    function fillFormDummy(container, { includeHidden = false } = {}) {
+      const inputs = Array.from(container.querySelectorAll('input'));
+      const textareas = Array.from(container.querySelectorAll('textarea'));
+
+      const fillInput = (input) => {
+        if (input.disabled) return;
+        if (input.type === 'button' || input.type === 'submit' || input.type === 'reset') return;
+        if (!includeHidden && (input.type === 'hidden' || input.offsetParent === null)) return;
+
+        const id = (input.id || '').toLowerCase();
+        const name = (input.name || '').toLowerCase();
+        const key = `${id} ${name}`;
+
+        if (input.type === 'email' || key.includes('mail_user') || key.includes('user') || key.includes('email')) {
+          const domain = randPick(['example.com', 'longriver.com', 'test.local']);
+          input.value = `user.${randString(6)}@${domain}`;
+        } else if (input.type === 'password' || key.includes('pass')) {
+          input.value = `P@ss${randString(10)}!`;
+        } else if (input.type === 'number' || key.includes('port')) {
+          // reasonable defaults for known ports
+          if (key.includes('imap')) input.value = String(randPick([993, 143]));
+          else if (key.includes('smtp')) input.value = String(randPick([465, 587, 25]));
+          else input.value = String(randPick([3001, 3000, 8080, randInt(1024, 65535)]));
+        } else if (key.includes('tls') || key.includes('secure')) {
+          input.value = randPick(['true', 'false']);
+        } else if (key.includes('host')) {
+          const host = randPick(['imap.qiye.163.com', 'smtp.qiye.163.com', 'imap.bbmail.com.hk', 'homegw.bbmail.com.hk', 'mail.example.com']);
+          input.value = host;
+        } else {
+          input.value = randString(10);
+        }
+
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+
+      const fillTextarea = (ta) => {
+        if (ta.disabled) return;
+        if (!includeHidden && ta.offsetParent === null) return;
+        ta.value = `Dummy content ${randString(12)}\n\nLine 2 ${randString(8)}`;
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+        ta.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+
+      inputs.forEach(fillInput);
+      textareas.forEach(fillTextarea);
+    }
+
     // Copyable modal in minimal black & white style (no browser popups)
     async function showCopyableError(title, errorText) {
       await showModal({
@@ -1045,6 +1275,86 @@
           }
         };
         document.addEventListener('keydown', onKey);
+      });
+    }
+
+    // Text input modal (replaces prompt)
+    function showTextInputModal({ title = 'Input', label = '', initialValue = '', okText = 'OK', cancelText = 'Cancel' }) {
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = title;
+
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+
+        const labelEl = document.createElement('div');
+        labelEl.style.fontWeight = '700';
+        labelEl.style.marginBottom = '8px';
+        labelEl.textContent = label;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = initialValue || '';
+
+        content.appendChild(labelEl);
+        content.appendChild(input);
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn';
+        cancelBtn.textContent = cancelText;
+
+        const okBtn = document.createElement('button');
+        okBtn.className = 'btn primary';
+        okBtn.textContent = okText;
+
+        const close = (result) => {
+          try { document.body.removeChild(overlay); } catch {}
+          resolve(result);
+        };
+
+        cancelBtn.onclick = () => close({ ok: false, value: input.value });
+        okBtn.onclick = () => close({ ok: true, value: input.value });
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(okBtn);
+
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        overlay.onclick = (e) => {
+          if (e.target === overlay) close({ ok: false, value: input.value });
+        };
+
+        const onKey = (e) => {
+          if (e.key === 'Escape') {
+            document.removeEventListener('keydown', onKey);
+            close({ ok: false, value: input.value });
+          }
+          if (e.key === 'Enter') {
+            document.removeEventListener('keydown', onKey);
+            close({ ok: true, value: input.value });
+          }
+        };
+        document.addEventListener('keydown', onKey);
+
+        // focus after attach
+        setTimeout(() => {
+          input.focus();
+          input.select();
+        }, 0);
       });
     }
     
@@ -1172,6 +1482,12 @@
     const cancelBtn = document.getElementById('cancelBtn');
     const sendBtn = document.getElementById('sendBtn');
     const testSendBtn = document.getElementById('testSendBtn');
+    const dummyFillComposeBtn = document.getElementById('dummyFillComposeBtn');
+    if (dummyFillComposeBtn) {
+      dummyFillComposeBtn.onclick = () => {
+        fillDummyForm(composeForm);
+      };
+    }
     
     composeBtn.onclick = () => {
       composeForm.style.display = composeForm.style.display === 'none' ? 'block' : 'none';
