@@ -93,9 +93,11 @@ async function connectImap() {
     if (imapClient && imapClient.state >= 2) {
       // Check if socket is still connected by checking the state
       // If state is valid, assume connection is good (we'll catch errors during operations)
-
+      console.log(`Reusing existing IMAP connection (state: ${imapClient.state})`);
       return; // Reuse existing connection
     }
+
+    console.log(`IMAP client state: ${imapClient?.state || 'null'} - need new connection`);
 
     // Need a new client - clean up old one first
     if (imapClient) {
@@ -591,6 +593,30 @@ app.post('/api/tasks/:id/status', async (req, res) => {
   }
 });
 
+// Simple IMAP connection test
+app.get('/api/test-connection', async (req, res) => {
+  try {
+    // Get active profile for IMAP configuration
+    const profiles = await getProfilesMemory();
+    const activeProfile = profiles.find(p => p.isActive === 1);
+    if (!activeProfile) {
+      return res.status(400).json({
+        success: false,
+        error: 'No active email profile found. Please activate a profile in Settings.'
+      });
+    }
+
+    await connectImap();
+    if (imapClient.connected) {
+      res.json({ success: true, message: 'IMAP connection successful' });
+    } else {
+      res.status(500).json({ success: false, error: 'IMAP client exists but not connected' });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message, details: err.toString() });
+  }
+});
+
 // Diagnostic endpoint for IMAP
 app.get('/api/imap/diagnostic', async (req, res) => {
   try {
@@ -682,7 +708,7 @@ app.get('/api/emails', async (req, res) => {
 
     // Ensure IMAP is connected using active profile
     try {
-      await connectImap(activeProfile);
+      await connectImap();
     } catch (connectErr) {
       return res.status(500).json({ 
         success: false, 
@@ -699,39 +725,69 @@ app.get('/api/emails', async (req, res) => {
     // Verify connection state
     // ImapFlow state: 0=disconnected, 1=connecting, 2=authenticated, 3=selected, 4=idle
     const state = imapClient?.state;
-    
+    console.log(`IMAP client state before mailbox open: ${state}`);
+
     if (!imapClient || state < 2) {
-      return res.status(500).json({ 
-        success: false, 
-        error: `IMAP client not authenticated. State: ${state} (${state === 0 ? 'disconnected' : state === 1 ? 'connecting' : 'unknown'}). Check server logs for connection errors.` 
+      console.error(`IMAP client not ready. Client exists: ${!!imapClient}, State: ${state}`);
+      return res.status(500).json({
+        success: false,
+        error: `IMAP client not authenticated. State: ${state} (${state === 0 ? 'disconnected' : state === 1 ? 'connecting' : 'unknown'}). Check server logs for connection errors.`,
+        troubleshooting: [
+          'Wait a moment and try again',
+          'Check server console for connection details',
+          'Verify IMAP credentials are correct',
+          'Restart the server if connection issues persist'
+        ]
       });
     }
 
     // Select INBOX read-only
     let mailbox;
     try {
+      console.log(`Attempting to open INBOX with client state: ${imapClient.state}`);
       mailbox = await imapClient.mailboxOpen('INBOX', { readOnly: true });
-      
+      console.log('Successfully opened INBOX');
+
     } catch (mailboxErr) {
       console.error('Failed to open INBOX:', mailboxErr);
+      console.error('Client state when error occurred:', imapClient?.state);
+
       // If mailbox open fails, try reconnecting
-      if (mailboxErr.message?.includes('timeout') || mailboxErr.message?.includes('closed') || mailboxErr.message?.includes('disconnected')) {
-        
+      if (mailboxErr.message?.includes('timeout') || mailboxErr.message?.includes('closed') ||
+          mailboxErr.message?.includes('disconnected') || mailboxErr.message?.includes('not available') ||
+          mailboxErr.message?.includes('Connection not available')) {
+
+        console.log('Attempting reconnect due to connection error...');
         try {
           imapClient = null;
           await connectImap();
+          console.log(`Reconnected, client state: ${imapClient.state}`);
           mailbox = await imapClient.mailboxOpen('INBOX', { readOnly: true });
-          
+          console.log('Successfully opened INBOX after reconnect');
+
         } catch (retryErr) {
-          return res.status(500).json({ 
-            success: false, 
-            error: `Failed to open INBOX after reconnect: ${retryErr.message}` 
+          console.error('Failed to reconnect and open INBOX:', retryErr);
+          return res.status(500).json({
+            success: false,
+            error: `Failed to open INBOX after reconnect: ${retryErr.message}`,
+            troubleshooting: [
+              'Check your IMAP server settings',
+              'Verify network connectivity',
+              'Try restarting the server',
+              'Check if your email account is accessible'
+            ]
           });
         }
       } else {
-        return res.status(500).json({ 
-          success: false, 
-          error: `Failed to open INBOX: ${mailboxErr.message}` 
+        console.error('Non-connection error when opening mailbox:', mailboxErr);
+        return res.status(500).json({
+          success: false,
+          error: `Failed to open INBOX: ${mailboxErr.message}`,
+          troubleshooting: [
+            'Verify IMAP server configuration',
+            'Check if INBOX mailbox exists',
+            'Ensure you have read permissions'
+          ]
         });
       }
     }

@@ -91,6 +91,74 @@
       justify-content:flex-end;
       flex-wrap:wrap;
     }
+
+    /* Email reader modal - Microsoft Outlook style */
+    .email-modal-overlay{
+      position:fixed; inset:0;
+      background:rgba(0,0,0,.2);
+      display:flex; align-items:center; justify-content:center;
+      z-index:10001;
+      padding:10px;
+    }
+    .email-modal{
+      width:min(1200px, 95vw);
+      height:min(800px, 90vh);
+      background:#fff;
+      color:#000;
+      border:1px solid #000;
+      box-shadow:0 12px 32px rgba(0,0,0,.25);
+      display:flex;
+      flex-direction:column;
+    }
+    .email-modal-header{
+      padding:16px 20px;
+      border-bottom:1px solid #000;
+      background:#f8f8f8;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .email-modal-title{
+      font-weight:700;
+      font-size:16px;
+      margin:0;
+      flex:1;
+    }
+    .email-modal-close{
+      background:none;
+      border:1px solid #000;
+      color:#000;
+      cursor:pointer;
+      padding:6px 12px;
+      font-size:14px;
+    }
+    .email-modal-close:hover{
+      background:#000;
+      color:#fff;
+    }
+    .email-modal-meta{
+      padding:12px 20px;
+      border-bottom:1px solid #000;
+      background:#fafafa;
+      font-size:14px;
+    }
+    .email-modal-from{
+      font-weight:600;
+      margin-bottom:4px;
+    }
+    .email-modal-date{
+      color:#666;
+      font-size:13px;
+    }
+    .email-modal-body{
+      flex:1;
+      padding:20px;
+      overflow-y:auto;
+      font-family:Arial, sans-serif;
+      line-height:1.5;
+      white-space:pre-wrap;
+      word-wrap:break-word;
+    }
     .btn{
       appearance:none;
       border:1px solid #000;
@@ -213,7 +281,8 @@
 
       <!-- Settings board (IMAP/SMTP profile edit form) -->
       <div id="settingsPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
-        <h3>Profile &amp; Connection Settings</h3>
+        <form id="settingsForm">
+          <h3>Profile &amp; Connection Settings</h3>
         <div class="row" style="margin-bottom:10px;">
           <div style="flex:1;">
             <label for="cfgMailUser">MAIL_USER</label>
@@ -222,7 +291,7 @@
           <div style="flex:1;">
             <label for="cfgMailPass">MAIL_PASS</label>
             <div style="position:relative;">
-              <input id="cfgMailPass" type="password" style="padding-right:30px;">
+              <input id="cfgMailPass" type="password" autocomplete="current-password" style="padding-right:30px;">
               <button id="togglePassword" type="button" style="position:absolute; right:5px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#000; font-size:14px;">👁️</button>
             </div>
           </div>
@@ -273,6 +342,7 @@
           <button id="dummyFillSettingsBtn" class="page-btn" type="button">Auto Fill (Random)</button>
         </div>
         <p class="meta" id="settingsNote"></p>
+        </form>
       </div>
 
       <!-- Email UI (next step; hidden for now) -->
@@ -322,14 +392,25 @@
           </thead>
           <tbody id="emailTableBody"></tbody>
         </table>
-        <div id="detail" style="display:none">
-          <div class="row" style="margin-bottom:10px;">
-            <button id="back" class="page-btn">??Back</button>
-            <button id="createTaskBtn" class="page-btn">Create Task</button>
+
+        <!-- Email Reader Modal (Microsoft Outlook style) -->
+        <div id="emailModal" class="email-modal-overlay" style="display:none;">
+          <div class="email-modal">
+            <div class="email-modal-header">
+              <h2 id="emailModalSubject" class="email-modal-title">Email Subject</h2>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <button id="emailModalCreateTask" class="page-btn" style="font-size:12px; padding:4px 8px;">Create Task</button>
+                <button id="emailModalClose" class="email-modal-close">×</button>
+              </div>
+            </div>
+            <div class="email-modal-meta">
+              <div id="emailModalFrom" class="email-modal-from">From: sender@example.com</div>
+              <div id="emailModalDate" class="email-modal-date">Date: 2024-01-15</div>
+            </div>
+            <div id="emailModalBody" class="email-modal-body">
+              Email content will appear here...
+            </div>
           </div>
-          <h2 id="d-sub"></h2>
-          <p class="meta"><span id="d-from"></span> ??<span id="d-date"></span></p>
-          <pre id="d-body"></pre>
         </div>
       </div>
     </div>
@@ -340,9 +421,6 @@
     const profilesListPanel = document.getElementById('profilesListPanel');
     const settingsPanel = document.getElementById('settingsPanel');
 
-    const detailEl = document.getElementById('detail');
-    const backBtn = document.getElementById('back');
-    const createTaskBtn = document.getElementById('createTaskBtn');
     const menuSettingsBtn = document.getElementById('menuSettings');
     const addProfileBtn = document.getElementById('addProfileBtn');
     const profilesListEl = document.getElementById('profilesList');
@@ -352,6 +430,7 @@
     let currentEmails = [];
     let currentLoadController = null; // Track current load request
     let currentEmailMeta = null; // Track currently shown email (for task creation)
+    let currentEmailModalMeta = null; // Track email in modal (for task creation)
 
     // -------- SETTINGS (board) --------
     const cfgMailUser = document.getElementById('cfgMailUser');
@@ -912,7 +991,6 @@
         if (showLoading) {
           const tableBody = document.getElementById('emailTableBody');
           tableBody.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center; border:1px solid #000;">Loading emails...</td></tr>';
-          detailEl.style.display = 'none';
         } else {
 
         }
@@ -962,14 +1040,11 @@
           }
           const errorMsg = errorData.error || 'Failed to load emails';
           const errorCode = errorData.code ? ` (${errorData.code})` : '';
-          const tableBody = document.getElementById('emailTableBody');
-          tableBody.innerHTML = `<tr><td colspan="5" style="padding:20px; background:#fff; border:1px solid #000; text-align:center;">
-            <strong>Error</strong><br>
-            ${errorMsg}${errorCode}<br>
-            <small>Status: ${res.status}</small>
-            ${errorData.details ? `<br><small style="font-family:monospace; font-size:0.8em;">${errorData.details}</small>` : ''}
-          </td></tr>`;
-          console.error('API error:', errorData, res.status);
+          const troubleshooting = errorData.troubleshooting ? '\n\nTroubleshooting:\n' + errorData.troubleshooting.join('\n') : '';
+
+          await showCopyableError('Email Loading Error',
+            `Error: ${errorMsg}${errorCode}\nStatus: ${res.status}${troubleshooting}\n\nFull details:\n${JSON.stringify(errorData, null, 2)}`
+          );
           return;
         }
         
@@ -990,26 +1065,17 @@
         // Render the email list (only if showLoading was true, otherwise we're in background)
         if (showLoading) {
           renderEmailList(emails);
-          
         } else {
-          // Background refresh - update cache and re-render if list is visible
+          // Background refresh - update cache and re-render list
           currentEmails = emails;
-          if (detailEl.style.display === 'none') {
-            // List is visible, update it
-            renderEmailList(emails);
-
-          } else {
-
-          }
+          renderEmailList(emails);
         }
       } catch (err) {
         console.error('Load function error:', err);
-        // Only show error if we were showing loading state
-        if (showLoading) {
-          const tableBody = document.getElementById('emailTableBody');
-          tableBody.innerHTML = `<tr><td colspan="5" style="padding:20px; border:1px solid #000; text-align:center;">Error loading emails: ${err.message}<br><small>Check browser console (F12) for details</small></td></tr>`;
-        }
-        // Background refresh errors are already logged above
+        // Show error modal for any loading issues
+        await showCopyableError('Email Loading Error',
+          `Failed to load emails: ${err.message}\n\nThis could be due to:\n• Network connectivity issues\n• Email server configuration problems\n• Authentication failures\n\nStack trace:\n${err.stack || 'N/A'}`
+        );
       }
     }
     
@@ -1018,12 +1084,8 @@
       // the backend can reconnect. We retry once automatically to avoid showing an error popup.
       const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-      // Show loading state
-      detailEl.style.display='block';
-      document.getElementById('d-body').textContent = 'Loading email...';
-      document.getElementById('d-sub').textContent = '';
-      document.getElementById('d-from').textContent = '';
-      document.getElementById('d-date').textContent = '';
+      // Show loading state in modal
+      document.getElementById('emailModalBody').textContent = 'Loading email...';
 
       async function fetchEmailOnce(attempt){
         
@@ -1119,31 +1181,21 @@
             // Second attempt to fetch the same email after reconnect
             data = await fetchEmailOnce(2);
           } catch (err2) {
-            // Second attempt also failed. Do NOT show popup; go back to list
-            // and show a gentle inline message at the top of the table.
+            // Show error in modal
             console.warn('Email fetch failed after retry:', err2);
-            document.getElementById('emailTable').style.display='block';
-            detailEl.style.display='none';
-            // Prepend a soft warning row so user knows what happened.
-            const tableBody = document.getElementById('emailTableBody');
-            const noticeRow = document.createElement('tr');
-            noticeRow.className = 'notice';
-            noticeRow.innerHTML = '<td colspan="5" style="padding:12px; border:1px solid #000;">Reconnected and refreshed inbox, but this email could not be loaded. Please try again in a moment.</td>';
-            tableBody.insertBefore(noticeRow, tableBody.firstChild);
+            document.getElementById('emailModalBody').textContent = 'Failed to load email. Please try again.';
             return;
           }
         } else if (err1?.__fullError) {
           showCopyableError(err1.__isHttpError ? 'Fetch Email Error' : 'Email Error', err1.__fullError);
           console.error('Fetch email error:', err1);
-          document.getElementById('emailTable').style.display='block';
-          detailEl.style.display='none';
+          document.getElementById('emailModal').style.display='none';
           return;
         } else {
           const fullError = `Error fetching email: ${err1.message}\n\nUID: ${uid}\n\nStack trace:\n${err1.stack || 'N/A'}`;
           showCopyableError('Network Error', fullError);
           console.error('Fetch error:', err1);
-          document.getElementById('emailTable').style.display='block';
-          detailEl.style.display='none';
+          document.getElementById('emailModal').style.display='none';
           return;
         }
       }
@@ -1181,14 +1233,14 @@
             bodyContent = htmlContent.replace(/--000[^]*$/, '').trim();
             // If it's HTML, we can display it as HTML
             if (bodyContent.includes('<')) {
-              document.getElementById('d-body').innerHTML = bodyContent;
+              document.getElementById('emailModalBody').innerHTML = bodyContent;
             } else {
-              document.getElementById('d-body').textContent = bodyContent;
+              document.getElementById('emailModalBody').textContent = bodyContent;
             }
           } else if (textMatch) {
             // Extract plain text content
             bodyContent = textMatch[1].replace(/--000[^]*$/, '').trim();
-            document.getElementById('d-body').textContent = bodyContent;
+            document.getElementById('emailModalBody').textContent = bodyContent;
           } else {
             // Fallback: show everything after headers, but clean it up
             bodyContent = body.replace(/--000[^]*$/g, '').trim();
@@ -1196,18 +1248,18 @@
             bodyContent = bodyContent.replace(/Content-Type:[^\n]*\n/g, '');
             bodyContent = bodyContent.replace(/charset="[^"]*"\n/g, '');
             bodyContent = bodyContent.replace(/^--[^\n]*\n/gm, '');
-            document.getElementById('d-body').textContent = bodyContent || 'No readable content found';
+            document.getElementById('emailModalBody').textContent = bodyContent || 'No readable content found';
           }
         } else {
           // No clear header/body separation, show everything but try to clean it
           bodyContent = source;
-          document.getElementById('d-body').textContent = bodyContent;
+          document.getElementById('emailModalBody').textContent = bodyContent;
         }
-        
-        // Display email metadata
-        document.getElementById('d-sub').textContent = subject || '(No subject)';
-        document.getElementById('d-from').textContent = from || 'Unknown';
-        document.getElementById('d-date').textContent = date || '';
+
+        // Display email metadata in modal
+        document.getElementById('emailModalSubject').textContent = subject || '(No subject)';
+        document.getElementById('emailModalFrom').textContent = `From: ${from || 'Unknown'}`;
+        document.getElementById('emailModalDate').textContent = `Date: ${date || 'Unknown'}`;
 
         // Extract plain email address from From header if possible
         let emailAddress = null;
@@ -1225,9 +1277,9 @@
           date: date || ''
         };
 
-        // Hide table and show detail view
-        document.getElementById('emailTable').style.display='none';
-        detailEl.style.display='block';
+        // Show email modal
+        populateEmailModal(subject, from, date, bodyContent, currentEmailMeta);
+        document.getElementById('emailModal').style.display='flex';
     }
     
     function randInt(min, max) {
@@ -1464,100 +1516,42 @@
       });
     }
     
-    backBtn.onclick=()=>{
-      document.getElementById('emailTable').style.display='block';
-      detailEl.style.display='none';
 
-      // If we have cached emails, show them immediately
-      if (currentEmails && currentEmails.length > 0) {
-        
-        renderEmailList(currentEmails);
-        // Optionally refresh in background (silently, no loading indicator)
-        // Only refresh if not already loading
-        if (!currentLoadController || currentLoadController.signal.aborted) {
-          load(false).catch(err => {
-            console.warn('Background refresh failed:', err.message);
-            // Silently fail - we already have cached emails displayed
-          });
-        }
-      } else {
-        // No cache, must load with loading indicator
-        load(true).catch(err => {
-          console.error('Error loading emails after back:', err);
-          const tableBody = document.getElementById('emailTableBody');
-          tableBody.innerHTML = `<tr><td colspan="5" style="padding:20px; border:1px solid #000; text-align:center;">Error loading emails: ${err.message}</td></tr>`;
-        });
-      }
-    };
-
-    // Create Task from currently shown email (Step B2)
-    createTaskBtn.onclick = async () => {
-      try {
-        if (!currentEmailMeta || !currentEmailMeta.uid) {
-          await showModal({
-            title: 'No email selected',
-            body: 'Open an email first, then create a task from it.'
-          });
-          return;
-        }
-
-        const payload = {
-          type: 'erp-enquiry', // default type for now; can extend later
-          status: 'new',
-          sourceEmailUid: currentEmailMeta.uid,
-          sourceSubject: currentEmailMeta.subject,
-          customerEmail: currentEmailMeta.email
-        };
-
-        // Add simple timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          if (!controller.signal.aborted) controller.abort();
-        }, 15000);
-
-        let res;
-        try {
-          res = await fetch('/api/tasks', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-        } catch (err) {
-          clearTimeout(timeoutId);
-          const msg = err.name === 'AbortError'
-            ? 'Request timeout while creating task.'
-            : `Network error while creating task: ${err.message}`;
-          await showModal({ title: 'Create Task Error', body: msg });
-          return;
-        }
-
-        const text = await res.text();
-        let data;
-        try {
-          data = JSON.parse(text);
-        } catch {
-          data = { success: false, error: text || 'Invalid JSON response from server' };
-        }
-
-        if (!res.ok || !data.success) {
-          const fullError = `Error creating task\n\nStatus: ${res.status}\nPayload:\n${JSON.stringify(payload, null, 2)}\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
-          await showCopyableError('Create Task Error', fullError);
-          return;
-        }
-
-        const task = data.task || {};
-        await showModal({
-          title: 'Task Created',
-          body: `Task #${task.id} created.\nType: ${task.type}\nStatus: ${task.status}`
-        });
-      } catch (err) {
-        const fullError = `Unexpected error creating task:\n${err.message}\n\nStack:\n${err.stack || 'N/A'}`;
-        await showCopyableError('Create Task Error', fullError);
-      }
-    };
     
+    // Function to populate and show email modal
+    function populateEmailModal(subject, from, date, body, emailMeta) {
+      document.getElementById('emailModalSubject').textContent = subject || '(No subject)';
+      document.getElementById('emailModalFrom').textContent = `From: ${from || 'Unknown'}`;
+      document.getElementById('emailModalDate').textContent = `Date: ${date || 'Unknown'}`;
+
+      // Process email body content
+      let processedBody = body || 'No content available';
+
+      // Try to clean up the email body (remove headers, etc.)
+      if (processedBody.includes('\n\n')) {
+        const parts = processedBody.split('\n\n');
+        // Skip headers and find the actual content
+        for (let i = 0; i < parts.length; i++) {
+          if (!parts[i].includes(':') || parts[i].includes('Content-Type: text/html') || parts[i].includes('Content-Type: text/plain')) {
+            processedBody = parts.slice(i).join('\n\n');
+            break;
+          }
+        }
+      }
+
+      // If it's HTML content, try to extract plain text or display as HTML
+      if (processedBody.includes('<div') || processedBody.includes('<p>')) {
+        // For HTML content, we can display it as HTML
+        document.getElementById('emailModalBody').innerHTML = processedBody.replace(/\n/g, '<br>');
+      } else {
+        // Plain text content
+        document.getElementById('emailModalBody').textContent = processedBody;
+      }
+
+      // Store current email meta for task creation
+      currentEmailModalMeta = emailMeta;
+    }
+
     // Helper function to render email list
     function renderEmailList(emails) {
       const tableBody = document.getElementById('emailTableBody');
@@ -1611,8 +1605,6 @@
         };
       });
 
-      // Hide detail view when showing list
-      detailEl.style.display='none';
     }
 
     // Search functionality
@@ -1815,7 +1807,84 @@
         testSendBtn.textContent = '?�� Send Test Email';
       }
     };
-    
+
+    // Email modal event listeners
+    document.getElementById('emailModalClose').onclick = () => {
+      document.getElementById('emailModal').style.display = 'none';
+    };
+
+    document.getElementById('emailModal').onclick = (e) => {
+      if (e.target === document.getElementById('emailModal')) {
+        document.getElementById('emailModal').style.display = 'none';
+      }
+    };
+
+    document.getElementById('emailModalCreateTask').onclick = async () => {
+      try {
+        if (!currentEmailModalMeta || !currentEmailModalMeta.uid) {
+          await showModal({
+            title: 'No email selected',
+            body: 'No email is currently open in the modal.'
+          });
+          return;
+        }
+
+        const payload = {
+          type: 'erp-enquiry',
+          status: 'new',
+          sourceEmailUid: currentEmailModalMeta.uid,
+          sourceSubject: currentEmailModalMeta.subject,
+          customerEmail: currentEmailModalMeta.email
+        };
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          if (!controller.signal.aborted) controller.abort();
+        }, 15000);
+
+        let res;
+        try {
+          res = await fetch('/api/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+        } catch (err) {
+          clearTimeout(timeoutId);
+          const msg = err.name === 'AbortError'
+            ? 'Request timeout while creating task.'
+            : `Network error while creating task: ${err.message}`;
+          await showModal({ title: 'Create Task Error', body: msg });
+          return;
+        }
+
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { success: false, error: text || 'Invalid JSON response from server' };
+        }
+
+        if (!res.ok || !data.success) {
+          const fullError = `Error creating task\n\nStatus: ${res.status}\nPayload:\n${JSON.stringify(payload, null, 2)}\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+          await showCopyableError('Create Task Error', fullError);
+          return;
+        }
+
+        const task = data.task || {};
+        await showModal({
+          title: 'Task Created',
+          body: `Task #${task.id} created from email.\nType: ${task.type}\nStatus: ${task.status}`
+        });
+      } catch (err) {
+        const fullError = `Unexpected error creating task:\n${err.message}\n\nStack:\n${err.stack || 'N/A'}`;
+        await showCopyableError('Create Task Error', fullError);
+      }
+    };
+
     load();
   </script>
 </body>
