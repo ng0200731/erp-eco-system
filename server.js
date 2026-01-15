@@ -45,14 +45,28 @@ if (!MAIL_USER || !MAIL_PASS) {
 // ---------- IMAP ----------
 let imapClient = null;
 
-function createImapClient() {
+function createImapClient(activeProfile = null) {
+  // If no active profile provided, use the old env-based config
+  if (!activeProfile) {
+    return new ImapFlow({
+      host: IMAP_HOST,
+      port: Number(IMAP_PORT),
+      secure: IMAP_TLS === 'true',
+      auth: {
+        user: MAIL_USER,
+        pass: MAIL_PASS,
+      },
+    });
+  }
+
+  // Use active profile configuration
   return new ImapFlow({
-    host: IMAP_HOST,
-    port: Number(IMAP_PORT),
-    secure: IMAP_TLS === 'true',
+    host: activeProfile.imapHost,
+    port: Number(activeProfile.imapPort),
+    secure: activeProfile.imapTls === 'true',
     auth: {
-      user: MAIL_USER,
-      pass: MAIL_PASS,
+      user: activeProfile.mailUser,
+      pass: activeProfile.mailPass,
     },
     logger: true, // Enable debug logs to see what's happening
     tlsOptions: {
@@ -67,15 +81,22 @@ function createImapClient() {
 // Connect immediately (lazy reconnect logic handled below)
 async function connectImap() {
   try {
+    // Get active profile for IMAP configuration
+    const profiles = await getProfilesMemory();
+    const activeProfile = profiles.find(p => p.isActive === 1);
+    if (!activeProfile) {
+      throw new Error('No active email profile found. Please activate a profile in Settings.');
+    }
+
     // Check if we have a valid connected client
     // ImapFlow state: 0=disconnected, 1=connecting, 2=authenticated, 3=selected, 4=idle
     if (imapClient && imapClient.state >= 2) {
       // Check if socket is still connected by checking the state
       // If state is valid, assume connection is good (we'll catch errors during operations)
-      
+
       return; // Reuse existing connection
     }
-    
+
     // Need a new client - clean up old one first
     if (imapClient) {
       try {
@@ -87,10 +108,9 @@ async function connectImap() {
       }
       imapClient = null; // Clear reference
     }
-    
-    // Create fresh client instance
-    
-    imapClient = createImapClient();
+
+    // Create fresh client instance using active profile
+    imapClient = createImapClient(activeProfile);
     
     
     
@@ -169,8 +189,28 @@ if (SMTP_SECURE !== 'true') {
 // Create SMTP transport - we'll recreate it for each request to avoid connection reuse issues
 let smtpTransport = null;
 
-function createSmtpTransport() {
-  return nodemailer.createTransport(smtpConfig);
+function createSmtpTransport(activeProfile = null) {
+  // If no active profile provided, use the old env-based config
+  if (!activeProfile) {
+    return nodemailer.createTransport(smtpConfig);
+  }
+
+  // Use active profile configuration
+  return nodemailer.createTransport({
+    host: activeProfile.smtpHost,
+    port: Number(activeProfile.smtpPort),
+    secure: activeProfile.smtpSecure === 'true',
+    auth: {
+      user: activeProfile.mailUser,
+      pass: activeProfile.mailPass,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 30000,
+    greetingTimeout: 20000,
+    socketTimeout: 30000,
+  });
 }
 
 smtpTransport = createSmtpTransport();
@@ -239,10 +279,16 @@ app.get('/api/config', (req, res) => {
 });
 
 // Profiles API (simple, in-memory; longriver default from env)
-let profilesMemory = null;
-function getProfilesMemory() {
-  if (!profilesMemory) {
-    profilesMemory = [
+// Simple file-based profile persistence
+const profilesFilePath = path.join(__dirname, 'profiles.json');
+
+async function loadProfiles() {
+  try {
+    const data = await fs.readFile(profilesFilePath, 'utf8');
+    return JSON.parse(data);
+  } catch (err) {
+    // File doesn't exist or is corrupted, return defaults
+    return [
       {
         id: 1,
         name: 'longriver.com',
@@ -258,77 +304,140 @@ function getProfilesMemory() {
         port: Number(PORT) || 3001,
         isActive: 1,
       },
+      {
+        id: 2,
+        name: 'lcf',
+        remark: 'lcf',
+        mailUser: 'weiwu@fuchanghk.com',
+        mailPass: 'mrkE190#',
+        imapHost: 'imap.qiye.163.com',
+        imapPort: 993,
+        imapTls: 'true',
+        smtpHost: 'smtp.qiye.163.com',
+        smtpPort: 994,
+        smtpSecure: 'true',
+        port: 3001,
+        isActive: 0,
+      }
     ];
   }
-  return profilesMemory;
 }
 
-app.get('/api/profiles', (req, res) => {
-  res.json({ success: true, profiles: getProfilesMemory() });
+async function saveProfiles(profiles) {
+  try {
+    await fs.writeFile(profilesFilePath, JSON.stringify(profiles, null, 2));
+  } catch (err) {
+    console.error('Failed to save profiles:', err);
+  }
+}
+
+function getProfilesMemory() {
+  // Return a promise that resolves to the profiles
+  return loadProfiles();
+}
+
+app.get('/api/profiles', async (req, res) => {
+  try {
+    const profiles = await getProfilesMemory();
+    res.json({ success: true, profiles });
+  } catch (err) {
+    console.error('Error getting profiles:', err);
+    res.status(500).json({ success: false, error: 'Failed to load profiles' });
+  }
 });
 
-app.get('/api/profiles/:id', (req, res) => {
-  const id = Number(req.params.id);
-  const profile = getProfilesMemory().find(p => p.id === id);
-  if (!profile) return res.status(404).json({ success: false, error: 'Profile not found' });
-  res.json({ success: true, profile });
+app.get('/api/profiles/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const profiles = await getProfilesMemory();
+    const profile = profiles.find(p => p.id === id);
+    if (!profile) return res.status(404).json({ success: false, error: 'Profile not found' });
+    res.json({ success: true, profile });
+  } catch (err) {
+    console.error('Error getting profile:', err);
+    res.status(500).json({ success: false, error: 'Failed to load profile' });
+  }
 });
 
-app.post('/api/profiles', (req, res) => {
-  const list = getProfilesMemory();
-  const nextId = Math.max(...list.map(p => p.id)) + 1;
-  const payload = req.body || {};
-  const profile = {
-    id: nextId,
-    name: payload.name || 'Unnamed',
-    remark: payload.remark || '',
-    mailUser: payload.mailUser || '',
-    mailPass: payload.mailPass || '',
-    imapHost: payload.imapHost || '',
-    imapPort: Number(payload.imapPort) || 993,
-    imapTls: payload.imapTls || 'true',
-    smtpHost: payload.smtpHost || '',
-    smtpPort: Number(payload.smtpPort) || 465,
-    smtpSecure: payload.smtpSecure || 'true',
-    port: Number(payload.port) || 3001,
-    isActive: payload.isActive ? 1 : 0,
-  };
-  list.push(profile);
-  res.json({ success: true, id: nextId });
+app.post('/api/profiles', async (req, res) => {
+  try {
+    const profiles = await getProfilesMemory();
+    const nextId = Math.max(...profiles.map(p => p.id)) + 1;
+    const payload = req.body || {};
+    const profile = {
+      id: nextId,
+      name: payload.name || 'Unnamed',
+      remark: payload.remark || '',
+      mailUser: payload.mailUser || '',
+      mailPass: payload.mailPass || '',
+      imapHost: payload.imapHost || '',
+      imapPort: Number(payload.imapPort) || 993,
+      imapTls: payload.imapTls || 'true',
+      smtpHost: payload.smtpHost || '',
+      smtpPort: Number(payload.smtpPort) || 465,
+      smtpSecure: payload.smtpSecure || 'true',
+      port: Number(payload.port) || 3001,
+      isActive: payload.isActive ? 1 : 0,
+    };
+    profiles.push(profile);
+    await saveProfiles(profiles);
+    res.json({ success: true, id: nextId });
+  } catch (err) {
+    console.error('Error creating profile:', err);
+    res.status(500).json({ success: false, error: 'Failed to create profile' });
+  }
 });
 
-app.put('/api/profiles/:id', (req, res) => {
-  const id = Number(req.params.id);
-  const list = getProfilesMemory();
-  const idx = list.findIndex(p => p.id === id);
-  if (idx === -1) return res.status(404).json({ success: false, error: 'Profile not found' });
-  const payload = req.body || {};
-  list[idx] = {
-    ...list[idx],
-    ...payload,
-    id,
-    imapPort: Number(payload.imapPort ?? list[idx].imapPort) || 993,
-    smtpPort: Number(payload.smtpPort ?? list[idx].smtpPort) || 465,
-    port: Number(payload.port ?? list[idx].port) || 3001,
-    isActive: payload.isActive ? 1 : 0,
-  };
-  res.json({ success: true });
+app.put('/api/profiles/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const profiles = await getProfilesMemory();
+    const idx = profiles.findIndex(p => p.id === id);
+    if (idx === -1) return res.status(404).json({ success: false, error: 'Profile not found' });
+    const payload = req.body || {};
+    profiles[idx] = {
+      ...profiles[idx],
+      ...payload,
+      id,
+      imapPort: Number(payload.imapPort ?? profiles[idx].imapPort) || 993,
+      smtpPort: Number(payload.smtpPort ?? profiles[idx].smtpPort) || 465,
+      port: Number(payload.port ?? profiles[idx].port) || 3001,
+      isActive: payload.isActive ? 1 : 0,
+    };
+    await saveProfiles(profiles);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating profile:', err);
+    res.status(500).json({ success: false, error: 'Failed to update profile' });
+  }
 });
 
-app.post('/api/profiles/:id/activate', (req, res) => {
-  const id = Number(req.params.id);
-  const list = getProfilesMemory();
-  list.forEach(p => (p.isActive = p.id === id ? 1 : 0));
-  res.json({ success: true });
+app.post('/api/profiles/:id/activate', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const profiles = await getProfilesMemory();
+    profiles.forEach(p => (p.isActive = p.id === id ? 1 : 0));
+    await saveProfiles(profiles);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error activating profile:', err);
+    res.status(500).json({ success: false, error: 'Failed to activate profile' });
+  }
 });
 
-app.delete('/api/profiles/:id', (req, res) => {
-  const id = Number(req.params.id);
-  const list = getProfilesMemory();
-  const idx = list.findIndex(p => p.id === id);
-  if (idx === -1) return res.status(404).json({ success: false, error: 'Profile not found' });
-  list.splice(idx, 1);
-  res.json({ success: true });
+app.delete('/api/profiles/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const profiles = await getProfilesMemory();
+    const idx = profiles.findIndex(p => p.id === id);
+    if (idx === -1) return res.status(404).json({ success: false, error: 'Profile not found' });
+    profiles.splice(idx, 1);
+    await saveProfiles(profiles);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting profile:', err);
+    res.status(500).json({ success: false, error: 'Failed to delete profile' });
+  }
 });
 
 app.post('/api/config', async (req, res) => {
@@ -534,7 +643,17 @@ app.get('/api/imap/diagnostic', async (req, res) => {
 // Test IMAP connection endpoint
 app.get('/api/test-connection', async (req, res) => {
   try {
-    await connectImap();
+    // Get active profile for IMAP configuration
+    const profiles = await getProfilesMemory();
+    const activeProfile = profiles.find(p => p.isActive === 1);
+    if (!activeProfile) {
+      return res.status(400).json({
+        success: false,
+        error: 'No active email profile found. Please activate a profile in Settings.'
+      });
+    }
+
+    await connectImap(activeProfile);
     if (imapClient.connected) {
       res.json({ success: true, message: 'IMAP connection successful' });
     } else {
@@ -547,13 +666,23 @@ app.get('/api/test-connection', async (req, res) => {
 
 // List latest N emails (default 20)
 app.get('/api/emails', async (req, res) => {
-  
+
   try {
+    // Get active profile for IMAP configuration
+    const profiles = await getProfilesMemory();
+    const activeProfile = profiles.find(p => p.isActive === 1);
+    if (!activeProfile) {
+      return res.status(400).json({
+        success: false,
+        error: 'No active email profile found. Please activate a profile in Settings.'
+      });
+    }
+
     const limit = Math.min(Number(req.query.limit) || 20, 100);
-    
-    // Ensure IMAP is connected
+
+    // Ensure IMAP is connected using active profile
     try {
-      await connectImap();
+      await connectImap(activeProfile);
     } catch (connectErr) {
       return res.status(500).json({ 
         success: false, 
@@ -735,22 +864,31 @@ app.get('/api/emails', async (req, res) => {
 
 // Get a single email body (plain text)
 app.get('/api/emails/:uid', async (req, res) => {
+  // Get active profile for IMAP configuration
+  const activeProfile = getProfilesMemory().find(p => p.isActive === 1);
+  if (!activeProfile) {
+    return res.status(400).json({
+      success: false,
+      error: 'No active email profile found. Please activate a profile in Settings.'
+    });
+  }
+
   // Use a fresh connection for each fetch to avoid state issues
   let fetchClient = null;
-  
+
   try {
     const uid = Number(req.params.uid);
     if (!uid || isNaN(uid)) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid email UID. Must be a number.' 
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email UID. Must be a number.'
       });
     }
 
-    
-    
-    // Create a fresh IMAP client for this request
-    fetchClient = createImapClient();
+
+
+    // Create a fresh IMAP client for this request using active profile
+    fetchClient = createImapClient(activeProfile);
     
     await fetchClient.connect();
     
@@ -1013,6 +1151,15 @@ app.get('/api/emails/:uid', async (req, res) => {
 
 // Send email
 app.post('/api/email/send', async (req, res) => {
+  // Get active profile for SMTP configuration
+  const activeProfile = getProfilesMemory().find(p => p.isActive === 1);
+  if (!activeProfile) {
+    return res.status(400).json({
+      success: false,
+      error: 'No active email profile found. Please activate a profile in Settings.'
+    });
+  }
+
   const { to, subject, text, html } = req.body || {};
   if (!to || !subject || (!text && !html)) {
     return res.status(400).json({ success: false, error: 'to, subject, and text|html are required' });
@@ -1037,12 +1184,12 @@ app.post('/api/email/send', async (req, res) => {
         }
       }
       
-      // Create fresh transport for this attempt
-      transport = createSmtpTransport();
+      // Create fresh transport for this attempt using active profile
+      transport = createSmtpTransport(activeProfile);
       
       // Try to send with increased timeout (no timeout limit - let it try)
-      const sendPromise = transport.sendMail({ 
-        from: `"ERP System" <${MAIL_USER}>`,
+      const sendPromise = transport.sendMail({
+        from: `"ERP System" <${activeProfile.mailUser}>`,
         to, 
         subject, 
         text: text || html?.replace(/<[^>]*>/g, ''), // Strip HTML if only html provided
@@ -1148,10 +1295,19 @@ app.post('/api/email/send', async (req, res) => {
 
 // Test SMTP connection endpoint
 app.get('/api/smtp/test', async (req, res) => {
-  // Ensure we have the values
-  const smtpHost = SMTP_HOST || 'homegw.bbmail.com.hk';
-  const smtpPort = Number(SMTP_PORT) || 465;
-  const smtpSecure = SMTP_SECURE === 'true';
+  // Get active profile for SMTP configuration
+  const activeProfile = getProfilesMemory().find(p => p.isActive === 1);
+  if (!activeProfile) {
+    return res.status(400).json({
+      success: false,
+      error: 'No active email profile found. Please activate a profile in Settings.'
+    });
+  }
+
+  // Use active profile settings
+  const smtpHost = activeProfile.smtpHost;
+  const smtpPort = Number(activeProfile.smtpPort);
+  const smtpSecure = activeProfile.smtpSecure === 'true';
   
   try {
     
@@ -1159,8 +1315,8 @@ app.get('/api/smtp/test', async (req, res) => {
     
     
     
-    // Create fresh transport for test
-    const testTransport = createSmtpTransport();
+    // Create fresh transport for test using active profile
+    const testTransport = createSmtpTransport(activeProfile);
     await testTransport.verify();
     
     // Close test transport
@@ -1247,17 +1403,28 @@ app.get('/api/smtp/test', async (req, res) => {
 
 // Test send email endpoint
 app.post('/api/email/test', async (req, res) => {
+  // Get active profile for SMTP configuration
+  const activeProfile = getProfilesMemory().find(p => p.isActive === 1);
+  if (!activeProfile) {
+    return res.status(400).json({
+      success: false,
+      error: 'No active email profile found. Please activate a profile in Settings.'
+    });
+  }
+
   const testEmail = {
     to: 'eric.brilliant@gmail.com',
     subject: 'Test Email from ERP System',
     text: 'This is a test email sent from your ERP email service.\n\nIf you receive this, SMTP is working correctly!',
     html: '<p>This is a test email sent from your ERP email service.</p><p>If you receive this, SMTP is working correctly!</p>'
   };
-  
+
+  // Create fresh transport using active profile
+  const profileTransport = createSmtpTransport(activeProfile);
+
   try {
-    
-    const info = await smtpTransport.sendMail({ 
-      from: `"ERP System" <${MAIL_USER}>`,
+    const info = await profileTransport.sendMail({
+      from: `"ERP System" <${activeProfile.mailUser}>`,
       to: testEmail.to,
       subject: testEmail.subject,
       text: testEmail.text,
@@ -1277,19 +1444,22 @@ app.post('/api/email/test', async (req, res) => {
     console.error('Full error:', err);
     console.error('======================================');
     
+    // Close transport on error
+    try { profileTransport.close(); } catch {}
+
     let errorMsg = err.message || 'Failed to send test email';
     if (err.code === 'ESOCKET' || err.code === 'ETIMEDOUT') {
-      errorMsg = `Cannot connect to ${SMTP_HOST}:${SMTP_PORT}. Connection timeout.`;
+      errorMsg = `Cannot connect to ${activeProfile.smtpHost}:${activeProfile.smtpPort}. Connection timeout.`;
     } else if (err.code === 'EAUTH') {
       errorMsg = 'SMTP authentication failed. Check your email and password.';
     }
-    
-    res.status(500).json({ 
-      success: false, 
+
+    res.status(500).json({
+      success: false,
       error: errorMsg,
       code: err.code || 'UNKNOWN',
-      host: SMTP_HOST || 'homegw.bbmail.com.hk',
-      port: Number(SMTP_PORT) || 465,
+      host: activeProfile.smtpHost,
+      port: activeProfile.smtpPort,
       secure: SMTP_SECURE === 'true',
       originalError: err.message
     });

@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "name": "longriver.com",
+    "remark": "longriver.com",
+    "mailUser": "m.yau.01@longriverlabel.com",
+    "mailPass": "Lr#3151717",
+    "imapHost": "imap.bbmail.com.hk",
+    "imapPort": 993,
+    "imapTls": "true",
+    "smtpHost": "homegw.bbmail.com.hk",
+    "smtpPort": 465,
+    "smtpSecure": "true",
+    "port": 3001,
+    "isActive": 1
+  },
+  {
+    "id": 2,
+    "name": "lcf",
+    "remark": "lcf",
+    "mailUser": "weiwu@fuchanghk.com",
+    "mailPass": "mrkE190#",
+    "imapHost": "imap.qiye.163.com",
+    "imapPort": 993,
+    "imapTls": "true",
+    "smtpHost": "smtp.qiye.163.com",
+    "smtpPort": 994,
+    "smtpSecure": "true",
+    "port": 3001,
+    "isActive": 0
+  }
+]

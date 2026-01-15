@@ -199,7 +199,10 @@
           </div>
           <div style="flex:1;">
             <label for="cfgMailPass">MAIL_PASS</label>
-            <input id="cfgMailPass" type="password">
+            <div style="position:relative;">
+              <input id="cfgMailPass" type="password" style="padding-right:30px;">
+              <button id="togglePassword" type="button" style="position:absolute; right:5px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#000; font-size:14px;">👁️</button>
+            </div>
           </div>
         </div>
 
@@ -313,6 +316,7 @@
     const cfgPort = document.getElementById('cfgPort');
     const saveConfigBtn = document.getElementById('saveConfigBtn');
     const dummyFillSettingsBtn = document.getElementById('dummyFillSettingsBtn');
+    const togglePasswordBtn = document.getElementById('togglePassword');
 
     async function loadConfig() {
       try {
@@ -422,6 +426,13 @@
 
     dummyFillSettingsBtn.onclick = () => {
       fillDummyForm(settingsPanel);
+    };
+
+    togglePasswordBtn.onclick = () => {
+      const passwordInput = document.getElementById('cfgMailPass');
+      const isPassword = passwordInput.type === 'password';
+      passwordInput.type = isPassword ? 'text' : 'password';
+      togglePasswordBtn.textContent = isPassword ? '🙈' : '👁️';
     };
 
     saveConfigBtn.onclick = async () => {
@@ -795,13 +806,7 @@
     activateTab('welcome');
 
     const menuEmailBtn = document.getElementById('menuEmail');
-
-    menuEmailBtn.onmouseenter = () => {
-      menuEmailBtn.textContent = menuEmailBtn.dataset.full || 'Email';
-    };
-    menuEmailBtn.onmouseleave = () => {
-      menuEmailBtn.textContent = menuEmailBtn.dataset.short || 'E';
-    };
+    const sidebar = document.getElementById('sidebar');
 
     // Menu click: show emails
     menuEmailBtn.onclick = () => {
@@ -810,10 +815,13 @@
       load(); // Load emails
     };
 
-    menuSettingsBtn.onmouseenter = () => {
+    // Hover on entire sidebar to show full text
+    sidebar.onmouseenter = () => {
+      menuEmailBtn.textContent = menuEmailBtn.dataset.full || 'Email';
       menuSettingsBtn.textContent = menuSettingsBtn.dataset.full || 'Setting';
     };
-    menuSettingsBtn.onmouseleave = () => {
+    sidebar.onmouseleave = () => {
+      menuEmailBtn.textContent = menuEmailBtn.dataset.short || 'E';
       menuSettingsBtn.textContent = menuSettingsBtn.dataset.short || 'S';
     };
 
