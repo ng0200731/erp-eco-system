@@ -865,7 +865,8 @@ app.get('/api/emails', async (req, res) => {
 // Get a single email body (plain text)
 app.get('/api/emails/:uid', async (req, res) => {
   // Get active profile for IMAP configuration
-  const activeProfile = getProfilesMemory().find(p => p.isActive === 1);
+  const profiles = await getProfilesMemory();
+  const activeProfile = profiles.find(p => p.isActive === 1);
   if (!activeProfile) {
     return res.status(400).json({
       success: false,
@@ -1152,7 +1153,8 @@ app.get('/api/emails/:uid', async (req, res) => {
 // Send email
 app.post('/api/email/send', async (req, res) => {
   // Get active profile for SMTP configuration
-  const activeProfile = getProfilesMemory().find(p => p.isActive === 1);
+  const profiles = await getProfilesMemory();
+  const activeProfile = profiles.find(p => p.isActive === 1);
   if (!activeProfile) {
     return res.status(400).json({
       success: false,
@@ -1296,7 +1298,8 @@ app.post('/api/email/send', async (req, res) => {
 // Test SMTP connection endpoint
 app.get('/api/smtp/test', async (req, res) => {
   // Get active profile for SMTP configuration
-  const activeProfile = getProfilesMemory().find(p => p.isActive === 1);
+  const profiles = await getProfilesMemory();
+  const activeProfile = profiles.find(p => p.isActive === 1);
   if (!activeProfile) {
     return res.status(400).json({
       success: false,
@@ -1404,7 +1407,8 @@ app.get('/api/smtp/test', async (req, res) => {
 // Test send email endpoint
 app.post('/api/email/test', async (req, res) => {
   // Get active profile for SMTP configuration
-  const activeProfile = getProfilesMemory().find(p => p.isActive === 1);
+  const profiles = await getProfilesMemory();
+  const activeProfile = profiles.find(p => p.isActive === 1);
   if (!activeProfile) {
     return res.status(400).json({
       success: false,
