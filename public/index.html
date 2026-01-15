@@ -1254,10 +1254,81 @@
               }
               contentLines.push(lines[i]);
             }
-            bodyContent = contentLines.join('\n').trim();
+            let rawContent = contentLines.join('\n').trim();
+
+            // Check if content is base64 encoded (look for base64 in the Content-Transfer-Encoding header)
+            let isHtmlContent = false;
+            if (lines[contentStart - 1] && lines[contentStart - 1].toLowerCase().includes('base64')) {
+              try {
+                // Remove any whitespace and validate base64 format
+                const cleanBase64 = rawContent.replace(/\s/g, '');
+
+                // Check if it looks like valid base64 (only contains valid base64 characters)
+                if (/^[A-Za-z0-9+/]*={0,2}$/.test(cleanBase64)) {
+                  const decodedContent = atob(cleanBase64);
+
+                  // Check if decoded content is HTML
+                  if (decodedContent.includes('<') && decodedContent.includes('>')) {
+                    isHtmlContent = true;
+                    bodyContent = decodedContent;
+                  } else {
+                    bodyContent = decodedContent;
+                  }
+                } else {
+                  console.warn('Content appears to be base64 but contains invalid characters, keeping original');
+                  bodyContent = rawContent;
+                }
+              } catch (e) {
+                console.warn('Failed to decode base64 content:', e);
+                // Keep original content if decoding fails
+                bodyContent = rawContent;
+              }
+            } else {
+              bodyContent = rawContent;
+            }
+
+            // Handle HTML content display
+            if (isHtmlContent) {
+              document.getElementById('emailModalBody').innerHTML = bodyContent;
+              return; // Skip normal text display
+            }
           } else {
-            // Fallback: just remove boundaries and show what's left
-            bodyContent = bodyPart.replace(/----_[^\n]*\n/g, '').replace(/Content-Type:[^\n]*\n/g, '').replace(/Content-Transfer-Encoding:[^\n]*\n/g, '').replace(/^\n+/, '').replace(/\n+$/, '');
+            // Try to extract any readable content from mixed/corrupted emails
+            let extractedContent = '';
+
+            // Look for any lines that might be readable text (not base64, not headers)
+            const contentLines = bodyPart.split('\n');
+            for (const line of contentLines) {
+              // Skip obvious headers and boundaries
+              if (line.includes('Content-Type:') ||
+                  line.includes('Content-Transfer-Encoding:') ||
+                  line.startsWith('----') ||
+                  line.trim() === '' ||
+                  line.includes('charset=')) {
+                continue;
+              }
+
+              // Try to decode if it looks like base64
+              if (/^[A-Za-z0-9+/]*={0,2}$/.test(line.trim()) && line.length > 10) {
+                try {
+                  const decoded = atob(line.trim());
+                  // Only use if decoding gives readable text
+                  if (decoded.length > 0 && !/[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(decoded)) {
+                    extractedContent += decoded + '\n';
+                    continue;
+                  }
+                } catch (e) {
+                  // Not valid base64, continue
+                }
+              }
+
+              // Keep line if it looks like readable text
+              if (line.length > 0 && !/^[A-Za-z0-9+/]*={0,2}$/.test(line.trim().replace(/\s/g, ''))) {
+                extractedContent += line + '\n';
+              }
+            }
+
+            bodyContent = extractedContent.trim() || bodyPart.replace(/----_[^\n]*\n/g, '').replace(/Content-Type:[^\n]*\n/g, '').replace(/Content-Transfer-Encoding:[^\n]*\n/g, '').replace(/^\n+/, '').replace(/\n+$/, '');
           }
         } else {
           // Fallback: show the whole source
@@ -1536,28 +1607,18 @@
       document.getElementById('emailModalFrom').textContent = `From: ${from || 'Unknown'}`;
       document.getElementById('emailModalDate').textContent = `Date: ${date || 'Unknown'}`;
 
-      // Process email body content
-      let processedBody = body || 'No content available';
-
-      // Try to clean up the email body (remove headers, etc.)
-      if (processedBody.includes('\n\n')) {
-        const parts = processedBody.split('\n\n');
-        // Skip headers and find the actual content
-        for (let i = 0; i < parts.length; i++) {
-          if (!parts[i].includes(':') || parts[i].includes('Content-Type: text/html') || parts[i].includes('Content-Type: text/plain')) {
-            processedBody = parts.slice(i).join('\n\n');
-            break;
-          }
+      // Display the already processed body content
+      const modalBody = document.getElementById('emailModalBody');
+      if (body && typeof body === 'string') {
+        // Check if it's HTML content that was already processed
+        if (body.includes('<') && body.includes('>') && (body.includes('<div') || body.includes('<p>'))) {
+          modalBody.innerHTML = body;
+        } else {
+          // Plain text content
+          modalBody.textContent = body;
         }
-      }
-
-      // If it's HTML content, try to extract plain text or display as HTML
-      if (processedBody.includes('<div') || processedBody.includes('<p>')) {
-        // For HTML content, we can display it as HTML
-        document.getElementById('emailModalBody').innerHTML = processedBody.replace(/\n/g, '<br>');
       } else {
-        // Plain text content
-        document.getElementById('emailModalBody').textContent = processedBody;
+        modalBody.textContent = 'No content available';
       }
 
       // Store current email meta for task creation
