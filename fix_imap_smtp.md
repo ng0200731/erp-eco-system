@@ -340,3 +340,4 @@ The issues were resolved by:
 4. **Updating credentials** - Correct passwords in active profile
 
 All IMAP/SMTP functionality now works correctly and persists across server restarts.
+
