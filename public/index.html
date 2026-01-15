@@ -21,9 +21,12 @@
       padding:20px;
       box-sizing:border-box;
       transition:flex-basis 0.2s ease;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
     }
     #sidebar:hover{
-      flex-basis:10%;
+      flex-basis:15%;
     }
     #board{
       flex:1;
@@ -162,6 +165,7 @@
 <body>
   <div id="layout">
     <div id="sidebar">
+      <button id="menuEmail" class="page-btn" data-short="E" data-full="Email">E</button>
       <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
     </div>
     <div id="board">
@@ -612,6 +616,7 @@
       // Panels
       welcomePanel.style.display = id === 'welcome' ? 'block' : 'none';
       profilesListPanel.style.display = id === 'profiles' ? 'block' : 'none';
+      document.getElementById('emails').style.display = id === 'emails' ? 'block' : 'none';
       // settingsPanel is shown inline within profiles when a profile is clicked
       settingsPanel.style.display = 'none';
 
@@ -647,12 +652,30 @@
             <div class="meta" style="font-size:0.85em;">${p.mailUser || ''} | Active: ${p.isActive ? 'Yes' : 'No'}</div>
           `;
           item.innerHTML += `<div style="margin-top:6px; display:flex; gap:6px;">
+              <button class="btn ${p.isActive ? 'primary' : ''}" data-action="activate">${p.isActive ? 'Active' : 'Activate'}</button>
               <button class="btn" data-action="edit">Edit</button>
               <button class="btn" data-action="delete">Delete</button>
             </div>`;
           item.onclick = (e) => {
             const action = e.target?.dataset?.action;
-            if (action === 'edit') {
+            if (action === 'activate') {
+              e.stopPropagation();
+              (async () => {
+                // Toggle active state
+                const newActiveState = p.isActive ? 0 : 1;
+                const res = await fetch(`/api/profiles/${p.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ ...p, isActive: newActiveState })
+                });
+                const data = await res.json();
+                if (!data.success) {
+                  await showCopyableError('Update Profile Error', JSON.stringify(data, null, 2));
+                  return;
+                }
+                await loadProfilesList(); // Refresh the list
+              })();
+            } else if (action === 'edit') {
               e.stopPropagation();
               // Edit profile
               currentEditingProfileId = p.id;
@@ -680,18 +703,25 @@
                 await loadProfilesList();
               })();
             } else {
-              // View profile details (same as before)
-              currentEditingProfileId = p.id;
-              settingsPanel.style.display = 'block';
-              cfgMailUser.value = p.mailUser || '';
-              cfgMailPass.value = p.mailPass || '';
-              cfgImapHost.value = p.imapHost || '';
-              cfgImapPort.value = p.imapPort || '';
-              cfgImapTls.value = p.imapTls || 'true';
-              cfgSmtpHost.value = p.smtpHost || '';
-              cfgSmtpPort.value = p.smtpPort || '';
-              cfgSmtpSecure.value = p.smtpSecure || 'true';
-              cfgPort.value = p.port || '';
+              // View profile details (toggle behavior)
+              if (currentEditingProfileId === p.id && settingsPanel.style.display === 'block') {
+                // Clicking the same profile that's currently displayed - collapse it
+                settingsPanel.style.display = 'none';
+                currentEditingProfileId = null;
+              } else {
+                // Clicking a different profile or expanding - show it
+                currentEditingProfileId = p.id;
+                settingsPanel.style.display = 'block';
+                cfgMailUser.value = p.mailUser || '';
+                cfgMailPass.value = p.mailPass || '';
+                cfgImapHost.value = p.imapHost || '';
+                cfgImapPort.value = p.imapPort || '';
+                cfgImapTls.value = p.imapTls || 'true';
+                cfgSmtpHost.value = p.smtpHost || '';
+                cfgSmtpPort.value = p.smtpPort || '';
+                cfgSmtpSecure.value = p.smtpSecure || 'true';
+                cfgPort.value = p.port || '';
+              }
             }
           };
           profilesListEl.appendChild(item);
@@ -763,6 +793,22 @@
     // Initial state: Welcome tab
     ensureTab('welcome', 'Welcome');
     activateTab('welcome');
+
+    const menuEmailBtn = document.getElementById('menuEmail');
+
+    menuEmailBtn.onmouseenter = () => {
+      menuEmailBtn.textContent = menuEmailBtn.dataset.full || 'Email';
+    };
+    menuEmailBtn.onmouseleave = () => {
+      menuEmailBtn.textContent = menuEmailBtn.dataset.short || 'E';
+    };
+
+    // Menu click: show emails
+    menuEmailBtn.onclick = () => {
+      ensureTab('emails', 'Email');
+      activateTab('emails');
+      load(); // Load emails
+    };
 
     menuSettingsBtn.onmouseenter = () => {
       menuSettingsBtn.textContent = menuSettingsBtn.dataset.full || 'Setting';
