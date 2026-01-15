@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Email Client</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📧</text></svg>">
   <style>
     /* STRICT monochrome: only black (#000) and white (#fff) */
     body {font-family: Arial, sans-serif; margin: 0; padding: 0; background:#fff; color:#000;}
@@ -275,7 +276,7 @@
       </div>
 
       <!-- Email UI (next step; hidden for now) -->
-      <div id="emails" style="margin:0; display:none;">
+      <div id="emails" style="margin:0; display:none; width:100%;">
         <div class="topbar">
           <button id="composeBtn" class="page-btn">Compose</button>
           <button id="testSendBtn" class="page-btn">Send Test Email</button>
@@ -292,7 +293,35 @@
             <button id="dummyFillComposeBtn" class="page-btn" type="button" style="margin-left:auto;">Dummy Fill</button>
           </div>
         </div>
-        <ul id="list"></ul>
+        <table id="emailTable" style="width:100%; border-collapse:collapse; border:1px solid #000; margin-bottom:15px;">
+          <thead>
+            <tr style="background:#fff;">
+              <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Date</th>
+              <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Send Email</th>
+              <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Subject</th>
+              <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Context</th>
+              <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Attachment</th>
+            </tr>
+            <tr style="background:#fff;">
+              <th style="padding:8px; border:1px solid #000;">
+                <input type="text" id="dateSearch" placeholder="Search date..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+              </th>
+              <th style="padding:8px; border:1px solid #000;">
+                <input type="text" id="senderSearch" placeholder="Search sender..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+              </th>
+              <th style="padding:8px; border:1px solid #000;">
+                <input type="text" id="subjectSearch" placeholder="Search subject..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+              </th>
+              <th style="padding:8px; border:1px solid #000;">
+                <input type="text" id="contextSearch" placeholder="Search content..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+              </th>
+              <th style="padding:8px; border:1px solid #000;">
+                <input type="text" id="attachmentSearch" placeholder="Search attachments..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+              </th>
+            </tr>
+          </thead>
+          <tbody id="emailTableBody"></tbody>
+        </table>
         <div id="detail" style="display:none">
           <div class="row" style="margin-bottom:10px;">
             <button id="back" class="page-btn">??Back</button>
@@ -311,7 +340,6 @@
     const profilesListPanel = document.getElementById('profilesListPanel');
     const settingsPanel = document.getElementById('settingsPanel');
 
-    const listEl = document.getElementById('list');
     const detailEl = document.getElementById('detail');
     const backBtn = document.getElementById('back');
     const createTaskBtn = document.getElementById('createTaskBtn');
@@ -882,12 +910,11 @@
         const controller = currentLoadController;
         
         if (showLoading) {
-          
-          listEl.innerHTML = '<li>Loading emails...</li>';
-          listEl.style.display = 'block';
+          const tableBody = document.getElementById('emailTableBody');
+          tableBody.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center; border:1px solid #000;">Loading emails...</td></tr>';
           detailEl.style.display = 'none';
         } else {
-          
+
         }
         
         // Add timeout to fetch request
@@ -935,12 +962,13 @@
           }
           const errorMsg = errorData.error || 'Failed to load emails';
           const errorCode = errorData.code ? ` (${errorData.code})` : '';
-          listEl.innerHTML = `<li style="padding:20px; background:#fff; border:1px solid #000;">
+          const tableBody = document.getElementById('emailTableBody');
+          tableBody.innerHTML = `<tr><td colspan="5" style="padding:20px; background:#fff; border:1px solid #000; text-align:center;">
             <strong>Error</strong><br>
             ${errorMsg}${errorCode}<br>
             <small>Status: ${res.status}</small>
             ${errorData.details ? `<br><small style="font-family:monospace; font-size:0.8em;">${errorData.details}</small>` : ''}
-          </li>`;
+          </td></tr>`;
           console.error('API error:', errorData, res.status);
           return;
         }
@@ -949,7 +977,8 @@
         
         
         if (!data.success) {
-          listEl.innerHTML = `<li style="padding:20px; border:1px solid #000;">Error: ${data.error || 'Failed to load emails'}</li>`;
+          const tableBody = document.getElementById('emailTableBody');
+          tableBody.innerHTML = `<tr><td colspan="5" style="padding:20px; border:1px solid #000; text-align:center;">Error: ${data.error || 'Failed to load emails'}</td></tr>`;
           console.error('API error:', data);
           return;
         }
@@ -965,19 +994,20 @@
         } else {
           // Background refresh - update cache and re-render if list is visible
           currentEmails = emails;
-          if (listEl.style.display !== 'none' && detailEl.style.display === 'none') {
+          if (detailEl.style.display === 'none') {
             // List is visible, update it
             renderEmailList(emails);
-            
+
           } else {
-            
+
           }
         }
       } catch (err) {
         console.error('Load function error:', err);
         // Only show error if we were showing loading state
         if (showLoading) {
-          listEl.innerHTML = `<li style="padding:20px; border:1px solid #000;">Error loading emails: ${err.message}<br><small>Check browser console (F12) for details</small></li>`;
+          const tableBody = document.getElementById('emailTableBody');
+          tableBody.innerHTML = `<tr><td colspan="5" style="padding:20px; border:1px solid #000; text-align:center;">Error loading emails: ${err.message}<br><small>Check browser console (F12) for details</small></td></tr>`;
         }
         // Background refresh errors are already logged above
       }
@@ -990,7 +1020,6 @@
 
       // Show loading state
       detailEl.style.display='block';
-      listEl.style.display='none';
       document.getElementById('d-body').textContent = 'Loading email...';
       document.getElementById('d-sub').textContent = '';
       document.getElementById('d-from').textContent = '';
@@ -1091,29 +1120,30 @@
             data = await fetchEmailOnce(2);
           } catch (err2) {
             // Second attempt also failed. Do NOT show popup; go back to list
-            // and show a gentle inline message at the top of the list.
+            // and show a gentle inline message at the top of the table.
             console.warn('Email fetch failed after retry:', err2);
+            document.getElementById('emailTable').style.display='block';
             detailEl.style.display='none';
-            listEl.style.display='block';
-            // Prepend a soft warning item so user knows what happened.
-            const notice = document.createElement('li');
-            notice.className = 'notice';
-            notice.textContent = 'Reconnected and refreshed inbox, but this email could not be loaded. Please try again in a moment.';
-            listEl.insertBefore(notice, listEl.firstChild);
+            // Prepend a soft warning row so user knows what happened.
+            const tableBody = document.getElementById('emailTableBody');
+            const noticeRow = document.createElement('tr');
+            noticeRow.className = 'notice';
+            noticeRow.innerHTML = '<td colspan="5" style="padding:12px; border:1px solid #000;">Reconnected and refreshed inbox, but this email could not be loaded. Please try again in a moment.</td>';
+            tableBody.insertBefore(noticeRow, tableBody.firstChild);
             return;
           }
         } else if (err1?.__fullError) {
           showCopyableError(err1.__isHttpError ? 'Fetch Email Error' : 'Email Error', err1.__fullError);
           console.error('Fetch email error:', err1);
+          document.getElementById('emailTable').style.display='block';
           detailEl.style.display='none';
-          listEl.style.display='block';
           return;
         } else {
           const fullError = `Error fetching email: ${err1.message}\n\nUID: ${uid}\n\nStack trace:\n${err1.stack || 'N/A'}`;
           showCopyableError('Network Error', fullError);
           console.error('Fetch error:', err1);
+          document.getElementById('emailTable').style.display='block';
           detailEl.style.display='none';
-          listEl.style.display='block';
           return;
         }
       }
@@ -1194,8 +1224,9 @@
           email: emailAddress || null,
           date: date || ''
         };
-        
-        listEl.style.display='none';
+
+        // Hide table and show detail view
+        document.getElementById('emailTable').style.display='none';
         detailEl.style.display='block';
     }
     
@@ -1434,10 +1465,9 @@
     }
     
     backBtn.onclick=()=>{
-      
-      detailEl.style.display='none'; 
-      listEl.style.display='block';
-      
+      document.getElementById('emailTable').style.display='block';
+      detailEl.style.display='none';
+
       // If we have cached emails, show them immediately
       if (currentEmails && currentEmails.length > 0) {
         
@@ -1454,7 +1484,8 @@
         // No cache, must load with loading indicator
         load(true).catch(err => {
           console.error('Error loading emails after back:', err);
-          listEl.innerHTML = `<li style="padding:20px; border:1px solid #000;">Error loading emails: ${err.message}</li>`;
+          const tableBody = document.getElementById('emailTableBody');
+          tableBody.innerHTML = `<tr><td colspan="5" style="padding:20px; border:1px solid #000; text-align:center;">Error loading emails: ${err.message}</td></tr>`;
         });
       }
     };
@@ -1529,27 +1560,94 @@
     
     // Helper function to render email list
     function renderEmailList(emails) {
-      listEl.innerHTML='';
-      
+      const tableBody = document.getElementById('emailTableBody');
+      tableBody.innerHTML='';
+
       if (emails.length === 0) {
-        listEl.innerHTML = '<li>No emails found in inbox</li>';
+        const noEmailsRow = document.createElement('tr');
+        noEmailsRow.innerHTML = '<td colspan="5" style="padding:20px; text-align:center; border:1px solid #000;">No emails found in inbox</td>';
+        tableBody.appendChild(noEmailsRow);
         return;
       }
-      
+
       emails.forEach(e=>{
-        const li=document.createElement('li');
-        li.innerHTML = `<div class="sub">${e.subject||'No subject'}</div><div class="meta">${e.from||''} ??${new Date(e.date).toLocaleString()}</div>`;
-        li.style.cursor = 'pointer';
-        li.onclick=()=>{
-          
+        const row = document.createElement('tr');
+        row.style.cursor = 'pointer';
+        row.style.border = '1px solid #000';
+
+        // Format date
+        const date = new Date(e.date);
+        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        // Extract sender email from from field
+        let senderEmail = '';
+        const fromMatch = (e.from || '').match(/<([^>]+)>/);
+        if (fromMatch) {
+          senderEmail = fromMatch[1];
+        } else {
+          senderEmail = e.from || '';
+        }
+
+        // For now, we'll use placeholder data for context and attachments since they're not available in the current email data structure
+        const context = '<span style="cursor:pointer; font-weight:500;">Click to view</span>'; // Placeholder with clickable styling
+        const attachment = 'N/A'; // Placeholder - would need to be extracted from email headers
+
+        row.innerHTML = `
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${formattedDate}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${senderEmail}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${e.subject||'No subject'}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${context}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${attachment}</td>
+        `;
+
+        tableBody.appendChild(row);
+
+        // Add event listeners after appending to DOM
+        row.onmouseover = () => row.style.background = 'rgba(0, 0, 0, 0.3)';
+        row.onmouseout = () => row.style.background = '#fff';
+        row.onclick = (event) => {
+          console.log('Row clicked for email UID:', e.uid, event.target);
           show(e.uid);
         };
-        listEl.appendChild(li);
       });
-      
-      listEl.style.display='block';
+
+      // Hide detail view when showing list
       detailEl.style.display='none';
     }
+
+    // Search functionality
+    let currentFilteredEmails = [];
+
+    function filterEmails() {
+      const dateSearch = document.getElementById('dateSearch').value.toLowerCase();
+      const senderSearch = document.getElementById('senderSearch').value.toLowerCase();
+      const subjectSearch = document.getElementById('subjectSearch').value.toLowerCase();
+      const contextSearch = document.getElementById('contextSearch').value.toLowerCase();
+      const attachmentSearch = document.getElementById('attachmentSearch').value.toLowerCase();
+
+      currentFilteredEmails = currentEmails.filter(email => {
+        const date = new Date(email.date).toLocaleDateString().toLowerCase();
+        const sender = (email.from || '').toLowerCase();
+        const subject = (email.subject || '').toLowerCase();
+        const context = '(click to view)'; // Placeholder for now
+        const attachment = 'n/a'; // Placeholder for now
+
+        return date.includes(dateSearch) &&
+               sender.includes(senderSearch) &&
+               subject.includes(subjectSearch) &&
+               context.includes(contextSearch) &&
+               attachment.includes(attachmentSearch);
+      });
+
+      renderEmailList(currentFilteredEmails);
+    }
+
+    // Add event listeners for search inputs
+    document.getElementById('dateSearch').addEventListener('input', filterEmails);
+    document.getElementById('senderSearch').addEventListener('input', filterEmails);
+    document.getElementById('subjectSearch').addEventListener('input', filterEmails);
+    document.getElementById('contextSearch').addEventListener('input', filterEmails);
+    document.getElementById('attachmentSearch').addEventListener('input', filterEmails);
     
     // Compose email handlers
     const composeBtn = document.getElementById('composeBtn');
