@@ -168,6 +168,15 @@
       white-space:pre-wrap;
       word-wrap:break-word;
     }
+    /* Remove focus outline / highlight for date input in modal */
+    .email-modal input[type="date"] {
+      outline: none;
+      box-shadow: none;
+    }
+    .email-modal input[type="date"]:focus {
+      outline: none;
+      box-shadow: none;
+    }
     .btn{
       appearance:none;
       border:1px solid #000;
@@ -265,6 +274,8 @@
   <div id="layout">
     <div id="sidebar">
       <button id="menuEmail" class="page-btn" data-short="E" data-full="Email">E</button>
+      <button id="menuTasks" class="page-btn" data-short="T" data-full="Task List">T</button>
+      <button id="menuQuotation" class="page-btn" data-short="Q" data-full="Quotation">Q</button>
       <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
     </div>
     <div id="board">
@@ -288,6 +299,20 @@
         <div id="profilesList"></div>
       </div>
 
+      <!-- Task List board -->
+      <div id="tasksPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
+        <h3>Task List</h3>
+        <!-- Task list content will go here -->
+      </div>
+
+      <!-- Quotation board -->
+      <div id="quotationPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
+        <h3>Quotation</h3>
+        <p class="meta">
+          Quotation management will be implemented here: create, view, and manage quotations.
+        </p>
+      </div>
+
       <!-- Settings board (IMAP/SMTP profile edit form) -->
       <div id="settingsPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
         <form id="settingsForm">
@@ -295,7 +320,7 @@
         <div class="row" style="margin-bottom:10px;">
           <div style="flex:1;">
             <label for="cfgMailUser">MAIL_USER</label>
-            <input id="cfgMailUser" type="email">
+            <input id="cfgMailUser" type="email" autocomplete="username">
           </div>
           <div style="flex:1;">
             <label for="cfgMailPass">MAIL_PASS</label>
@@ -376,7 +401,7 @@
           <thead>
             <tr style="background:#fff;">
               <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Date</th>
-              <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Send Email</th>
+              <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Sender</th>
               <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Subject</th>
               <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Context</th>
               <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Attachment</th>
@@ -407,10 +432,7 @@
           <div class="email-modal">
             <div class="email-modal-header">
               <h2 id="emailModalSubject" class="email-modal-title">Email Subject</h2>
-              <div style="display:flex; gap:10px; align-items:center;">
-                <button id="emailModalCreateTask" class="page-btn" style="font-size:12px; padding:4px 8px;">Create Task</button>
-                <button id="emailModalClose" class="email-modal-close">×</button>
-              </div>
+              <button id="emailModalClose" class="email-modal-close">×</button>
             </div>
             <div class="email-modal-meta">
               <div id="emailModalFrom" class="email-modal-from">From: sender@example.com</div>
@@ -431,6 +453,8 @@
     const settingsPanel = document.getElementById('settingsPanel');
 
     const menuSettingsBtn = document.getElementById('menuSettings');
+    const menuTasksBtn = document.getElementById('menuTasks');
+    const menuQuotationBtn = document.getElementById('menuQuotation');
     const addProfileBtn = document.getElementById('addProfileBtn');
     const profilesListEl = document.getElementById('profilesList');
     const settingsNoteEl = document.getElementById('settingsNote');
@@ -765,6 +789,8 @@
       welcomePanel.style.display = id === 'welcome' ? 'block' : 'none';
       profilesListPanel.style.display = id === 'profiles' ? 'block' : 'none';
       document.getElementById('emails').style.display = id === 'emails' ? 'block' : 'none';
+      document.getElementById('tasksPanel').style.display = id === 'tasks' ? 'block' : 'none';
+      document.getElementById('quotationPanel').style.display = id === 'quotation' ? 'block' : 'none';
       // settingsPanel is shown inline within profiles when a profile is clicked
       settingsPanel.style.display = 'none';
 
@@ -956,10 +982,14 @@
     sidebar.onmouseenter = () => {
       menuEmailBtn.textContent = menuEmailBtn.dataset.full || 'Email';
       menuSettingsBtn.textContent = menuSettingsBtn.dataset.full || 'Setting';
+      menuTasksBtn.textContent = menuTasksBtn.dataset.full || 'Task List';
+      menuQuotationBtn.textContent = menuQuotationBtn.dataset.full || 'Quotation';
     };
     sidebar.onmouseleave = () => {
       menuEmailBtn.textContent = menuEmailBtn.dataset.short || 'E';
       menuSettingsBtn.textContent = menuSettingsBtn.dataset.short || 'S';
+      menuTasksBtn.textContent = menuTasksBtn.dataset.short || 'T';
+      menuQuotationBtn.textContent = menuQuotationBtn.dataset.short || 'Q';
     };
 
     // Menu click: show profiles list (settings landing page)
@@ -967,6 +997,18 @@
       ensureTab('profiles', 'Setting');
       activateTab('profiles');
       loadProfilesList();
+    };
+
+    // Menu click: show tasks
+    menuTasksBtn.onclick = () => {
+      ensureTab('tasks', 'Task');
+      activateTab('tasks');
+    };
+
+    // Menu click: show quotation
+    menuQuotationBtn.onclick = () => {
+      ensureTab('quotation', 'Quotation');
+      activateTab('quotation');
     };
 
     // Add profile button
@@ -1894,71 +1936,6 @@
       }
     };
 
-    document.getElementById('emailModalCreateTask').onclick = async () => {
-      try {
-        if (!currentEmailModalMeta || !currentEmailModalMeta.uid) {
-          await showModal({
-            title: 'No email selected',
-            body: 'No email is currently open in the modal.'
-          });
-          return;
-        }
-
-        const payload = {
-          type: 'erp-enquiry',
-          status: 'new',
-          sourceEmailUid: currentEmailModalMeta.uid,
-          sourceSubject: currentEmailModalMeta.subject,
-          customerEmail: currentEmailModalMeta.email
-        };
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          if (!controller.signal.aborted) controller.abort();
-        }, 15000);
-
-        let res;
-        try {
-          res = await fetch('/api/tasks', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-        } catch (err) {
-          clearTimeout(timeoutId);
-          const msg = err.name === 'AbortError'
-            ? 'Request timeout while creating task.'
-            : `Network error while creating task: ${err.message}`;
-          await showModal({ title: 'Create Task Error', body: msg });
-          return;
-        }
-
-        const text = await res.text();
-        let data;
-        try {
-          data = JSON.parse(text);
-        } catch {
-          data = { success: false, error: text || 'Invalid JSON response from server' };
-        }
-
-        if (!res.ok || !data.success) {
-          const fullError = `Error creating task\n\nStatus: ${res.status}\nPayload:\n${JSON.stringify(payload, null, 2)}\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
-          await showCopyableError('Create Task Error', fullError);
-          return;
-        }
-
-        const task = data.task || {};
-        await showModal({
-          title: 'Task Created',
-          body: `Task #${task.id} created from email.\nType: ${task.type}\nStatus: ${task.status}`
-        });
-      } catch (err) {
-        const fullError = `Unexpected error creating task:\n${err.message}\n\nStack:\n${err.stack || 'N/A'}`;
-        await showCopyableError('Create Task Error', fullError);
-      }
-    };
 
     load();
   </script>

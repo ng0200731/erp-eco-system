@@ -1,5 +1,5 @@
 ---
-alwaysApply: false
+alwaysApply: true
 description: Skill for deeply understanding and debugging the ERP email service (IMAP/SMTP, timeouts, batch scripts) in this repo.
 ---
 
@@ -113,10 +113,11 @@ When the user asks questions in this repo, you should:
 
 7. **Style and UX guidelines**
    - **Strict black & white only**: UI must use only #000 and #fff (no gray, no colored accents).
-     - Allowed: transparent / rgba black overlays for modals.
+     - Allowed: transparent / rgba black overlays for modals: `rgba(0,0,0,.35)` for general modals, `rgba(0,0,0,.2)` for email modals.
    - **Straight borders only**: never use `border-radius` (no rounded corners, all borders must be straight/square).
+   - **Typography**: Arial font-family throughout, specific weights/sizes (700 for headers, 600 for buttons, .9em for meta text).
    - **No browser popups**: never use `alert()`, `confirm()`, or `prompt()`.
-   - Use the app’s **own centered modal** (in `public/index.html`) for:
+   - Use the app's **own centered modal** (in `public/index.html`) for:
      - Success messages
      - Confirmations (OK/Cancel)
      - Copyable errors
@@ -126,17 +127,36 @@ When the user asks questions in this repo, you should:
        - Auto-retry
        - Quiet return to list
        - Small visual hints, not disruptive popups
-   - **Layout (future dashboard/task UI)**:
-      - Main screen split: **narrow left menu** and **wide board** (target ~5%/95%).
-      - Menu can expand on hover (for labels) but collapses back when not hovered.
-      - Clicking a menu button only changes what is shown in the board; menu stays fixed.
-      - Keep layout minimal and monochrome, consistent with existing styling.
-   - **Profiles UX (settings)**:
-      - “Setting” button shows profiles list on the same page (no new page).
+
+   **Layout Structure (always follow these patterns):**
+   - **Main layout**: `#layout` with `display:flex`, `min-height:100vh`
+     - **Sidebar**: `#sidebar` - `flex:0 0 5%`, `min-width:60px`, `border-right:1px solid #000`
+       - Hover expands to `flex-basis:11%`
+       - Buttons: square 44px × 44px, center-aligned text, expand on hover to fill width
+     - **Board**: `#board` - `flex:1`, `padding:20px`
+   - **Button classes**:
+     - `.btn`: `appearance:none`, `border:1px solid #000`, `background:#fff`, `color:#000`, `padding:8px 12px`, `font-weight:600`
+     - `.btn:hover`: `background:#000`, `color:#fff`
+     - `.btn.primary`: `background:#000`, `color:#fff`
+     - `.btn.primary:hover`: `background:#fff`, `color:#000`
+     - `.page-btn`: Similar to .btn but larger padding (`10px 16px`), `font-weight:700`
+   - **Modal system**:
+     - **General modals**: `.modal-overlay` (z-index:10000), `.modal` (max-width:560px), white background, black borders, shadow `0 12px 32px rgba(0,0,0,.25)`
+     - **Email modals**: `.email-modal-overlay` (z-index:10001), `.email-modal` (max-width:1200px, 95vw), Microsoft Outlook style
+     - **Modal states**: `body.modal-open` prevents body scroll (`overflow:hidden`, `position:fixed`)
+   - **Form elements**: All inputs/textarea use `width:100%`, `border:1px solid #000`, `background:#fff`, `color:#000`, `padding:8px`, `box-sizing:border-box`
+   - **Tab system**: `.tabs-bar` with `.tab` elements, `.tab-active` for selected state, `.tab-close` buttons on hover
+   - **Email table**: Standard table with black borders, hover effects on rows (`background:#000`, `color:#fff`)
+   - **Specific backgrounds**: Headers use `#f8f8f8` and `#fafafa` for subtle contrast
+
+   **Profiles UX (settings)**:
+      - "Setting" button shows profiles list on the same page (no new page).
       - Clicking a profile expands/details in the same board (no navigation away).
-   - Always aim for:
+
+   Always aim for:
      - **No user-facing timeouts** when a retry is reasonable.
      - Clear instructions in any messages that tell the user what they can do next.
+     - **Consistent spacing**: 20px padding for main containers, 10px-15px gaps, 12px-16px for internal padding.
 
 8. **How to respond to the user in this repo**
    - Be concise but specific to this project.
