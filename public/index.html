@@ -25,6 +25,10 @@
       display:flex;
       flex-direction:column;
       gap:10px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
     }
     #sidebar:hover{
       flex-basis:11%;
@@ -236,6 +240,12 @@
       display:flex;
       gap:4px;
       margin-bottom:10px;
+      position: sticky;
+      top: 0;
+      background: #fff;
+      border-bottom: 1px solid #000;
+      padding: 10px 0;
+      z-index: 100;
     }
     .tab{
       border:1px solid #000;
@@ -252,6 +262,12 @@
     .tab-active{
       background:#000;
       color:#fff;
+    }
+    .tab-disabled{
+      opacity:0.5;
+      cursor:not-allowed;
+      background:#f0f0f0;
+      color:#999;
     }
     .tab-close{
       display:none;
@@ -338,7 +354,7 @@
       <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
       <div style="flex:1;"></div>
       <div style="font-size:0.75em; text-align:center; color:#666; margin-top:10px; padding:5px;">
-        v1.0.9
+        v1.0.12
       </div>
     </div>
     <div id="board">
@@ -373,7 +389,7 @@
         <!-- Customer Tabs -->
         <div class="tabs-bar" style="margin-bottom:20px;">
           <div class="tab tab-active" data-tab="customer-info">Customer</div>
-          <div class="tab" data-tab="member-info">Member</div>
+          <div class="tab tab-disabled" data-tab="member-info">Member</div>
         </div>
 
         <!-- Customer Info Tab -->
@@ -2155,12 +2171,22 @@
     let savedCustomers = []; // Store all saved customers
 
     function initializeCustomerPanel() {
+      // Reset customer data and disable member tab
+      currentCustomerData = null;
+      membersData = [];
+
+      // Disable member tab initially
+      const memberTab = document.querySelector('[data-tab="member-info"]');
+      memberTab.classList.add('tab-disabled');
+
       // Tab switching
       const customerTab = document.querySelector('[data-tab="customer-info"]');
-      const memberTab = document.querySelector('[data-tab="member-info"]');
 
       customerTab.onclick = () => switchCustomerTab('customer');
       memberTab.onclick = () => switchCustomerTab('member');
+
+      // Start with customer tab active
+      switchCustomerTab('customer');
 
       // Form elements
       const dummyInputBtn = document.getElementById('dummyInputBtn');
@@ -2187,6 +2213,12 @@
     function switchCustomerTab(tab) {
       const customerTab = document.querySelector('[data-tab="customer-info"]');
       const memberTab = document.querySelector('[data-tab="member-info"]');
+
+      // Prevent switching to member tab if it's disabled
+      if (tab === 'member' && memberTab.classList.contains('tab-disabled')) {
+        return; // Do nothing if member tab is disabled
+      }
+
       const customerInfoTab = document.getElementById('customerInfoTab');
       const memberInfoTab = document.getElementById('memberInfoTab');
 
@@ -2244,10 +2276,14 @@
         members: [] // Will be populated when members are saved
       };
 
+      // Enable member tab
+      const memberTab = document.querySelector('[data-tab="member-info"]');
+      memberTab.classList.remove('tab-disabled');
+
       // Switch to member tab
       switchCustomerTab('member');
 
-      showModal({ title: 'Success', body: 'Customer information saved. Now add members.' });
+      showModal({ title: 'Success', body: 'Customer information saved. Member tab is now enabled.' });
     }
 
     function addNewMember() {
@@ -2611,7 +2647,7 @@
       // Load customers on initialization
       displayCustomers();
     }
-
+    
     load();
   </script>
 </body>

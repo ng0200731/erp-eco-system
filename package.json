@@ -1,6 +1,6 @@
 {
   "name": "erp-email-service",
-  "version": "1.0.9",
+  "version": "1.0.12",
   "description": "IMAP fetch + SMTP send service for ERP",
   "main": "server.js",
   "type": "module",
