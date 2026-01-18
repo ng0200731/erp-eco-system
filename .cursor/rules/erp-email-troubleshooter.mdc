@@ -113,6 +113,7 @@ When the user asks questions in this repo, you should:
      - Update package version whenever code is changed.
      - Update the user about the latest code version.
      - Explain to the user in plain language what changed and what the new behavior is.
+     - For every order form, add a "Dummy Input" button to auto-generate random test data.
 
 7. **Style and UX guidelines**
    - **Strict black & white only**: UI must use only #000 and #fff (no gray, no colored accents).

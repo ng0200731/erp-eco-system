@@ -268,18 +268,51 @@
     .tab:hover .tab-close{
       display:block;
     }
+
+    /* Submenu styling */
+    .menu-group {
+      position: relative;
+    }
+    .submenu {
+      margin-left: 20px;
+      margin-top: 5px;
+    }
+    .submenu-btn {
+      appearance: none;
+      border: 1px solid #000;
+      background: #fff;
+      color: #000;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9em;
+      width: 100%;
+      text-align: left;
+      margin-bottom: 2px;
+    }
+    .submenu-btn:hover {
+      background: #000;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
   <div id="layout">
     <div id="sidebar">
       <button id="menuEmail" class="page-btn" data-short="E" data-full="Email">E</button>
+      <div class="menu-group">
+        <button id="menuCustomer" class="page-btn" data-short="C" data-full="Customer">C</button>
+        <div id="customerSubmenu" class="submenu" style="display:none;">
+          <button id="customerCreateBtn" class="submenu-btn">Create</button>
+          <button id="customerViewBtn" class="submenu-btn">View</button>
+        </div>
+      </div>
       <button id="menuTasks" class="page-btn" data-short="T" data-full="Task List">T</button>
       <button id="menuQuotation" class="page-btn" data-short="Q" data-full="Quotation">Q</button>
       <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
       <div style="flex:1;"></div>
       <div style="font-size:0.75em; text-align:center; color:#666; margin-top:10px; padding:5px;">
-        v1.0.1
+        v1.0.6
       </div>
     </div>
     <div id="board">
@@ -309,6 +342,107 @@
         <!-- Task list content will go here -->
       </div>
 
+      <!-- Customer board -->
+      <div id="customerPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
+        <!-- Customer Tabs -->
+        <div class="tabs-bar" style="margin-bottom:20px;">
+          <div class="tab tab-active" data-tab="customer-info">Customer</div>
+          <div class="tab" data-tab="member-info">Member</div>
+        </div>
+
+        <!-- Customer Info Tab -->
+        <div id="customerInfoTab" style="display:block;">
+          <form id="customerForm">
+            <div class="row" style="margin-bottom:15px;">
+              <div style="flex:1;">
+                <label for="companyName">Company Name *</label>
+                <input id="companyName" type="text" required style="width:100%;">
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:15px;">
+              <div style="flex:1;">
+                <label for="emailDomain">Email Domain *</label>
+                <input id="emailDomain" type="text" placeholder="example.com" required style="width:100%;">
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:15px;">
+              <div style="flex:1;">
+                <label for="companyAddress">Address</label>
+                <textarea id="companyAddress" style="width:100%; min-height:60px;"></textarea>
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:15px;">
+              <div style="flex:1;">
+                <label for="companyTel">Telephone</label>
+                <input id="companyTel" type="tel" style="width:100%;">
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:15px;">
+              <div style="flex:1;">
+                <label for="companyType">Type *</label>
+                <select id="companyType" required style="width:100%; padding:8px; border:1px solid #000; background:#fff;">
+                  <option value="">Select Type</option>
+                  <option value="buyer">Buyer</option>
+                  <option value="agent">Agent</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:15px;">
+              <div style="flex:1;">
+                <label for="companyWebsite">Website</label>
+                <input id="companyWebsite" type="url" placeholder="https://www.example.com" style="width:100%;">
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:15px;">
+              <div style="flex:1;">
+                <label for="companyDocs">Documents</label>
+                <div style="border:2px dashed #ccc; padding:20px; text-align:center; background:#f9f9f9;">
+                  <p>Drag & drop files here, or click to browse</p>
+                  <input id="companyDocs" type="file" multiple style="margin-top:10px;">
+                  <p style="font-size:0.8em; color:#666; margin-top:10px;">
+                    Support: Browse, Copy & Paste, Drag & Drop
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <button type="button" id="dummyInputBtn" class="page-btn" style="margin-right:10px;">Dummy Input</button>
+              <button type="button" id="saveCustomerBtn" class="page-btn">Save & Continue to Members</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Member Info Tab -->
+        <div id="memberInfoTab" style="display:none;">
+          <div style="margin-bottom:15px;">
+            <button id="addMemberBtn" class="page-btn">+ Add Member</button>
+            <button id="dummyMemberBtn" class="page-btn" style="margin-left:10px;">Dummy Input</button>
+          </div>
+
+          <div id="membersList">
+            <!-- Members will be added here dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer View board -->
+      <div id="customerViewPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
+        <h3>Customer View</h3>
+        <p class="meta">
+          Customer viewing functionality will be implemented here: search, filter, and view existing customers.
+        </p>
+        <div style="margin-top:20px;">
+          <p><em>Coming soon: Customer search, filtering, and detailed view functionality.</em></p>
+        </div>
+      </div>
+
       <!-- Quotation board -->
       <div id="quotationPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
         <div class="row" style="gap:10px; flex-wrap:wrap;">
@@ -323,7 +457,7 @@
       <!-- Settings board (IMAP/SMTP profile edit form) -->
       <div id="settingsPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
         <form id="settingsForm">
-          <h3>Profile &amp; Connection Settings</h3>
+        <h3>Profile &amp; Connection Settings</h3>
         <div class="row" style="margin-bottom:10px;">
           <div style="flex:1;">
             <label for="cfgMailUser">MAIL_USER</label>
@@ -440,7 +574,7 @@
             <div class="email-modal-header">
               <h2 id="emailModalSubject" class="email-modal-title">Email Subject</h2>
               <button id="emailModalClose" class="email-modal-close">×</button>
-            </div>
+          </div>
             <div class="email-modal-meta">
               <div id="emailModalFrom" class="email-modal-from">From: sender@example.com</div>
               <div id="emailModalDate" class="email-modal-date">Date: 2024-01-15</div>
@@ -796,6 +930,8 @@
       welcomePanel.style.display = id === 'welcome' ? 'block' : 'none';
       profilesListPanel.style.display = id === 'profiles' ? 'block' : 'none';
       document.getElementById('emails').style.display = id === 'emails' ? 'block' : 'none';
+      document.getElementById('customerPanel').style.display = id === 'customer' ? 'block' : 'none';
+      document.getElementById('customerViewPanel').style.display = id === 'customer-view' ? 'block' : 'none';
       document.getElementById('tasksPanel').style.display = id === 'tasks' ? 'block' : 'none';
       document.getElementById('quotationPanel').style.display = id === 'quotation' ? 'block' : 'none';
       // settingsPanel is shown inline within profiles when a profile is clicked
@@ -860,16 +996,16 @@
               e.stopPropagation();
               // Edit profile
               currentEditingProfileId = p.id;
-              settingsPanel.style.display = 'block';
-              cfgMailUser.value = p.mailUser || '';
-              cfgMailPass.value = p.mailPass || '';
-              cfgImapHost.value = p.imapHost || '';
-              cfgImapPort.value = p.imapPort || '';
-              cfgImapTls.value = p.imapTls || 'true';
-              cfgSmtpHost.value = p.smtpHost || '';
-              cfgSmtpPort.value = p.smtpPort || '';
-              cfgSmtpSecure.value = p.smtpSecure || 'true';
-              cfgPort.value = p.port || '';
+            settingsPanel.style.display = 'block';
+            cfgMailUser.value = p.mailUser || '';
+            cfgMailPass.value = p.mailPass || '';
+            cfgImapHost.value = p.imapHost || '';
+            cfgImapPort.value = p.imapPort || '';
+            cfgImapTls.value = p.imapTls || 'true';
+            cfgSmtpHost.value = p.smtpHost || '';
+            cfgSmtpPort.value = p.smtpPort || '';
+            cfgSmtpSecure.value = p.smtpSecure || 'true';
+            cfgPort.value = p.port || '';
             } else if (action === 'delete') {
               e.stopPropagation();
               (async () => {
@@ -976,27 +1112,71 @@
     activateTab('welcome');
 
     const menuEmailBtn = document.getElementById('menuEmail');
+    const menuCustomerBtn = document.getElementById('menuCustomer');
     const sidebar = document.getElementById('sidebar');
 
     // Menu click: show emails
     menuEmailBtn.onclick = () => {
       ensureTab('emails', 'Email');
       activateTab('emails');
-      load(); // Load emails
+      // Load emails if not already loaded
+      if (!currentEmails || currentEmails.length === 0) {
+        load(true);
+      }
+    };
+
+    // Menu click: toggle customer submenu
+    menuCustomerBtn.onclick = () => {
+      const submenu = document.getElementById('customerSubmenu');
+      const isVisible = submenu.style.display !== 'none';
+
+      // Hide all other submenus first
+      document.querySelectorAll('.submenu').forEach(sub => {
+        sub.style.display = 'none';
+      });
+
+      // Toggle this submenu
+      submenu.style.display = isVisible ? 'none' : 'block';
+    };
+
+    // Customer submenu buttons
+    const customerCreateBtn = document.getElementById('customerCreateBtn');
+    const customerViewBtn = document.getElementById('customerViewBtn');
+
+    customerCreateBtn.onclick = () => {
+      // Hide submenu and go to customer creation (current customer board)
+      document.getElementById('customerSubmenu').style.display = 'none';
+      ensureTab('customer', 'Customer');
+      activateTab('customer');
+      initializeCustomerPanel();
+    };
+
+    customerViewBtn.onclick = () => {
+      // Hide submenu and go to customer view (placeholder for now)
+      document.getElementById('customerSubmenu').style.display = 'none';
+      ensureTab('customer-view', 'Customer View');
+      activateTab('customer-view');
+      // TODO: Implement customer view functionality
     };
 
     // Hover on entire sidebar to show full text
     sidebar.onmouseenter = () => {
       menuEmailBtn.textContent = menuEmailBtn.dataset.full || 'Email';
+      menuCustomerBtn.textContent = menuCustomerBtn.dataset.full || 'Customer';
       menuSettingsBtn.textContent = menuSettingsBtn.dataset.full || 'Setting';
       menuTasksBtn.textContent = menuTasksBtn.dataset.full || 'Task List';
       menuQuotationBtn.textContent = menuQuotationBtn.dataset.full || 'Quotation';
     };
     sidebar.onmouseleave = () => {
       menuEmailBtn.textContent = menuEmailBtn.dataset.short || 'E';
+      menuCustomerBtn.textContent = menuCustomerBtn.dataset.short || 'C';
       menuSettingsBtn.textContent = menuSettingsBtn.dataset.short || 'S';
       menuTasksBtn.textContent = menuTasksBtn.dataset.short || 'T';
       menuQuotationBtn.textContent = menuQuotationBtn.dataset.short || 'Q';
+      // Hide submenus on mouse leave
+      document.querySelectorAll('.submenu').forEach(sub => {
+        sub.style.display = 'none';
+      });
     };
 
     // Menu click: show profiles list (settings landing page)
@@ -1050,7 +1230,7 @@
           const tableBody = document.getElementById('emailTableBody');
           tableBody.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center; border:1px solid #000;">Loading emails...</td></tr>';
         } else {
-
+          
         }
         
         // Add timeout to fetch request
@@ -1126,7 +1306,7 @@
         } else {
           // Background refresh - update cache and re-render list
           currentEmails = emails;
-          renderEmailList(emails);
+            renderEmailList(emails);
         }
       } catch (err) {
         console.error('Load function error:', err);
@@ -1266,16 +1446,16 @@
         let from = '';
         let date = '';
         let bodyContent = '';
-
+        
         // Extract headers
         const subjectMatch = source.match(/^Subject:\s*(.+)$/mi);
         const fromMatch = source.match(/^From:\s*(.+)$/mi);
         const dateMatch = source.match(/^Date:\s*(.+)$/mi);
-
+        
         if (subjectMatch) subject = subjectMatch[1].trim();
         if (fromMatch) from = fromMatch[1].trim();
         if (dateMatch) date = dateMatch[1].trim();
-
+        
         // Extract just the actual email content (skip headers and boundaries)
         const headerEndMatch = source.match(/\n\n|\r\n\r\n/);
         if (headerEndMatch) {
@@ -1320,10 +1500,10 @@
                   if (decodedContent.includes('<') && decodedContent.includes('>')) {
                     isHtmlContent = true;
                     bodyContent = decodedContent;
-                  } else {
+            } else {
                     bodyContent = decodedContent;
-                  }
-                } else {
+            }
+          } else {
                   console.warn('Content appears to be base64 but contains invalid characters, keeping original');
                   bodyContent = rawContent;
                 }
@@ -1331,8 +1511,8 @@
                 console.warn('Failed to decode base64 content:', e);
                 // Keep original content if decoding fails
                 bodyContent = rawContent;
-              }
-            } else {
+          }
+        } else {
               bodyContent = rawContent;
             }
 
@@ -1407,7 +1587,7 @@
           email: emailAddress || null,
           date: date || ''
         };
-
+        
         // Show email modal
         populateEmailModal(subject, from, date, bodyContent, currentEmailMeta);
         document.getElementById('emailModal').style.display='flex';
@@ -1476,7 +1656,7 @@
       inputs.forEach(fillInput);
       textareas.forEach(fillTextarea);
     }
-
+    
     // Copyable modal in minimal black & white style (no browser popups)
     async function showCopyableError(title, errorText) {
       await showModal({
@@ -1567,7 +1747,7 @@
         document.addEventListener('keydown', onKey);
       });
     }
-
+    
     // Text input modal (replaces prompt)
     function showTextInputModal({ title = 'Input', label = '', initialValue = '', okText = 'OK', cancelText = 'Cancel' }) {
       return new Promise((resolve) => {
@@ -1673,19 +1853,19 @@
       // Store current email meta for task creation
       currentEmailModalMeta = emailMeta;
     }
-
+    
     // Helper function to render email list
     function renderEmailList(emails) {
       const tableBody = document.getElementById('emailTableBody');
       tableBody.innerHTML='';
-
+      
       if (emails.length === 0) {
         const noEmailsRow = document.createElement('tr');
         noEmailsRow.innerHTML = '<td colspan="5" style="padding:20px; text-align:center; border:1px solid #000;">No emails found in inbox</td>';
         tableBody.appendChild(noEmailsRow);
         return;
       }
-
+      
       emails.forEach(e=>{
         const row = document.createElement('tr');
         row.style.cursor = 'pointer';
@@ -1943,7 +2123,372 @@
       }
     };
 
+    // ========== CUSTOMER PANEL FUNCTIONALITY ==========
 
+    let currentCustomerData = null;
+    let membersData = [];
+
+    function initializeCustomerPanel() {
+      // Tab switching
+      const customerTab = document.querySelector('[data-tab="customer-info"]');
+      const memberTab = document.querySelector('[data-tab="member-info"]');
+
+      customerTab.onclick = () => switchCustomerTab('customer');
+      memberTab.onclick = () => switchCustomerTab('member');
+
+      // Form elements
+      const dummyInputBtn = document.getElementById('dummyInputBtn');
+      const saveCustomerBtn = document.getElementById('saveCustomerBtn');
+      const addMemberBtn = document.getElementById('addMemberBtn');
+      const dummyMemberBtn = document.getElementById('dummyMemberBtn');
+
+      // Dummy input functionality
+      dummyInputBtn.onclick = () => fillDummyData();
+
+      // Save customer and continue to members
+      saveCustomerBtn.onclick = () => saveCustomerInfo();
+
+      // Add member functionality
+      addMemberBtn.onclick = () => addNewMember();
+
+      // Dummy member functionality
+      dummyMemberBtn.onclick = () => addDummyMember();
+
+      // File upload functionality
+      initializeFileUpload();
+    }
+
+    function switchCustomerTab(tab) {
+      const customerTab = document.querySelector('[data-tab="customer-info"]');
+      const memberTab = document.querySelector('[data-tab="member-info"]');
+      const customerInfoTab = document.getElementById('customerInfoTab');
+      const memberInfoTab = document.getElementById('memberInfoTab');
+
+      if (tab === 'customer') {
+        customerTab.classList.add('tab-active');
+        memberTab.classList.remove('tab-active');
+        customerInfoTab.style.display = 'block';
+        memberInfoTab.style.display = 'none';
+      } else {
+        customerTab.classList.remove('tab-active');
+        memberTab.classList.add('tab-active');
+        customerInfoTab.style.display = 'none';
+        memberInfoTab.style.display = 'block';
+      }
+    }
+
+    function saveCustomerInfo() {
+      const companyName = document.getElementById('companyName').value.trim();
+      const emailDomain = document.getElementById('emailDomain').value.trim();
+      const companyAddress = document.getElementById('companyAddress').value.trim();
+      const companyTel = document.getElementById('companyTel').value.trim();
+      const companyType = document.getElementById('companyType').value;
+      const companyWebsite = document.getElementById('companyWebsite').value.trim();
+
+      // Validation
+      if (!companyName) {
+        showModal({ title: 'Validation Error', body: 'Company Name is required.' });
+        return;
+      }
+      if (!emailDomain) {
+        showModal({ title: 'Validation Error', body: 'Email Domain is required.' });
+        return;
+      }
+      if (!companyType) {
+        showModal({ title: 'Validation Error', body: 'Type is required.' });
+        return;
+      }
+
+      // Validate email domain format
+      const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/;
+      if (!domainRegex.test(emailDomain)) {
+        showModal({ title: 'Validation Error', body: 'Please enter a valid email domain (e.g., example.com).' });
+        return;
+      }
+
+      // Save customer data
+      currentCustomerData = {
+        companyName,
+        emailDomain,
+        companyAddress,
+        companyTel,
+        companyType,
+        companyWebsite
+      };
+
+      // Switch to member tab
+      switchCustomerTab('member');
+
+      showModal({ title: 'Success', body: 'Customer information saved. Now add members.' });
+    }
+
+    function addNewMember() {
+      if (!currentCustomerData) {
+        showModal({ title: 'Error', body: 'Please complete customer information first.' });
+        return;
+      }
+
+      const memberIndex = membersData.length;
+      const memberHtml = `
+        <div class="member-item" style="border:1px solid #000; padding:15px; margin-bottom:10px; background:#f9f9f9;">
+          <div class="row" style="margin-bottom:10px;">
+            <div style="flex:1;">
+              <label>Name *</label>
+              <input type="text" class="member-name" placeholder="Full Name" required>
+            </div>
+            <div style="flex:1;">
+              <label>Email *</label>
+              <div style="display:flex;">
+                <input type="text" class="member-email-prefix" placeholder="username" required style="flex:1;">
+                <span style="padding:8px; background:#eee; border:1px solid #000;">@${currentCustomerData.emailDomain}</span>
+              </div>
+            </div>
+          </div>
+          <div class="row" style="margin-bottom:10px;">
+            <div style="flex:1;">
+              <label>Title</label>
+              <input type="text" class="member-title" placeholder="Job Title">
+            </div>
+            <div style="flex:1;">
+              <label>Telephone</label>
+              <input type="tel" class="member-tel" placeholder="Phone Number">
+            </div>
+          </div>
+          <div class="row">
+            <button class="page-btn save-member-btn" data-index="${memberIndex}">Save Member</button>
+            <button class="page-btn delete-member-btn" data-index="${memberIndex}" style="margin-left:10px;">Delete</button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('membersList').insertAdjacentHTML('beforeend', memberHtml);
+
+      // Add event listeners to the new member
+      const memberDiv = document.getElementById('membersList').lastElementChild;
+      const saveBtn = memberDiv.querySelector('.save-member-btn');
+      const deleteBtn = memberDiv.querySelector('.delete-member-btn');
+
+      saveBtn.onclick = () => saveMember(memberIndex);
+      deleteBtn.onclick = () => deleteMember(memberIndex);
+
+      // Initialize with empty data
+      membersData.push({
+        name: '',
+        emailPrefix: '',
+        title: '',
+        tel: ''
+      });
+    }
+
+    function saveMember(index) {
+      const memberDiv = document.querySelectorAll('.member-item')[index];
+      const name = memberDiv.querySelector('.member-name').value.trim();
+      const emailPrefix = memberDiv.querySelector('.member-email-prefix').value.trim();
+      const title = memberDiv.querySelector('.member-title').value.trim();
+      const tel = memberDiv.querySelector('.member-tel').value.trim();
+
+      if (!name) {
+        showModal({ title: 'Validation Error', body: 'Member name is required.' });
+        return;
+      }
+      if (!emailPrefix) {
+        showModal({ title: 'Validation Error', body: 'Member email prefix is required.' });
+        return;
+      }
+
+      membersData[index] = {
+        name,
+        emailPrefix,
+        title,
+        tel
+      };
+
+      showModal({ title: 'Success', body: `Member "${name}" saved successfully.` });
+    }
+
+    function deleteMember(index) {
+      if (confirm('Are you sure you want to delete this member?')) {
+        document.querySelectorAll('.member-item')[index].remove();
+        membersData.splice(index, 1);
+        // Re-index remaining members
+        updateMemberIndices();
+      }
+    }
+
+    function updateMemberIndices() {
+      const memberItems = document.querySelectorAll('.member-item');
+      memberItems.forEach((item, index) => {
+        const saveBtn = item.querySelector('.save-member-btn');
+        const deleteBtn = item.querySelector('.delete-member-btn');
+        saveBtn.setAttribute('data-index', index);
+        deleteBtn.setAttribute('data-index', index);
+        saveBtn.onclick = () => saveMember(index);
+        deleteBtn.onclick = () => deleteMember(index);
+      });
+    }
+
+    function initializeFileUpload() {
+      const fileInput = document.getElementById('companyDocs');
+      const dropZone = fileInput.parentElement;
+
+      // Drag and drop functionality
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.background = '#e8f4f8';
+      });
+
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.style.background = '#f9f9f9';
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.background = '#f9f9f9';
+        const files = Array.from(e.dataTransfer.files);
+        handleFiles(files);
+      });
+
+      // Click to browse
+      dropZone.addEventListener('click', () => {
+        fileInput.click();
+      });
+
+      fileInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        handleFiles(files);
+      });
+
+      // Paste functionality
+      document.addEventListener('paste', (e) => {
+        if (document.activeElement.closest('#customerPanel')) {
+          const items = Array.from(e.clipboardData.items);
+          const files = items
+            .filter(item => item.kind === 'file')
+            .map(item => item.getAsFile())
+            .filter(file => file);
+          if (files.length > 0) {
+            handleFiles(files);
+          }
+        }
+      });
+    }
+
+    function handleFiles(files) {
+      console.log('Files uploaded:', files);
+      // Here you would implement actual file handling logic
+      showModal({
+        title: 'Files Uploaded',
+        body: `${files.length} file(s) uploaded successfully. File handling will be implemented in the backend.`
+      });
+    }
+
+    function addDummyMember() {
+      if (!currentCustomerData) {
+        showModal({ title: 'Error', body: 'Please complete customer information first.' });
+        return;
+      }
+
+      // Add a new member first
+      addNewMember();
+
+      // Get the newly added member
+      const memberItems = document.querySelectorAll('.member-item');
+      const newMember = memberItems[memberItems.length - 1];
+
+      // Fill with dummy data
+      const firstNames = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Lisa', 'Robert', 'Emily', 'James', 'Maria'];
+      const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez'];
+      const titles = ['Manager', 'Director', 'Supervisor', 'Coordinator', 'Specialist', 'Assistant', 'Officer', 'Executive', 'Analyst', 'Administrator'];
+
+      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+      const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+      const fullName = `${firstName} ${lastName}`;
+
+      // Generate username from first initial + last name
+      const username = `${firstName.charAt(0).toLowerCase()}${lastName.toLowerCase()}`;
+
+      const randomTitle = titles[Math.floor(Math.random() * titles.length)];
+
+      // Fill the form
+      newMember.querySelector('.member-name').value = fullName;
+      newMember.querySelector('.member-email-prefix').value = username;
+      newMember.querySelector('.member-title').value = randomTitle;
+
+      // Random phone number
+      const areaCode = Math.floor(Math.random() * 900) + 100;
+      const exchange = Math.floor(Math.random() * 900) + 100;
+      const number = Math.floor(Math.random() * 9000) + 1000;
+      const phoneNumber = `(${areaCode}) ${exchange}-${number}`;
+
+      newMember.querySelector('.member-tel').value = phoneNumber;
+
+      showModal({
+        title: 'Dummy Member Added',
+        body: `Member "${fullName}" with email "${username}@${currentCustomerData.emailDomain}" has been added with dummy data.`
+      });
+    }
+
+    function fillDummyData() {
+      // Company names
+      const companyNames = [
+        'ABC Corporation', 'Global Industries Ltd', 'Tech Solutions Inc',
+        'Manufacturing Co', 'Trading Company LLC', 'International Group',
+        'Premier Enterprises', 'Quality Products Corp', 'Advanced Systems Ltd'
+      ];
+
+      // Email domains
+      const domains = [
+        'company.com', 'corp.net', 'industries.org', 'solutions.biz',
+        'group.info', 'enterprises.co', 'products.com', 'systems.net'
+      ];
+
+      // Cities for addresses
+      const cities = [
+        'New York, NY', 'Los Angeles, CA', 'Chicago, IL', 'Houston, TX',
+        'Phoenix, AZ', 'Philadelphia, PA', 'San Antonio, TX', 'San Diego, CA',
+        'Dallas, TX', 'San Jose, CA', 'Austin, TX', 'Jacksonville, FL'
+      ];
+
+      // Phone numbers
+      const generatePhone = () => {
+        const areaCode = Math.floor(Math.random() * 900) + 100;
+        const exchange = Math.floor(Math.random() * 900) + 100;
+        const number = Math.floor(Math.random() * 9000) + 1000;
+        return `(${areaCode}) ${exchange}-${number}`;
+      };
+
+      // Websites
+      const websites = [
+        'www.companywebsite.com', 'corporate.site.net', 'business.online.org',
+        'enterprise.web.biz', 'firm.digital.info', 'corp.portal.co'
+      ];
+
+      // Fill form with random data
+      document.getElementById('companyName').value =
+        companyNames[Math.floor(Math.random() * companyNames.length)];
+
+      document.getElementById('emailDomain').value =
+        domains[Math.floor(Math.random() * domains.length)];
+
+      document.getElementById('companyAddress').value =
+        `${Math.floor(Math.random() * 999) + 1} Business St, ${cities[Math.floor(Math.random() * cities.length)]}`;
+
+      document.getElementById('companyTel').value = generatePhone();
+
+      // Random type selection
+      const typeSelect = document.getElementById('companyType');
+      const randomType = Math.random() < 0.5 ? 'buyer' : 'agent';
+      typeSelect.value = randomType;
+
+      document.getElementById('companyWebsite').value =
+        websites[Math.floor(Math.random() * websites.length)];
+
+      showModal({
+        title: 'Dummy Data Filled',
+        body: 'Form has been populated with random test data. You can now save or modify as needed.'
+      });
+    }
+    
     load();
   </script>
 </body>
