@@ -354,7 +354,7 @@
       <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
       <div style="flex:1;"></div>
       <div style="font-size:0.75em; text-align:center; color:#666; margin-top:10px; padding:5px;">
-        v1.0.13
+        v1.0.14
       </div>
     </div>
     <div id="board">
@@ -479,8 +479,69 @@
         <div style="margin-bottom:15px;">
           <button id="refreshCustomersBtn" class="page-btn">Refresh List</button>
         </div>
-        <div id="customersListView">
-          <p class="meta">No customers saved yet. Create customers first.</p>
+
+        <!-- Filter Controls -->
+        <div style="margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap;">
+          <div>
+            <label for="filterCompany">Company:</label>
+            <input id="filterCompany" type="text" placeholder="Filter by company..." style="width:150px; padding:5px; border:1px solid #000;">
+          </div>
+          <div>
+            <label for="filterType">Type:</label>
+            <select id="filterType" style="width:120px; padding:5px; border:1px solid #000; background:#fff;">
+              <option value="">All Types</option>
+              <option value="buyer">Buyer</option>
+              <option value="agent">Agent</option>
+            </select>
+          </div>
+          <div>
+            <label for="filterDomain">Domain:</label>
+            <input id="filterDomain" type="text" placeholder="Filter by domain..." style="width:150px; padding:5px; border:1px solid #000;">
+          </div>
+          <button id="clearFiltersBtn" class="page-btn" style="align-self:flex-end;">Clear Filters</button>
+        </div>
+
+        <!-- Customer Table -->
+        <div id="customersTableContainer">
+          <table id="customersTable" style="width:100%; border-collapse:collapse; border:1px solid #000;">
+            <thead>
+              <tr style="background:#f8f8f8;">
+                <th style="border:1px solid #000; padding:8px; text-align:left;">Company Name</th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">Type</th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">Email Domain</th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">Phone</th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">Website</th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">Members</th>
+              </tr>
+              <tr style="background:#fff;">
+                <th style="border:1px solid #000; padding:8px;">
+                  <input type="text" id="companySearch" placeholder="Search company..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+                </th>
+                <th style="border:1px solid #000; padding:8px;">
+                  <input type="text" id="typeSearch" placeholder="Search type..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+                </th>
+                <th style="border:1px solid #000; padding:8px;">
+                  <input type="text" id="domainSearch" placeholder="Search domain..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+                </th>
+                <th style="border:1px solid #000; padding:8px;">
+                  <input type="text" id="phoneSearch" placeholder="Search phone..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+                </th>
+                <th style="border:1px solid #000; padding:8px;">
+                  <input type="text" id="websiteSearch" placeholder="Search website..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+                </th>
+                <th style="border:1px solid #000; padding:8px;">
+                  <input type="text" id="membersSearch" placeholder="Search members..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+                </th>
+              </tr>
+            </thead>
+            <tbody id="customersTableBody">
+              <tr>
+                <td colspan="6" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+                  No customers saved yet. Create customers first.
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -565,6 +626,7 @@
       <div id="emails" style="margin:0; display:none; width:100%;">
         <div class="topbar">
           <button id="composeBtn" class="page-btn">Compose</button>
+          <button id="refreshEmailsBtn" class="page-btn">Refresh List</button>
           <button id="testSendBtn" class="page-btn">Send Test Email</button>
           <button id="testSmtpBtn" class="page-btn">Test SMTP Connection</button>
         </div>
@@ -2000,6 +2062,11 @@
     composeBtn.onclick = () => {
       composeForm.style.display = composeForm.style.display === 'none' ? 'block' : 'none';
     };
+
+    refreshEmailsBtn.onclick = () => {
+      // Refresh the email list
+      load(true);
+    };
     
     cancelBtn.onclick = () => {
       composeForm.style.display = 'none';
@@ -2587,49 +2654,102 @@
     }
 
     function displayCustomers() {
-      const container = document.getElementById('customersListView');
+      const tbody = document.getElementById('customersTableBody');
       const customers = loadCustomersFromStorage();
 
       if (customers.length === 0) {
-        container.innerHTML = '<p class="meta">No customers saved yet. Create customers first.</p>';
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+              No customers saved yet. Create customers first.
+            </td>
+          </tr>
+        `;
         return;
       }
 
-      let html = '<div style="margin-bottom:20px;"><h4>All Customers:</h4></div>';
+      // Apply filters
+      const filteredCustomers = applyCustomerFilters(customers);
 
-      customers.forEach(customer => {
+      if (filteredCustomers.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+              No customers match the current filters.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      let html = '';
+      filteredCustomers.forEach(customer => {
+        const membersCount = customer.members ? customer.members.length : 0;
+        const membersTooltip = customer.members && customer.members.length > 0
+          ? customer.members.map(m => `${m.name} (${m.emailPrefix}@${customer.emailDomain})`).join('\n')
+          : 'No members';
+
         html += `
-          <div style="border:1px solid #000; padding:15px; margin-bottom:15px; background:#f9f9f9;">
-            <div style="margin-bottom:10px;">
-              <strong style="font-size:1.1em;">${customer.companyName}</strong>
-              <span style="color:#666; margin-left:10px;">(${customer.companyType})</span>
-            </div>
-
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
-              <div><strong>Email Domain:</strong> ${customer.emailDomain}</div>
-              <div><strong>Phone:</strong> ${customer.companyTel || 'N/A'}</div>
-              <div><strong>Address:</strong> ${customer.companyAddress || 'N/A'}</div>
-              <div><strong>Website:</strong> ${customer.companyWebsite || 'N/A'}</div>
-            </div>
-
-            <div style="margin-top:15px;">
-              <strong>Members (${customer.members ? customer.members.length : 0}):</strong>
-              ${customer.members && customer.members.length > 0 ?
-                customer.members.map(member => `
-                  <div style="background:#fff; border:1px solid #ccc; padding:8px; margin:5px 0; border-radius:0;">
-                    <div><strong>${member.name}</strong> ${member.title ? `- ${member.title}` : ''}</div>
-                    <div style="color:#666; font-size:0.9em;">Email: ${member.emailPrefix}@${customer.emailDomain}</div>
-                    ${member.tel ? `<div style="color:#666; font-size:0.9em;">Phone: ${member.tel}</div>` : ''}
-                  </div>
-                `).join('') :
-                '<div style="color:#666; font-style:italic;">No members added yet</div>'
-              }
-            </div>
-          </div>
+          <tr style="border:1px solid #000;" class="customer-row">
+            <td style="border:1px solid #000; padding:8px;">${customer.companyName}</td>
+            <td style="border:1px solid #000; padding:8px;">${customer.companyType}</td>
+            <td style="border:1px solid #000; padding:8px;">${customer.emailDomain}</td>
+            <td style="border:1px solid #000; padding:8px;">${customer.companyTel || 'N/A'}</td>
+            <td style="border:1px solid #000; padding:8px;">${customer.companyWebsite ? `<a href="${customer.companyWebsite}" target="_blank">${customer.companyWebsite}</a>` : 'N/A'}</td>
+            <td style="border:1px solid #000; padding:8px;" title="${membersTooltip}">${membersCount}</td>
+          </tr>
         `;
       });
 
-      container.innerHTML = html;
+      tbody.innerHTML = html;
+
+      // Add hover effects to table rows
+      document.querySelectorAll('.customer-row').forEach(row => {
+        row.addEventListener('mouseenter', () => {
+          row.style.background = '#000';
+          row.style.color = '#fff';
+        });
+        row.addEventListener('mouseleave', () => {
+          row.style.background = '';
+          row.style.color = '';
+        });
+      });
+    }
+
+    function applyCustomerFilters(customers) {
+      const companyFilter = document.getElementById('filterCompany').value.toLowerCase();
+      const typeFilter = document.getElementById('filterType').value;
+      const domainFilter = document.getElementById('filterDomain').value.toLowerCase();
+
+      // Table search inputs
+      const companySearch = document.getElementById('companySearch').value.toLowerCase();
+      const typeSearch = document.getElementById('typeSearch').value.toLowerCase();
+      const domainSearch = document.getElementById('domainSearch').value.toLowerCase();
+      const phoneSearch = document.getElementById('phoneSearch').value.toLowerCase();
+      const websiteSearch = document.getElementById('websiteSearch').value.toLowerCase();
+      const membersSearch = document.getElementById('membersSearch').value.toLowerCase();
+
+      return customers.filter(customer => {
+        // Global filters
+        const matchesCompany = !companyFilter || customer.companyName.toLowerCase().includes(companyFilter);
+        const matchesType = !typeFilter || customer.companyType === typeFilter;
+        const matchesDomain = !domainFilter || customer.emailDomain.toLowerCase().includes(domainFilter);
+
+        // Table search filters
+        const matchesCompanySearch = !companySearch || customer.companyName.toLowerCase().includes(companySearch);
+        const matchesTypeSearch = !typeSearch || customer.companyType.toLowerCase().includes(typeSearch);
+        const matchesDomainSearch = !domainSearch || customer.emailDomain.toLowerCase().includes(domainSearch);
+        const matchesPhoneSearch = !phoneSearch || (customer.phone || '').toLowerCase().includes(phoneSearch);
+        const matchesWebsiteSearch = !websiteSearch || (customer.website || '').toLowerCase().includes(websiteSearch);
+        const matchesMembersSearch = !membersSearch || (customer.members || []).some(member =>
+          (member.name || '').toLowerCase().includes(membersSearch) ||
+          (member.email || '').toLowerCase().includes(membersSearch)
+        );
+
+        return matchesCompany && matchesType && matchesDomain &&
+               matchesCompanySearch && matchesTypeSearch && matchesDomainSearch &&
+               matchesPhoneSearch && matchesWebsiteSearch && matchesMembersSearch;
+      });
     }
 
     function addDummyMember() {
@@ -2743,6 +2863,47 @@
       // Refresh button functionality
       const refreshBtn = document.getElementById('refreshCustomersBtn');
       refreshBtn.onclick = () => displayCustomers();
+
+      // Filter functionality
+      const filterCompany = document.getElementById('filterCompany');
+      const filterType = document.getElementById('filterType');
+      const filterDomain = document.getElementById('filterDomain');
+      const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+
+      // Add filter event listeners
+      filterCompany.addEventListener('input', () => displayCustomers());
+      filterType.addEventListener('change', () => displayCustomers());
+      filterDomain.addEventListener('input', () => displayCustomers());
+
+      // Table search inputs
+      const companySearch = document.getElementById('companySearch');
+      const typeSearch = document.getElementById('typeSearch');
+      const domainSearch = document.getElementById('domainSearch');
+      const phoneSearch = document.getElementById('phoneSearch');
+      const websiteSearch = document.getElementById('websiteSearch');
+      const membersSearch = document.getElementById('membersSearch');
+
+      // Add table search event listeners
+      companySearch.addEventListener('input', () => displayCustomers());
+      typeSearch.addEventListener('input', () => displayCustomers());
+      domainSearch.addEventListener('input', () => displayCustomers());
+      phoneSearch.addEventListener('input', () => displayCustomers());
+      websiteSearch.addEventListener('input', () => displayCustomers());
+      membersSearch.addEventListener('input', () => displayCustomers());
+
+      // Clear filters
+      clearFiltersBtn.onclick = () => {
+        filterCompany.value = '';
+        filterType.value = '';
+        filterDomain.value = '';
+        companySearch.value = '';
+        typeSearch.value = '';
+        domainSearch.value = '';
+        phoneSearch.value = '';
+        websiteSearch.value = '';
+        membersSearch.value = '';
+        displayCustomers();
+      };
 
       // Load customers on initialization
       displayCustomers();
