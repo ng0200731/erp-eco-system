@@ -110,7 +110,8 @@ When the user asks questions in this repo, you should:
       - Never run git commands or auto-commit/auto-push from this assistant.
    - After changes:
      - Run lints where appropriate.
-     - Update package version if significant changes were made.
+     - Update package version whenever code is changed.
+     - Update the user about the latest code version.
      - Explain to the user in plain language what changed and what the new behavior is.
 
 7. **Style and UX guidelines**
