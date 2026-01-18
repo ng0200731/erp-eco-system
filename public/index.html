@@ -694,6 +694,7 @@
           </div>
             <div class="email-modal-meta">
               <div id="emailModalFrom" class="email-modal-from">From: sender@example.com</div>
+              <div id="emailModalTo" class="email-modal-from">To: recipient@example.com</div>
               <div id="emailModalDate" class="email-modal-date">Date: 2024-01-15</div>
             </div>
             <div id="emailModalBody" class="email-modal-body">
@@ -1802,11 +1803,19 @@
         }
 
         // Remember current email meta for task creation
+        // Extract To header if present
+        let toAddress = null;
+        const toMatch = source.match(/^To:\s*(.+)$/mi);
+        if (toMatch) {
+          toAddress = toMatch[1].trim();
+        }
+
         currentEmailMeta = {
           uid,
           subject: subject || '',
           from: from || '',
           email: emailAddress || null,
+          to: toAddress || null,
           date: date || ''
         };
         
@@ -2065,6 +2074,12 @@
     function populateEmailModal(subject, from, date, body, emailMeta) {
       document.getElementById('emailModalSubject').textContent = subject || '(No subject)';
       document.getElementById('emailModalFrom').textContent = `From: ${from || 'Unknown'}`;
+      // Set To field if available
+      const modalToEl = document.getElementById('emailModalTo');
+      if (modalToEl) {
+        const toVal = (emailMeta && (emailMeta.to || emailMeta.toEmail || emailMeta.email)) || '';
+        modalToEl.textContent = toVal ? `To: ${toVal}` : 'To: (unknown)';
+      }
       document.getElementById('emailModalDate').textContent = `Date: ${date || 'Unknown'}`;
 
       // Display the already processed body content
@@ -2692,6 +2707,7 @@
         id: email.id,
         subject: subject,
         from: from,
+        to: email.to_email || null,
         email: (from.match && from.match(/<([^>]+)>/) ? from.match(/<([^>]+)>/)[1] : from),
         date: date,
         messageId: email.message_id || null,
