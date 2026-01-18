@@ -294,6 +294,32 @@
       background: #000;
       color: #fff;
     }
+
+    /* Submenu styling */
+    .menu-group {
+      position: relative;
+    }
+    .submenu {
+      margin-left: 20px;
+      margin-top: 5px;
+    }
+    .submenu-btn {
+      appearance: none;
+      border: 1px solid #000;
+      background: #fff;
+      color: #000;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9em;
+      width: 100%;
+      text-align: left;
+      margin-bottom: 2px;
+    }
+    .submenu-btn:hover {
+      background: #000;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -312,7 +338,7 @@
       <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
       <div style="flex:1;"></div>
       <div style="font-size:0.75em; text-align:center; color:#666; margin-top:10px; padding:5px;">
-        v1.0.6
+        v1.0.9
       </div>
     </div>
     <div id="board">
@@ -434,12 +460,11 @@
 
       <!-- Customer View board -->
       <div id="customerViewPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
-        <h3>Customer View</h3>
-        <p class="meta">
-          Customer viewing functionality will be implemented here: search, filter, and view existing customers.
-        </p>
-        <div style="margin-top:20px;">
-          <p><em>Coming soon: Customer search, filtering, and detailed view functionality.</em></p>
+        <div style="margin-bottom:15px;">
+          <button id="refreshCustomersBtn" class="page-btn">Refresh List</button>
+        </div>
+        <div id="customersListView">
+          <p class="meta">No customers saved yet. Create customers first.</p>
         </div>
       </div>
 
@@ -1144,19 +1169,19 @@
     const customerViewBtn = document.getElementById('customerViewBtn');
 
     customerCreateBtn.onclick = () => {
-      // Hide submenu and go to customer creation (current customer board)
+      // Hide submenu and go to customer creation
       document.getElementById('customerSubmenu').style.display = 'none';
-      ensureTab('customer', 'Customer');
+      ensureTab('customer', 'Customer (Create)');
       activateTab('customer');
       initializeCustomerPanel();
     };
 
     customerViewBtn.onclick = () => {
-      // Hide submenu and go to customer view (placeholder for now)
+      // Hide submenu and go to customer view
       document.getElementById('customerSubmenu').style.display = 'none';
-      ensureTab('customer-view', 'Customer View');
+      ensureTab('customer-view', 'Customer (View)');
       activateTab('customer-view');
-      // TODO: Implement customer view functionality
+      initializeCustomerViewPanel();
     };
 
     // Hover on entire sidebar to show full text
@@ -2127,6 +2152,7 @@
 
     let currentCustomerData = null;
     let membersData = [];
+    let savedCustomers = []; // Store all saved customers
 
     function initializeCustomerPanel() {
       // Tab switching
@@ -2208,12 +2234,14 @@
 
       // Save customer data
       currentCustomerData = {
+        id: Date.now(), // Simple ID based on timestamp
         companyName,
         emailDomain,
         companyAddress,
         companyTel,
         companyType,
-        companyWebsite
+        companyWebsite,
+        members: [] // Will be populated when members are saved
       };
 
       // Switch to member tab
@@ -2303,6 +2331,13 @@
         tel
       };
 
+      // Update current customer with members
+      if (currentCustomerData) {
+        currentCustomerData.members = [...membersData];
+        // Save to localStorage
+        saveCustomerToStorage(currentCustomerData);
+      }
+
       showModal({ title: 'Success', body: `Member "${name}" saved successfully.` });
     }
 
@@ -2380,6 +2415,85 @@
         title: 'Files Uploaded',
         body: `${files.length} file(s) uploaded successfully. File handling will be implemented in the backend.`
       });
+    }
+
+    function saveCustomerToStorage(customer) {
+      try {
+        // Load existing customers
+        const existing = JSON.parse(localStorage.getItem('erpCustomers') || '[]');
+
+        // Check if customer already exists (update) or add new
+        const existingIndex = existing.findIndex(c => c.id === customer.id);
+        if (existingIndex >= 0) {
+          existing[existingIndex] = customer;
+        } else {
+          existing.push(customer);
+        }
+
+        // Save back to localStorage
+        localStorage.setItem('erpCustomers', JSON.stringify(existing));
+        savedCustomers = existing;
+
+        console.log('Customer saved:', customer);
+      } catch (error) {
+        console.error('Error saving customer:', error);
+      }
+    }
+
+    function loadCustomersFromStorage() {
+      try {
+        savedCustomers = JSON.parse(localStorage.getItem('erpCustomers') || '[]');
+        return savedCustomers;
+      } catch (error) {
+        console.error('Error loading customers:', error);
+        return [];
+      }
+    }
+
+    function displayCustomers() {
+      const container = document.getElementById('customersListView');
+      const customers = loadCustomersFromStorage();
+
+      if (customers.length === 0) {
+        container.innerHTML = '<p class="meta">No customers saved yet. Create customers first.</p>';
+        return;
+      }
+
+      let html = '<div style="margin-bottom:20px;"><h4>All Customers:</h4></div>';
+
+      customers.forEach(customer => {
+        html += `
+          <div style="border:1px solid #000; padding:15px; margin-bottom:15px; background:#f9f9f9;">
+            <div style="margin-bottom:10px;">
+              <strong style="font-size:1.1em;">${customer.companyName}</strong>
+              <span style="color:#666; margin-left:10px;">(${customer.companyType})</span>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+              <div><strong>Email Domain:</strong> ${customer.emailDomain}</div>
+              <div><strong>Phone:</strong> ${customer.companyTel || 'N/A'}</div>
+              <div><strong>Address:</strong> ${customer.companyAddress || 'N/A'}</div>
+              <div><strong>Website:</strong> ${customer.companyWebsite || 'N/A'}</div>
+            </div>
+
+            <div style="margin-top:15px;">
+              <strong>Members (${customer.members ? customer.members.length : 0}):</strong>
+              ${customer.members && customer.members.length > 0 ?
+                customer.members.map(member => `
+                  <div style="background:#fff; border:1px solid #ccc; padding:8px; margin:5px 0; border-radius:0;">
+                    <div><strong>${member.name}</strong> ${member.title ? `- ${member.title}` : ''}</div>
+                    <div style="color:#666; font-size:0.9em;">Email: ${member.emailPrefix}@${customer.emailDomain}</div>
+                    ${member.tel ? `<div style="color:#666; font-size:0.9em;">Phone: ${member.tel}</div>` : ''}
+                  </div>
+                `).join('') :
+                '<div style="color:#666; font-style:italic;">No members added yet</div>'
+              }
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
     }
 
     function addDummyMember() {
@@ -2488,7 +2602,16 @@
         body: 'Form has been populated with random test data. You can now save or modify as needed.'
       });
     }
-    
+
+    function initializeCustomerViewPanel() {
+      // Refresh button functionality
+      const refreshBtn = document.getElementById('refreshCustomersBtn');
+      refreshBtn.onclick = () => displayCustomers();
+
+      // Load customers on initialization
+      displayCustomers();
+    }
+
     load();
   </script>
 </body>
