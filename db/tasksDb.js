@@ -51,10 +51,29 @@ async function ensureSchema(db) {
       updatedAt TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS sent_emails (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      to_email TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      body_text TEXT,
+      body_html TEXT,
+      message_id TEXT,
+      smtp_response TEXT,
+      status TEXT NOT NULL DEFAULT 'sent',
+      error_message TEXT,
+      sent_at TEXT NOT NULL,
+      profile_id INTEGER,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (profile_id) REFERENCES profiles(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
     CREATE INDEX IF NOT EXISTS idx_tasks_createdAt ON tasks(createdAt);
     CREATE INDEX IF NOT EXISTS idx_tasks_sourceEmailUid ON tasks(sourceEmailUid);
     CREATE INDEX IF NOT EXISTS idx_profiles_isActive ON profiles(isActive);
+    CREATE INDEX IF NOT EXISTS idx_sent_emails_sent_at ON sent_emails(sent_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_sent_emails_profile_id ON sent_emails(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_sent_emails_to_email ON sent_emails(to_email);
   `);
 }
 
@@ -227,6 +246,94 @@ export async function activateProfile(id) {
 
   // Then activate the specified profile
   await db.run(`UPDATE profiles SET isActive = 1, updatedAt = ? WHERE id = ?`, [now, id]);
+}
+
+// Sent emails management functions
+export async function createSentEmail({
+  to_email,
+  subject,
+  body_text,
+  body_html,
+  message_id,
+  smtp_response,
+  status = 'sent',
+  error_message = null,
+  profile_id = null,
+}) {
+  if (!to_email || !subject) {
+    throw new Error('to_email and subject are required');
+  }
+
+  const db = await getTasksDb();
+  const now = new Date().toISOString();
+
+  const result = await db.run(
+    `
+      INSERT INTO sent_emails (to_email, subject, body_text, body_html, message_id, smtp_response, status, error_message, sent_at, profile_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [to_email, subject, body_text, body_html, message_id, smtp_response, status, error_message, now, profile_id, now]
+  );
+
+  return await db.get(`SELECT * FROM sent_emails WHERE id = ?`, [result.lastID]);
+}
+
+export async function listSentEmails({ limit = 50, offset = 0, profile_id, sender_email } = {}) {
+  const db = await getTasksDb();
+  let query = `SELECT se.*, p.name as profile_name, p.mailUser as sender_email FROM sent_emails se LEFT JOIN profiles p ON se.profile_id = p.id`;
+  let params = [];
+
+  let whereClause = [];
+  if (profile_id !== undefined) {
+    whereClause.push(`se.profile_id = ?`);
+    params.push(profile_id);
+  }
+
+  if (sender_email) {
+    whereClause.push(`p.mailUser = ?`);
+    params.push(sender_email);
+  }
+
+  if (whereClause.length > 0) {
+    query += ` WHERE ` + whereClause.join(' AND ');
+  }
+
+  query += ` ORDER BY se.sent_at DESC LIMIT ? OFFSET ?`;
+  params.push(limit, offset);
+
+  return await db.all(query, params);
+}
+
+export async function getSentEmailById(id) {
+  const db = await getTasksDb();
+  return await db.get(
+    `SELECT se.*, p.name as profile_name, p.mailUser as sender_email FROM sent_emails se LEFT JOIN profiles p ON se.profile_id = p.id WHERE se.id = ?`,
+    [id]
+  );
+}
+
+export async function getSentEmailsCount({ profile_id, sender_email } = {}) {
+  const db = await getTasksDb();
+  let query = `SELECT COUNT(*) as count FROM sent_emails se LEFT JOIN profiles p ON se.profile_id = p.id`;
+  let params = [];
+
+  let whereClause = [];
+  if (profile_id !== undefined) {
+    whereClause.push(`se.profile_id = ?`);
+    params.push(profile_id);
+  }
+
+  if (sender_email) {
+    whereClause.push(`p.mailUser = ?`);
+    params.push(sender_email);
+  }
+
+  if (whereClause.length > 0) {
+    query += ` WHERE ` + whereClause.join(' AND ');
+  }
+
+  const result = await db.get(query, params);
+  return result.count;
 }
 
 

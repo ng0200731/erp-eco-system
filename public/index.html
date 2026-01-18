@@ -345,6 +345,7 @@
         <button id="menuEmail" class="page-btn" data-short="E" data-full="Email">E</button>
         <div id="emailSubmenu" class="submenu" style="display:none;">
           <button id="emailReceiveBtn" class="submenu-btn">Receive</button>
+          <button id="emailSendBtn" class="submenu-btn">Send</button>
         </div>
       </div>
       <div class="menu-group">
@@ -701,6 +702,71 @@
           </div>
         </div>
       </div>
+
+      <!-- Email Send UI (duplicated from receive with send focus) -->
+      <div id="email-send" style="margin:0; display:none; width:100%;">
+        <div class="topbar">
+          <button id="composeSendBtn" class="page-btn">Compose</button>
+          <button id="testSendEmailBtn" class="page-btn">Send Test Email</button>
+          <button id="testSmtpConnectionBtn" class="page-btn">Test SMTP Connection</button>
+        </div>
+        <div id="composeSendForm" style="display:none; background:#fff; padding:15px; border:1px solid #000; margin-bottom:15px;">
+          <h3>Compose Email</h3>
+          <input type="email" id="toSendEmail" placeholder="To:" style="margin-bottom:10px;">
+          <input type="text" id="subjectSendEmail" placeholder="Subject:" style="margin-bottom:10px;">
+          <textarea id="bodySendEmail" placeholder="Message:" style="margin-bottom:10px;"></textarea>
+          <div class="row">
+            <button id="sendEmailBtn" class="page-btn">Send</button>
+            <button id="cancelSendBtn" class="page-btn">Cancel</button>
+            <button id="dummyFillSendComposeBtn" class="page-btn" type="button" style="margin-left:auto;">Dummy Fill</button>
+          </div>
+        </div>
+        <div style="border:1px solid #000; padding:15px; margin-bottom:15px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3>Sent Emails from m.yau.01@longriverlabel.com</h3>
+            <button id="refreshSentEmailsBtn" class="page-btn">Refresh</button>
+          </div>
+          <table id="sentEmailsTable" style="width:100%; border-collapse:collapse; border:1px solid #000; margin-bottom:15px;">
+            <thead>
+              <tr style="background:#fff;">
+                <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Date Sent</th>
+                <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">From</th>
+                <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">To</th>
+                <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Subject</th>
+                <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Status</th>
+                <th style="padding:8px; border:1px solid #000; text-align:left; font-weight:bold;">Details</th>
+              </tr>
+              <tr style="background:#fff;">
+                <th style="padding:8px; border:1px solid #000;">
+                  <input type="text" id="sentDateSearch" placeholder="Search date..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+                </th>
+                <th style="padding:8px; border:1px solid #000;">
+                  <input type="text" id="sentFromSearch" placeholder="Search sender..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+                </th>
+                <th style="padding:8px; border:1px solid #000;">
+                  <input type="text" id="sentToSearch" placeholder="Search recipient..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+                </th>
+                <th style="padding:8px; border:1px solid #000;">
+                  <input type="text" id="sentSubjectSearch" placeholder="Search subject..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+                </th>
+                <th style="padding:8px; border:1px solid #000;">
+                  <select id="sentStatusFilter" style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+                    <option value="">All Status</option>
+                    <option value="sent">Sent</option>
+                    <option value="failed">Failed</option>
+                  </select>
+                </th>
+                <th style="padding:8px; border:1px solid #000;">
+                  <input type="text" id="sentDetailsSearch" placeholder="Search content..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
+                </th>
+              </tr>
+            </thead>
+            <tbody id="sentEmailsTableBody"></tbody>
+          </table>
+          <div id="sentEmailsLoading" style="text-align:center; padding:20px; display:none;">Loading sent emails...</div>
+          <div id="sentEmailsEmpty" style="text-align:center; padding:20px; color:#666; display:none;">No sent emails found from m.yau.01@longriverlabel.com</div>
+        </div>
+      </div>
     </div>
   </div>
   <script>
@@ -1047,6 +1113,7 @@
       welcomePanel.style.display = id === 'welcome' ? 'block' : 'none';
       profilesListPanel.style.display = id === 'profiles' ? 'block' : 'none';
       document.getElementById('emails').style.display = id === 'emails' ? 'block' : 'none';
+      document.getElementById('email-send').style.display = id === 'email-send' ? 'block' : 'none';
       document.getElementById('customerPanel').style.display = id === 'customer' ? 'block' : 'none';
       document.getElementById('customerViewPanel').style.display = id === 'customer-view' ? 'block' : 'none';
       document.getElementById('tasksPanel').style.display = id === 'tasks' ? 'block' : 'none';
@@ -1281,11 +1348,12 @@
       initializeCustomerViewPanel();
     };
 
-    // Email submenu button
+    // Email submenu buttons
     const emailReceiveBtn = document.getElementById('emailReceiveBtn');
+    const emailSendBtn = document.getElementById('emailSendBtn');
 
     emailReceiveBtn.onclick = () => {
-      // Hide submenu and go to email board
+      // Hide submenu and go to email receive board
       document.getElementById('emailSubmenu').style.display = 'none';
       ensureTab('emails', 'Email');
       activateTab('emails');
@@ -1293,6 +1361,15 @@
       if (!currentEmails || currentEmails.length === 0) {
         load(true);
       }
+    };
+
+    emailSendBtn.onclick = () => {
+      // Hide submenu and go to email send board
+      document.getElementById('emailSubmenu').style.display = 'none';
+      ensureTab('email-send', 'Email Send');
+      activateTab('email-send');
+      // Initialize email send panel
+      initializeEmailSendPanel();
     };
 
     // Hover on entire sidebar to show full text
@@ -2272,6 +2349,346 @@
         document.body.classList.remove('modal-open');
       }
     };
+
+    // ========== EMAIL SEND PANEL FUNCTIONALITY ==========
+
+    // Store current sent emails list
+    let currentSentEmails = [];
+
+    function initializeEmailSendPanel() {
+      console.log('Initializing email send panel');
+      // Compose email handlers for send panel
+      const composeSendBtn = document.getElementById('composeSendBtn');
+      const composeSendForm = document.getElementById('composeSendForm');
+      const cancelSendBtn = document.getElementById('cancelSendBtn');
+      const sendEmailBtn = document.getElementById('sendEmailBtn');
+      const testSendEmailBtn = document.getElementById('testSendEmailBtn');
+      const testSmtpConnectionBtn = document.getElementById('testSmtpConnectionBtn');
+      const dummyFillSendComposeBtn = document.getElementById('dummyFillSendComposeBtn');
+
+      if (dummyFillSendComposeBtn) {
+        dummyFillSendComposeBtn.onclick = () => {
+          fillDummyForm(composeSendForm);
+        };
+      }
+
+      composeSendBtn.onclick = () => {
+        composeSendForm.style.display = composeSendForm.style.display === 'none' ? 'block' : 'none';
+      };
+
+      cancelSendBtn.onclick = () => {
+        composeSendForm.style.display = 'none';
+        document.getElementById('toSendEmail').value = '';
+        document.getElementById('subjectSendEmail').value = '';
+        document.getElementById('bodySendEmail').value = '';
+      };
+
+      sendEmailBtn.onclick = async () => {
+        const to = document.getElementById('toSendEmail').value;
+        const subject = document.getElementById('subjectSendEmail').value;
+        const text = document.getElementById('bodySendEmail').value;
+
+        if (!to || !subject || !text) {
+          await showModal({ title: 'Missing fields', body: 'Please fill in: To, Subject, and Message.' });
+          return;
+        }
+
+        try {
+          sendEmailBtn.disabled = true;
+          sendEmailBtn.textContent = 'Sending...';
+
+          // Add timeout to fetch request (increased for idle reconnection)
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => {
+            if (!controller.signal.aborted) {
+              controller.abort();
+            }
+          }, 60000); // 60 second timeout (increased to allow for SMTP reconnection)
+
+          let res;
+          try {
+            res = await fetch('/api/email/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ to, subject, text }),
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+          } catch (fetchErr) {
+            clearTimeout(timeoutId);
+            if (fetchErr.name === 'AbortError') {
+              throw new Error('Request timeout - server took too long to respond');
+            }
+            throw new Error(`Network error: ${fetchErr.message}`);
+          }
+
+          if (!res.ok) {
+            const errorText = await res.text();
+            let errorData;
+            try {
+              errorData = JSON.parse(errorText);
+            } catch {
+              errorData = { error: errorText || `HTTP ${res.status}` };
+            }
+            const errorMsg = errorData.error || 'Failed to send email';
+            const errorCode = errorData.code ? ` (Code: ${errorData.code})` : '';
+            const fullError = `Error sending email:\n${errorMsg}${errorCode}\n\nStatus: ${res.status}\n\nFull details:\n${JSON.stringify(errorData, null, 2)}`;
+            showCopyableError('Send Email Error', fullError);
+            console.error('Send email error:', errorData);
+            return;
+          }
+
+          const data = await res.json();
+          if (data.success) {
+            await showModal({
+              title: 'Sent',
+              body: `Email sent successfully.\nMessage ID: ${data.messageId || 'N/A'}`,
+            });
+            composeSendForm.style.display = 'none';
+            document.getElementById('toSendEmail').value = '';
+            document.getElementById('subjectSendEmail').value = '';
+            document.getElementById('bodySendEmail').value = '';
+          } else {
+            const errorMsg = data.error || 'Unknown error';
+            const errorCode = data.code ? ` (Code: ${data.code})` : '';
+            const errorText = `Error sending email:\n${errorMsg}${errorCode}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
+            showCopyableError('Send Email Error', errorText);
+            console.error('Send email error:', data);
+          }
+        } catch (err) {
+          const errorText = `Error sending email: ${err.message}\n\nStack trace:\n${err.stack || 'N/A'}`;
+          showCopyableError('Send Email Error', errorText);
+          console.error('Send email error:', err);
+        } finally {
+          sendEmailBtn.disabled = false;
+          sendEmailBtn.textContent = 'Send';
+        }
+      };
+
+      // Test SMTP connection
+      testSmtpConnectionBtn.onclick = async () => {
+        try {
+          testSmtpConnectionBtn.disabled = true;
+          testSmtpConnectionBtn.textContent = 'Testing...';
+
+          const res = await fetch('/api/smtp/test');
+          const data = await res.json();
+          if (data.success) {
+            await showModal({
+              title: 'SMTP OK',
+              body: `SMTP connection successful.\nHost: ${data.host}\nPort: ${data.port}\nSecure: ${data.secure ? 'SSL/TLS' : 'STARTTLS'}`,
+            });
+          } else {
+            const errorMsg = data.error || 'Unknown error';
+            const errorCode = data.code ? ` (Code: ${data.code})` : '';
+            const errorText = `SMTP Connection Failed:\n${errorMsg}${errorCode}\n\nHost: ${data.host || 'N/A'}\nPort: ${data.port || 'N/A'}\nSecure: ${data.secure ? 'SSL/TLS' : 'STARTTLS'}\n\n${data.troubleshooting || ''}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
+            showCopyableError('SMTP Connection Error', errorText);
+            console.error('SMTP test error:', data);
+          }
+        } catch (err) {
+          showCopyableError('SMTP Test Error', `Error testing SMTP: ${err.message}\n\nStack trace:\n${err.stack || 'N/A'}`);
+          console.error('SMTP test error:', err);
+        } finally {
+          testSmtpConnectionBtn.disabled = false;
+          testSmtpConnectionBtn.textContent = 'Test SMTP Connection';
+        }
+      };
+
+      // Test send email to eric.brilliant@gmail.com
+      testSendEmailBtn.onclick = async () => {
+        const ok = await showModal({
+          title: 'Send test email',
+          body: 'Send test email to eric.brilliant@gmail.com?',
+          okText: 'Send',
+          cancelText: 'Cancel'
+        });
+        if (!ok) return;
+        try {
+          testSendEmailBtn.disabled = true;
+          testSendEmailBtn.textContent = 'Sending...';
+          const res = await fetch('/api/email/test', { method: 'POST' });
+          const data = await res.json();
+          if (data.success) {
+            await showModal({ title: 'Sent', body: `Test email sent successfully to ${data.to}!` });
+          } else {
+            const errorMsg = data.error || 'Unknown error';
+            const errorCode = data.code ? ` (Code: ${data.code})` : '';
+            const errorText = `Test Email Error:\n${errorMsg}${errorCode}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
+            showCopyableError('Test Email Error', errorText);
+            console.error('Test email error:', data);
+          }
+        } catch (err) {
+          showCopyableError('Test Email Error', `Error: ${err.message}\n\nStack trace:\n${err.stack || 'N/A'}`);
+        } finally {
+          testSendEmailBtn.disabled = false;
+          testSendEmailBtn.textContent = 'Send Test Email';
+        }
+      };
+
+      // Load and display sent emails
+      loadSentEmails();
+      const refreshSentEmailsBtn = document.getElementById('refreshSentEmailsBtn');
+      refreshSentEmailsBtn.onclick = () => loadSentEmails();
+
+      // Add search/filter event listeners
+      document.getElementById('sentDateSearch').addEventListener('input', filterSentEmails);
+      document.getElementById('sentFromSearch').addEventListener('input', filterSentEmails);
+      document.getElementById('sentToSearch').addEventListener('input', filterSentEmails);
+      document.getElementById('sentSubjectSearch').addEventListener('input', filterSentEmails);
+      document.getElementById('sentStatusFilter').addEventListener('change', filterSentEmails);
+      document.getElementById('sentDetailsSearch').addEventListener('input', filterSentEmails);
+    }
+
+    // Load sent emails from API
+    async function loadSentEmails() {
+      console.log('Loading sent emails...');
+      const tableBody = document.getElementById('sentEmailsTableBody');
+      const loadingDiv = document.getElementById('sentEmailsLoading');
+      const emptyDiv = document.getElementById('sentEmailsEmpty');
+
+      loadingDiv.style.display = 'block';
+      emptyDiv.style.display = 'none';
+      tableBody.innerHTML = '';
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+        // Filter by specific sender email
+        console.log('Fetching sent emails from API...');
+        const res = await fetch('/api/sent-emails?limit=100&sender_email=m.yau.01@longriverlabel.com', { signal: controller.signal });
+        console.log('API response status:', res.status);
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+
+        const data = await res.json();
+        console.log('API response data:', data);
+        if (data.success) {
+          currentSentEmails = data.sentEmails || [];
+          console.log('Current sent emails:', currentSentEmails);
+          renderSentEmailsTable(currentSentEmails);
+        } else {
+          throw new Error(data.error || 'Failed to load sent emails');
+        }
+      } catch (err) {
+        console.error('Failed to load sent emails:', err);
+        tableBody.innerHTML = `<tr><td colspan="6" style="padding:20px; text-align:center; border:1px solid #000; color:#666;">Failed to load sent emails: ${err.message}</td></tr>`;
+      } finally {
+        loadingDiv.style.display = 'none';
+      }
+    }
+
+    // Render sent emails table
+    function renderSentEmailsTable(sentEmails) {
+      console.log('Rendering sent emails table with', sentEmails.length, 'emails');
+      const tableBody = document.getElementById('sentEmailsTableBody');
+      const emptyDiv = document.getElementById('sentEmailsEmpty');
+
+      tableBody.innerHTML = '';
+
+      if (sentEmails.length === 0) {
+        console.log('No sent emails to display');
+        emptyDiv.style.display = 'block';
+        return;
+      }
+
+      emptyDiv.style.display = 'none';
+
+      sentEmails.forEach(email => {
+        const row = document.createElement('tr');
+        row.style.border = '1px solid #000';
+
+        // Format date
+        const sentDate = new Date(email.sent_at);
+        const formattedDate = sentDate.toLocaleDateString() + ' ' + sentDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        // Status styling
+        const statusClass = email.status === 'sent' ? 'color:#008000;' : 'color:#ff0000;';
+        const statusText = email.status === 'sent' ? 'Sent' : 'Failed';
+
+        // Create content preview for details column
+        const contentPreview = email.body_text || email.body_html || '';
+        const previewText = contentPreview.length > 50 ? contentPreview.substring(0, 50) + '...' : contentPreview;
+
+        row.innerHTML = `
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${formattedDate}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${email.sender_email || 'Unknown'}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${email.to_email}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${email.subject || '(No subject)'}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top; ${statusClass} font-weight:bold;">${statusText}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${previewText}</td>
+        `;
+
+        // Add click handler for viewing details
+        row.onclick = () => showSentEmailDetails(email);
+        row.onmouseover = () => row.style.background = 'rgba(0, 0, 0, 0.3)';
+        row.onmouseout = () => row.style.background = '#fff';
+
+        tableBody.appendChild(row);
+      });
+    }
+
+    // Filter sent emails based on search inputs
+    function filterSentEmails() {
+      const dateSearch = document.getElementById('sentDateSearch').value.toLowerCase();
+      const fromSearch = document.getElementById('sentFromSearch').value.toLowerCase();
+      const toSearch = document.getElementById('sentToSearch').value.toLowerCase();
+      const subjectSearch = document.getElementById('sentSubjectSearch').value.toLowerCase();
+      const statusFilter = document.getElementById('sentStatusFilter').value;
+      const detailsSearch = document.getElementById('sentDetailsSearch').value.toLowerCase();
+
+      const filteredEmails = currentSentEmails.filter(email => {
+        const date = new Date(email.sent_at).toLocaleDateString().toLowerCase();
+        const from = (email.sender_email || '').toLowerCase();
+        const to = email.to_email.toLowerCase();
+        const subject = (email.subject || '').toLowerCase();
+        const status = email.status;
+        const content = (email.body_text || email.body_html || '').toLowerCase();
+
+        return date.includes(dateSearch) &&
+               from.includes(fromSearch) &&
+               to.includes(toSearch) &&
+               subject.includes(subjectSearch) &&
+               (statusFilter === '' || status === statusFilter) &&
+               content.includes(detailsSearch);
+      });
+
+      renderSentEmailsTable(filteredEmails);
+    }
+
+    // Show sent email details modal
+    function showSentEmailDetails(email) {
+      const statusText = email.status === 'sent' ? '✓ Sent Successfully' : '✗ Failed to Send';
+      const statusColor = email.status === 'sent' ? '#008000' : '#ff0000';
+
+      const modalContent = `
+        <div style="margin-bottom:15px;">
+          <strong style="color:${statusColor};">${statusText}</strong>
+        </div>
+
+        <div style="background:#f8f8f8; padding:10px; margin-bottom:15px; border:1px solid #000;">
+          <strong>From:</strong> ${email.sender_email || 'Unknown'}<br>
+          <strong>To:</strong> ${email.to_email}<br>
+          <strong>Subject:</strong> ${email.subject || '(No subject)'}<br>
+          <strong>Date Sent:</strong> ${new Date(email.sent_at).toLocaleString()}<br>
+          <strong>Profile:</strong> ${email.profile_name || 'Default'}<br>
+          ${email.message_id ? `<strong>Message ID:</strong> ${email.message_id}<br>` : ''}
+          ${email.smtp_response ? `<strong>SMTP Response:</strong> ${email.smtp_response}<br>` : ''}
+          ${email.error_message ? `<strong style="color:#ff0000;">Error:</strong> ${email.error_message}<br>` : ''}
+        </div>
+
+        <strong>Message Content:</strong><br>
+        <pre style="white-space:pre-wrap; max-height:400px; overflow-y:auto; background:#fff; padding:15px; border:1px solid #000; margin-top:10px; font-family:Arial, sans-serif; line-height:1.4;">${email.body_text || email.body_html || '(No content)'}</pre>
+      `;
+
+      showModal({
+        title: `Email Details - ${email.subject || 'No Subject'}`,
+        body: modalContent
+      });
+    }
 
     // ========== CUSTOMER PANEL FUNCTIONALITY ==========
 

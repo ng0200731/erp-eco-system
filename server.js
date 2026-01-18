@@ -6,7 +6,7 @@ import nodemailer from 'nodemailer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
-import { createTask, getTaskById, listTasks, TASK_STATUS, updateTaskStatus } from './db/tasksDb.js';
+import { createTask, getTaskById, listTasks, TASK_STATUS, updateTaskStatus, createSentEmail, listSentEmails, getSentEmailById, getSentEmailsCount } from './db/tasksDb.js';
 
 // ---------- ENV ----------
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -588,6 +588,55 @@ app.post('/api/tasks/:id/status', async (req, res) => {
     res.status(500).json({
       success: false,
       error: err.message || 'Failed to update task status',
+      code: err.code || 'UNKNOWN',
+    });
+  }
+});
+
+// ---------- Sent Emails API ----------
+app.get('/api/sent-emails', async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+    const sender_email = req.query.sender_email; // Filter by specific sender
+
+    const sentEmails = await listSentEmails({ limit, offset, sender_email });
+    const totalCount = await getSentEmailsCount({ sender_email });
+
+    res.json({
+      success: true,
+      sentEmails,
+      pagination: {
+        limit,
+        offset,
+        total: totalCount,
+        hasMore: offset + limit < totalCount
+      }
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Failed to list sent emails',
+      code: err.code || 'UNKNOWN',
+    });
+  }
+});
+
+app.get('/api/sent-emails/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid sent email id' });
+    }
+    const sentEmail = await getSentEmailById(id);
+    if (!sentEmail) {
+      return res.status(404).json({ success: false, error: 'Sent email not found' });
+    }
+    res.json({ success: true, sentEmail });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Failed to get sent email',
       code: err.code || 'UNKNOWN',
     });
   }
@@ -1260,13 +1309,29 @@ app.post('/api/email/send', async (req, res) => {
       });
       
       const info = await Promise.race([sendPromise, timeoutPromise]);
-      
-      
-      
-      
+
+      // Store the sent email in the database
+      console.log('Storing sent email in database:', { to, subject, messageId: info.messageId });
+      try {
+        const storedEmail = await createSentEmail({
+          to_email: to,
+          subject: subject,
+          body_text: text || html?.replace(/<[^>]*>/g, ''),
+          body_html: html || text?.replace(/\n/g, '<br>'),
+          message_id: info.messageId,
+          smtp_response: info.response,
+          status: 'sent',
+          profile_id: activeProfile.id
+        });
+        console.log('Successfully stored sent email:', storedEmail.id);
+      } catch (dbErr) {
+        console.error('Failed to store sent email in database:', dbErr);
+        // Don't fail the request if DB storage fails
+      }
+
       // Close transport after sending
       transport.close();
-      
+
       return res.json({ success: true, messageId: info.messageId, response: info.response });
       
     } catch (err) {
@@ -1310,6 +1375,24 @@ app.post('/api/email/send', async (req, res) => {
   }
   
   // All retries exhausted or non-retryable error
+  // Store the failed email attempt in the database
+  try {
+    await createSentEmail({
+      to_email: to,
+      subject: subject,
+      body_text: text || html?.replace(/<[^>]*>/g, ''),
+      body_html: html || text?.replace(/\n/g, '<br>'),
+      message_id: null,
+      smtp_response: null,
+      status: 'failed',
+      error_message: lastError.message,
+      profile_id: activeProfile.id
+    });
+  } catch (dbErr) {
+    console.error('Failed to store failed email in database:', dbErr);
+    // Don't fail the request if DB storage fails
+  }
+
   let errorMsg = lastError.message || 'Failed to send email';
   if (lastError.code === 'EAUTH') {
     errorMsg = 'SMTP authentication failed. Check your email and password.';
@@ -1490,9 +1573,28 @@ app.post('/api/email/test', async (req, res) => {
       text: testEmail.text,
       html: testEmail.html
     });
-    
-    res.json({ 
-      success: true, 
+
+    // Store the test email in the database
+    console.log('Storing test email in database:', { to: testEmail.to, subject: testEmail.subject, messageId: info.messageId });
+    try {
+      const storedEmail = await createSentEmail({
+        to_email: testEmail.to,
+        subject: testEmail.subject,
+        body_text: testEmail.text,
+        body_html: testEmail.html,
+        message_id: info.messageId,
+        smtp_response: info.response,
+        status: 'sent',
+        profile_id: activeProfile.id
+      });
+      console.log('Successfully stored test email:', storedEmail.id);
+    } catch (dbErr) {
+      console.error('Failed to store test email in database:', dbErr);
+      // Don't fail the request if DB storage fails
+    }
+
+    res.json({
+      success: true,
       message: 'Test email sent successfully',
       messageId: info.messageId,
       to: testEmail.to
@@ -1503,7 +1605,25 @@ app.post('/api/email/test', async (req, res) => {
     console.error('Error code:', err.code);
     console.error('Full error:', err);
     console.error('======================================');
-    
+
+    // Store the failed test email attempt in the database
+    try {
+      await createSentEmail({
+        to_email: testEmail.to,
+        subject: testEmail.subject,
+        body_text: testEmail.text,
+        body_html: testEmail.html,
+        message_id: null,
+        smtp_response: null,
+        status: 'failed',
+        error_message: err.message,
+        profile_id: activeProfile.id
+      });
+    } catch (dbErr) {
+      console.error('Failed to store failed test email in database:', dbErr);
+      // Don't fail the request if DB storage fails
+    }
+
     // Close transport on error
     try { profileTransport.close(); } catch {}
 
