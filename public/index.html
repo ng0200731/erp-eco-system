@@ -354,7 +354,7 @@
       <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
       <div style="flex:1;"></div>
       <div style="font-size:0.75em; text-align:center; color:#666; margin-top:10px; padding:5px;">
-        v1.0.12
+        v1.0.13
       </div>
     </div>
     <div id="board">
@@ -2374,7 +2374,107 @@
         saveCustomerToStorage(currentCustomerData);
       }
 
-      showModal({ title: 'Success', body: `Member "${name}" saved successfully.` });
+      // Handle save completion with add more prompt
+      handleMemberSaveComplete(name);
+    }
+
+    function showAddMoreModal(memberName) {
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = 'Save Complete';
+
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+        content.innerHTML = `
+          Member "${memberName}" saved successfully.<br><br>
+          <strong>Do you want to add more members?</strong>
+        `;
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+
+        const yesBtn = document.createElement('button');
+        yesBtn.className = 'btn primary';
+        yesBtn.textContent = 'Yes, Add More';
+        yesBtn.onclick = () => {
+          document.body.removeChild(overlay);
+          resolve(true);
+        };
+
+        const noBtn = document.createElement('button');
+        noBtn.className = 'btn';
+        noBtn.textContent = 'No, Finish';
+        noBtn.onclick = () => {
+          document.body.removeChild(overlay);
+          resolve(false);
+        };
+
+        actions.appendChild(noBtn);
+        actions.appendChild(yesBtn);
+
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // Handle Escape key
+        const onKey = (e) => {
+          if (e.key === 'Escape') {
+            document.removeEventListener('keydown', onKey);
+            document.body.removeChild(overlay);
+            resolve(false); // Default to No on escape
+          }
+        };
+        document.addEventListener('keydown', onKey);
+      });
+    }
+
+    async function handleMemberSaveComplete(memberName) {
+      const addMore = await showAddMoreModal(memberName);
+
+      if (!addMore) {
+        // Clear all data and reset forms
+        clearAllCustomerData();
+      }
+      // If addMore is true, just close the modal and stay on the page
+    }
+
+    function clearAllCustomerData() {
+      // Reset customer data
+      currentCustomerData = null;
+      membersData = [];
+
+      // Clear customer form
+      document.getElementById('companyName').value = '';
+      document.getElementById('emailDomain').value = '';
+      document.getElementById('companyAddress').value = '';
+      document.getElementById('companyTel').value = '';
+      document.getElementById('companyType').selectedIndex = 0;
+      document.getElementById('companyWebsite').value = '';
+
+      // Clear file input
+      const fileInput = document.getElementById('companyDocs');
+      fileInput.value = '';
+
+      // Clear members list
+      document.getElementById('membersList').innerHTML = '';
+
+      // Disable member tab again
+      const memberTab = document.querySelector('[data-tab="member-info"]');
+      memberTab.classList.add('tab-disabled');
+
+      // Switch back to customer tab
+      switchCustomerTab('customer');
+
+      showModal({ title: 'Cleared', body: 'All customer and member data has been cleared.' });
     }
 
     function deleteMember(index) {
