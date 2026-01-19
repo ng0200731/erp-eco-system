@@ -4834,7 +4834,8 @@
       let html = '';
       filteredSkills.forEach((skill) => {
         const statusColor = getStatusColor(skill.status);
-        const categoryColor = getCategoryColor(skill.category);
+        const primaryTag = skill.tags && skill.tags.length > 0 ? skill.tags[0] : 'other';
+        const categoryColor = getCategoryColor(primaryTag);
 
         html += '<tr style="background:#fff;">' +
           '<td style="border:1px solid #000; padding:8px; font-weight:600;">' + skill.name + '</td>' +
@@ -4845,7 +4846,7 @@
           '</td>' +
           '<td style="border:1px solid #000; padding:8px;">' +
             '<span style="background:' + categoryColor + '; color:#fff; padding:2px 6px; border-radius:0; font-size:11px; font-weight:600;">' +
-              skill.category.toUpperCase() +
+              primaryTag.toUpperCase() +
             '</span>' +
           '</td>' +
           '<td style="border:1px solid #000; padding:8px;">' + skill.description + '</td>' +
@@ -4902,7 +4903,7 @@
 
       return skills.filter(skill => {
         const matchesStatus = !statusFilter || skill.status === statusFilter;
-        const matchesCategory = !categoryFilter || skill.category === categoryFilter;
+        const matchesCategory = !categoryFilter || (skill.tags && skill.tags.some(tag => tag.toLowerCase() === categoryFilter.toLowerCase()));
         const matchesSearch = !searchFilter ||
           skill.name.toLowerCase().includes(searchFilter) ||
           skill.description.toLowerCase().includes(searchFilter) ||
@@ -4921,7 +4922,7 @@
             <input type="text" id="skillNameInput" style="width:100%; padding:8px; border:1px solid #000;" placeholder="email-system-integration">
           </div>
           <div style="margin-bottom:15px;">
-            <label style="display:block; margin-bottom:5px;">Category *</label>
+            <label style="display:block; margin-bottom:5px;">Primary Tag *</label>
             <select id="skillCategoryInput" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">
               <option value="">Select Category</option>
               <option value="frontend">Frontend</option>
@@ -4967,13 +4968,13 @@
       if (createBtn) {
         createBtn.onclick = () => {
           const name = document.getElementById('skillNameInput').value.trim();
-          const category = document.getElementById('skillCategoryInput').value;
+          const primaryTag = document.getElementById('skillCategoryInput').value;
           const status = document.getElementById('skillStatusInput').value;
           const version = document.getElementById('skillVersionInput').value.trim();
           const description = document.getElementById('skillDescriptionInput').value.trim();
           const tagsInput = document.getElementById('skillTagsInput').value.trim();
 
-          if (!name || !category || !status || !version || !description) {
+          if (!name || !primaryTag || !status || !version || !description) {
             showModal({
               title: 'Validation Error',
               body: 'Please fill in all required fields marked with *.',
@@ -4982,12 +4983,16 @@
             return;
           }
 
-          const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+          // Create tags array with primary tag first, then additional tags
+          let tags = [primaryTag];
+          if (tagsInput) {
+            const additionalTags = tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag && tag !== primaryTag);
+            tags = tags.concat(additionalTags);
+          }
           const now = new Date().toISOString().split('T')[0];
 
           const skillData = {
             name,
-            category,
             status,
             version,
             description,
@@ -5039,7 +5044,7 @@
               '<strong>Status:</strong> <span style="background:' + getStatusColor(skill.status) + '; color:#fff; padding:2px 6px; font-size:11px; font-weight:600;">' + skill.status.toUpperCase() + '</span>' +
             '</div>' +
             '<div style="margin-bottom:15px;">' +
-              '<strong>Category:</strong> <span style="background:' + getCategoryColor(skill.category) + '; color:#fff; padding:2px 6px; font-size:11px; font-weight:600;">' + skill.category.toUpperCase() + '</span>' +
+              '<strong>Category:</strong> <span style="background:' + getCategoryColor(skill.tags && skill.tags.length > 0 ? skill.tags[0] : 'other') + '; color:#fff; padding:2px 6px; font-size:11px; font-weight:600;">' + (skill.tags && skill.tags.length > 0 ? skill.tags[0].toUpperCase() : 'OTHER') + '</span>' +
             '</div>' +
             '<div style="margin-bottom:15px;">' +
               '<strong>Version:</strong> ' + skill.version +
@@ -5109,16 +5114,16 @@
                   <small style="color:#666;">Skill name cannot be changed</small>
           </div>
           <div style="margin-bottom:15px;">
-            <label style="display:block; margin-bottom:5px;">Category *</label>
+            <label style="display:block; margin-bottom:5px;">Primary Tag *</label>
                   <select id="editSkillCategoryInput" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">
-                    <option value="frontend" ${skill.category === 'frontend' ? 'selected' : ''}>Frontend</option>
-                    <option value="backend" ${skill.category === 'backend' ? 'selected' : ''}>Backend</option>
-                    <option value="database" ${skill.category === 'database' ? 'selected' : ''}>Database</option>
-                    <option value="deployment" ${skill.category === 'deployment' ? 'selected' : ''}>Deployment</option>
-                    <option value="design" ${skill.category === 'design' ? 'selected' : ''}>Design</option>
-                    <option value="testing" ${skill.category === 'testing' ? 'selected' : ''}>Testing</option>
-                    <option value="documentation" ${skill.category === 'documentation' ? 'selected' : ''}>Documentation</option>
-                    <option value="other" ${skill.category === 'other' ? 'selected' : ''}>Other</option>
+                    <option value="frontend" ${skill.tags && skill.tags.length > 0 && skill.tags[0] === 'frontend' ? 'selected' : ''}>Frontend</option>
+                    <option value="backend" ${skill.tags && skill.tags.length > 0 && skill.tags[0] === 'backend' ? 'selected' : ''}>Backend</option>
+                    <option value="database" ${skill.tags && skill.tags.length > 0 && skill.tags[0] === 'database' ? 'selected' : ''}>Database</option>
+                    <option value="deployment" ${skill.tags && skill.tags.length > 0 && skill.tags[0] === 'deployment' ? 'selected' : ''}>Deployment</option>
+                    <option value="design" ${skill.tags && skill.tags.length > 0 && skill.tags[0] === 'design' ? 'selected' : ''}>Design</option>
+                    <option value="testing" ${skill.tags && skill.tags.length > 0 && skill.tags[0] === 'testing' ? 'selected' : ''}>Testing</option>
+                    <option value="documentation" ${skill.tags && skill.tags.length > 0 && skill.tags[0] === 'documentation' ? 'selected' : ''}>Documentation</option>
+                    <option value="other" ${(!skill.tags || skill.tags.length === 0 || !['frontend','backend','database','deployment','design','testing','documentation'].includes(skill.tags[0])) ? 'selected' : ''}>Other</option>
             </select>
           </div>
           <div style="margin-bottom:15px;">
@@ -5153,13 +5158,13 @@
       const saveBtn = document.querySelector('.modal-btn[data-action="save"]');
       if (saveBtn) {
         saveBtn.onclick = () => {
-                const category = document.getElementById('editSkillCategoryInput').value;
+                const primaryTag = document.getElementById('editSkillCategoryInput').value;
                 const status = document.getElementById('editSkillStatusInput').value;
                 const version = document.getElementById('editSkillVersionInput').value.trim();
                 const description = document.getElementById('editSkillDescriptionInput').value.trim();
                 const tagsInput = document.getElementById('editSkillTagsInput').value.trim();
 
-                if (!category || !status || !version || !description) {
+                if (!primaryTag || !status || !version || !description) {
                   showModal({
                     title: 'Validation Error',
                     body: 'Please fill in all required fields marked with *.',
@@ -5168,11 +5173,15 @@
             return;
           }
 
-                const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+                // Create tags array with primary tag first, then additional tags
+                let tags = [primaryTag];
+                if (tagsInput) {
+                  const additionalTags = tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag && tag !== primaryTag);
+                  tags = tags.concat(additionalTags);
+                }
                 const now = new Date().toISOString().split('T')[0];
 
                 const updates = {
-            category,
                   status,
                   version,
             description,
