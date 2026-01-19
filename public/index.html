@@ -883,6 +883,32 @@
             </div>
           </div>
         </div>
+
+        <!-- Image Viewing Modal -->
+        <div id="imageModal" class="modal-overlay" style="display:none; z-index:10001;">
+          <div class="modal" style="max-width: 90vw; max-height: 90vh;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding-bottom:10px; border-bottom:1px solid #000;">
+              <h3 style="margin:0; font-weight:bold;">Product Image Preview</h3>
+              <button id="imageModalClose" style="font-size:24px; padding:5px 10px; border:1px solid #000; background:#fff; cursor:pointer;">×</button>
+            </div>
+            <div id="imageModalContent" style="text-align:center; max-height:75vh; overflow:auto;">
+              <!-- Image will be displayed here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Attachment Preview Modal -->
+        <div id="attachmentModal" class="modal-overlay" style="display:none; z-index:10002;">
+          <div class="modal" style="max-width: 90vw; max-height: 90vh;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding-bottom:10px; border-bottom:1px solid #000;">
+              <h3 id="attachmentModalTitle" style="margin:0; font-weight:bold;">Attachment Preview</h3>
+              <button id="attachmentModalClose" style="font-size:24px; padding:5px 10px; border:1px solid #000; background:#fff; cursor:pointer;">×</button>
+            </div>
+            <div id="attachmentModalContent" style="max-height:75vh; overflow:auto;">
+              <!-- Attachment content will be displayed here -->
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Email Send UI (duplicated from receive with send focus) -->
@@ -3966,8 +3992,11 @@
     }
 
     async function viewQuotationDetails(quotationId) {
+      console.log('viewQuotationDetails called with quotationId:', quotationId);
       const quotations = await loadQuotationsFromStorage();
+      console.log('Loaded quotations:', quotations.length);
       const quotation = quotations.find(q => q.id === quotationId);
+      console.log('Found quotation:', quotation);
 
       if (!quotation) {
         showModal({
@@ -4031,9 +4060,7 @@
       document.body.classList.add('modal-open');
 
       // Populate the form with quotation data
-      setTimeout(() => {
-        populateQuotationViewForm(quotation);
-      }, 100);
+      populateQuotationViewForm(quotation);
 
       // Global function to close the modal
       window.closeQuotationViewModal = function() {
@@ -4043,83 +4070,113 @@
     }
 
     function populateQuotationViewForm(quotation) {
-      // Disable and dim all input, textarea, and select elements in the form
-      const allFormElements = document.querySelectorAll('#quotationViewFormContainer input, #quotationViewFormContainer textarea, #quotationViewFormContainer select');
-      allFormElements.forEach(element => {
-        element.disabled = true;
-        element.readOnly = true;
-        element.style.backgroundColor = '#f5f5f5';
-        element.style.color = '#666';
-        element.style.cursor = 'not-allowed';
-      });
+      console.log('populateQuotationViewForm called with quotation:', quotation);
+      console.log('quotationViewFormContainer exists:', !!document.getElementById('quotationViewFormContainer'));
 
-      // Populate customer information
-      const customerNameField = document.getElementById('quotationCustomerName');
-      if (customerNameField) {
-        customerNameField.value = quotation.customerName;
-      }
+      // Wait a bit longer for the DOM to be fully ready
+      setTimeout(() => {
+        const container = document.getElementById('quotationViewFormContainer');
+        console.log('quotationViewFormContainer found:', !!container);
 
-      // Populate contact person dropdown
-      const contactField = document.getElementById('quotationContactPerson');
-      if (contactField) {
-        contactField.innerHTML = `<option value="${quotation.contactPerson}" selected>${quotation.contactPerson}</option>`;
-      }
+        if (!container) {
+          console.error('quotationViewFormContainer not found!');
+          return;
+        }
 
-      // Populate email and phone
-      const emailField = document.getElementById('quotationEmail');
-      if (emailField) {
-        emailField.value = quotation.email || '';
-      }
-
-      const phoneField = document.getElementById('quotationPhone');
-      if (phoneField) {
-        phoneField.value = quotation.phone || '';
-      }
-
-      // Populate product-specific fields
-      if (quotation.productDetails) {
-        Object.entries(quotation.productDetails).forEach(([key, value]) => {
-          const fieldId = `quotation${key.charAt(0).toUpperCase() + key.slice(1)}`;
-          const field = document.getElementById(fieldId);
-          if (field) {
-            field.value = value;
-          }
+        // Disable and dim all input, textarea, and select elements in the form
+        const allFormElements = container.querySelectorAll('input, textarea, select');
+        console.log('Found form elements to disable:', allFormElements.length);
+        allFormElements.forEach(element => {
+          element.disabled = true;
+          element.readOnly = true;
+          element.style.backgroundColor = '#f5f5f5';
+          element.style.color = '#666';
+          element.style.cursor = 'not-allowed';
         });
-      }
 
-      // Populate quantity and pricing
-      const quantityField = document.getElementById('quotationQuantity');
-      if (quantityField) {
-        quantityField.value = quotation.quantity;
-      }
+        // Populate customer information
+        const customerNameField = document.getElementById('quotationCustomerName');
+        console.log('customerNameField found:', !!customerNameField, 'quotation.customerName:', quotation.customerName);
+        if (customerNameField) {
+          customerNameField.value = quotation.customerName || '';
+          console.log('Set customerNameField value to:', quotation.customerName);
+        }
 
-      const unitPriceField = document.getElementById('quotationUnitPrice');
-      if (unitPriceField) {
-        unitPriceField.value = quotation.unitPrice.toFixed(2);
-      }
+        // Populate contact person dropdown
+        const contactField = document.getElementById('quotationContactPerson');
+        console.log('contactField found:', !!contactField, 'quotation.contactPerson:', quotation.contactPerson);
+        if (contactField && quotation.contactPerson) {
+          contactField.innerHTML = `<option value="${quotation.contactPerson}" selected>${quotation.contactPerson}</option>`;
+          console.log('Set contactField innerHTML');
+        }
 
-      const totalField = document.getElementById('quotationTotal');
-      if (totalField) {
-        totalField.value = quotation.total.toFixed(2);
-      }
+        // Populate email and phone
+        const emailField = document.getElementById('quotationEmail');
+        console.log('emailField found:', !!emailField, 'quotation.email:', quotation.email);
+        if (emailField) {
+          emailField.value = quotation.email || '';
+          console.log('Set emailField value to:', quotation.email);
+        }
 
-      // Populate notes
-      const notesField = document.getElementById('quotationNotes');
-      if (notesField) {
-        notesField.value = quotation.notes || '';
-      }
+        const phoneField = document.getElementById('quotationPhone');
+        console.log('phoneField found:', !!phoneField, 'quotation.phone:', quotation.phone);
+        if (phoneField) {
+          phoneField.value = quotation.phone || '';
+          console.log('Set phoneField value to:', quotation.phone);
+        }
 
-      // Hide all action buttons in view mode
-      const allButtons = document.querySelectorAll('#quotationViewFormContainer button');
-      allButtons.forEach(button => {
-        button.style.display = 'none';
-      });
+        // Populate product-specific fields
+        console.log('quotation.productDetails:', quotation.productDetails);
+        if (quotation.productDetails) {
+          Object.entries(quotation.productDetails).forEach(([key, value]) => {
+            const fieldId = `quotation${key.charAt(0).toUpperCase() + key.slice(1)}`;
+            const field = document.getElementById(fieldId);
+            console.log(`Product field ${fieldId} found:`, !!field, 'value:', value);
+            if (field) {
+              field.value = value || '';
+              console.log(`Set ${fieldId} value to:`, value);
+            }
+          });
+        }
 
-      // Hide the action row completely
-      const formActions = document.querySelector('#quotationViewFormContainer .row:last-child');
-      if (formActions) {
-        formActions.style.display = 'none';
-      }
+        // Populate quantity and pricing
+        const quantityField = document.getElementById('quotationQuantity');
+        console.log('quantityField found:', !!quantityField, 'quotation.quantity:', quotation.quantity);
+        if (quantityField && quotation.quantity) {
+          quantityField.value = quotation.quantity;
+          console.log('Set quantityField value to:', quotation.quantity);
+        }
+
+        const unitPriceField = document.getElementById('quotationUnitPrice');
+        console.log('unitPriceField found:', !!unitPriceField, 'quotation.unitPrice:', quotation.unitPrice);
+        if (unitPriceField && quotation.unitPrice !== undefined) {
+          unitPriceField.value = quotation.unitPrice.toFixed ? quotation.unitPrice.toFixed(2) : quotation.unitPrice;
+          console.log('Set unitPriceField value to:', quotation.unitPrice);
+        }
+
+        const totalField = document.getElementById('quotationTotal');
+        console.log('totalField found:', !!totalField, 'quotation.total:', quotation.total);
+        if (totalField && quotation.total !== undefined) {
+          totalField.value = quotation.total.toFixed ? quotation.total.toFixed(2) : quotation.total;
+          console.log('Set totalField value to:', quotation.total);
+        }
+
+        // Populate notes
+        const notesField = document.getElementById('quotationNotes');
+        console.log('notesField found:', !!notesField, 'quotation.notes:', quotation.notes);
+        if (notesField) {
+          notesField.value = quotation.notes || '';
+          console.log('Set notesField value to:', quotation.notes);
+        }
+
+        // Hide all action buttons in view mode
+        const allButtons = container.querySelectorAll('button');
+        allButtons.forEach(button => {
+          button.style.display = 'none';
+        });
+
+        console.log('Form population completed for quotation:', quotation.id);
+      }, 200); // Increased delay to ensure DOM is ready
     }
 
     async function editQuotationFromView(quotationId) {
@@ -4688,8 +4745,12 @@
     };
 
     window.fillDummyQuotationForm = function() {
+      console.log('fillDummyQuotationForm called');
       const form = document.getElementById('quotationForm');
       const dummyBtn = document.getElementById('quotationDummyBtn');
+
+      console.log('Form found:', !!form);
+      console.log('Dummy button found:', !!dummyBtn);
 
       if (dummyBtn) {
         dummyBtn.textContent = '⏳ Processing...';
@@ -4702,12 +4763,15 @@
       setTimeout(() => {
         // Fill the main form
         if (form) {
+          console.log('Filling main form');
           fillDummyForm(form);
         }
 
         // Also fill file inputs that are in the dynamically generated content
         const subBoardContent = document.getElementById('quotationSubBoardContent');
+        console.log('Sub board content found:', !!subBoardContent);
         if (subBoardContent) {
+          console.log('Filling sub board content');
           fillDummyForm(subBoardContent);
         }
 
@@ -4735,9 +4799,31 @@
       const reader = new FileReader();
       reader.onload = function(e) {
         const container = document.getElementById('productImageContainer');
-        container.innerHTML = '<img src="' + e.target.result + '" style="max-width: 100%; max-height: 120px; object-fit: contain;">';
+        container.innerHTML = '<img src="' + e.target.result + '" style="max-width: 100%; max-height: 120px; object-fit: contain; cursor:pointer;" onclick="showImageModal(\'' + e.target.result + '\', \'' + file.name + '\')" title="Click to view full size">';
+
+        // Update skill system with image generation
+        updateSkillWithImageGeneration(file.name, e.target.result);
       };
       reader.readAsDataURL(file);
+    }
+
+    function showImageModal(imageSrc, filename) {
+      const modal = document.getElementById('imageModal');
+      const content = document.getElementById('imageModalContent');
+
+      content.innerHTML = '<img src="' + imageSrc + '" style="max-width: 100%; max-height: 100%; object-fit: contain;" alt="' + filename + '">';
+
+      modal.style.display = 'flex';
+      document.body.classList.add('modal-open');
+
+      // Update skill system when image is viewed
+      updateSkillWithImageView(filename);
+    }
+
+    function closeImageModal() {
+      const modal = document.getElementById('imageModal');
+      modal.style.display = 'none';
+      document.body.classList.remove('modal-open');
     }
 
     function handleDragOver(event) {
@@ -4786,15 +4872,147 @@
         const attachmentItem = document.createElement('div');
         attachmentItem.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 5px; background: #f0f0f0; margin-bottom: 5px; border-radius: 3px;';
 
+        const fileId = 'attachment_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
         attachmentItem.innerHTML = `
-          <span style="font-size: 12px; flex: 1;">${file.name}</span>
+          <span id="${fileId}_name" style="font-size: 12px; flex: 1; cursor:pointer; text-decoration:underline;" onclick="previewAttachment('${fileId}')">${file.name}</span>
           <span style="font-size: 11px; color: #666;">(${(file.size / 1024).toFixed(1)} KB)</span>
           <button type="button" onclick="this.parentElement.remove()" style="font-size: 12px; padding: 2px 6px; border: 1px solid #000; background: #fff;">×</button>
         `;
 
+        // Store file data for preview
+        attachmentItem._fileData = {
+          id: fileId,
+          file: file,
+          name: file.name,
+          type: file.type,
+          size: file.size
+        };
+
         attachmentsList.appendChild(attachmentItem);
       });
     }
+
+    function previewAttachment(fileId) {
+      const attachmentsList = document.getElementById('attachmentsList');
+      const attachmentItems = attachmentsList.querySelectorAll('div');
+
+      let fileData = null;
+      for (let item of attachmentItems) {
+        if (item._fileData && item._fileData.id === fileId) {
+          fileData = item._fileData;
+          break;
+        }
+      }
+
+      if (!fileData) return;
+
+      const modal = document.getElementById('attachmentModal');
+      const title = document.getElementById('attachmentModalTitle');
+      const content = document.getElementById('attachmentModalContent');
+
+      title.textContent = `Attachment Preview: ${fileData.name}`;
+
+      if (fileData.type.startsWith('image/')) {
+        // Image preview
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          content.innerHTML = '<img src="' + e.target.result + '" style="max-width: 100%; max-height: 100%; object-fit: contain;" alt="' + fileData.name + '">';
+        };
+        reader.readAsDataURL(fileData.file);
+      } else if (fileData.type === 'application/pdf') {
+        // PDF preview (basic - just show info for now)
+        content.innerHTML = `
+          <div style="text-align:center; padding:20px;">
+            <div style="font-size:48px; margin-bottom:20px;">📄</div>
+            <h3>${fileData.name}</h3>
+            <p>Type: PDF Document</p>
+            <p>Size: ${(fileData.size / 1024).toFixed(1)} KB</p>
+            <p style="color:#666; font-style:italic;">PDF preview not available in browser. Download to view.</p>
+          </div>
+        `;
+      } else if (fileData.type.includes('word') || fileData.type.includes('document')) {
+        // Word document preview
+        content.innerHTML = `
+          <div style="text-align:center; padding:20px;">
+            <div style="font-size:48px; margin-bottom:20px;">📝</div>
+            <h3>${fileData.name}</h3>
+            <p>Type: Word Document</p>
+            <p>Size: ${(fileData.size / 1024).toFixed(1)} KB</p>
+            <p style="color:#666; font-style:italic;">Document preview not available in browser. Download to view.</p>
+          </div>
+        `;
+      } else if (fileData.type === 'text/plain') {
+        // Text file preview
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          content.innerHTML = `
+            <div style="padding:10px; background:#f9f9f9; border:1px solid #ccc; font-family:monospace; white-space:pre-wrap; max-height:400px; overflow:auto;">
+              ${e.target.result}
+            </div>
+          `;
+        };
+        reader.readAsText(fileData.file);
+      } else {
+        // Generic file preview
+        content.innerHTML = `
+          <div style="text-align:center; padding:20px;">
+            <div style="font-size:48px; margin-bottom:20px;">📎</div>
+            <h3>${fileData.name}</h3>
+            <p>Type: ${fileData.type || 'Unknown'}</p>
+            <p>Size: ${(fileData.size / 1024).toFixed(1)} KB</p>
+          </div>
+        `;
+      }
+
+      modal.style.display = 'flex';
+      document.body.classList.add('modal-open');
+    }
+
+    function closeAttachmentModal() {
+      const modal = document.getElementById('attachmentModal');
+      modal.style.display = 'none';
+      document.body.classList.remove('modal-open');
+    }
+
+    function updateSkillWithImageGeneration(filename, imageData) {
+      // Update skill system when image is generated
+      console.log('Image generated for quotation:', filename);
+      // This could update a skill tracking system or database
+    }
+
+    function updateSkillWithImageView(filename) {
+      // Update skill system when image is viewed in modal
+      console.log('Image viewed in modal:', filename);
+      // This could increment view counters or update skill metrics
+    }
+
+    // Modal event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+      const imageModalClose = document.getElementById('imageModalClose');
+      const attachmentModalClose = document.getElementById('attachmentModalClose');
+
+      if (imageModalClose) {
+        imageModalClose.addEventListener('click', closeImageModal);
+      }
+
+      if (attachmentModalClose) {
+        attachmentModalClose.addEventListener('click', closeAttachmentModal);
+      }
+
+      // Close modals when clicking outside
+      document.getElementById('imageModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+          // Don't close - user must use X button
+        }
+      });
+
+      document.getElementById('attachmentModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+          closeAttachmentModal();
+        }
+      });
+    });
 
     window.saveQuotation = async function(tagType) {
       try {
