@@ -3978,33 +3978,89 @@
         });
 
         // Populate the form with quotation data for editing
-        setTimeout(() => {
-          populateQuotationForEditing(quotation);
+        setTimeout(async () => {
+          await populateQuotationForEditing(quotation);
         }, 200);
       }
     }
 
-    function populateQuotationForEditing(quotation) {
-      // Populate customer name
+    async function populateQuotationForEditing(quotation) {
+      // Get field references
       const customerNameField = document.getElementById('quotationCustomerName');
+      const emailField = document.getElementById('quotationEmail');
+      const phoneField = document.getElementById('quotationPhone');
+      const contactField = document.getElementById('quotationContactPerson');
+
+      // Populate customer name
       if (customerNameField) {
         customerNameField.value = quotation.customerName;
+
+        // Try to find customer in autocomplete data to populate additional fields
+        if (window.customerAutocomplete && window.customerAutocomplete.customers) {
+          const customer = window.customerAutocomplete.customers.find(c =>
+            c.companyName.toLowerCase() === quotation.customerName.toLowerCase()
+          );
+
+          if (customer) {
+            // Populate email if quotation doesn't have specific email
+            if (emailField && !quotation.email) {
+              emailField.value = `contact@${customer.emailDomain}`;
+            }
+
+            // Populate phone if quotation doesn't have specific phone
+            if (phoneField && !quotation.phone && customer.companyTel) {
+              phoneField.value = customer.companyTel;
+            }
+
+            // Populate contact person dropdown with customer members
+            if (contactField && customer.members && customer.members.length > 0) {
+              contactField.innerHTML = '<option value="">Select Contact Person</option>';
+              customer.members.forEach(member => {
+                if (member.name) {
+                  const option = document.createElement('option');
+                  option.value = member.name;
+                  option.textContent = `${member.name}${member.title ? ` (${member.title})` : ''}`;
+                  contactField.appendChild(option);
+                }
+              });
+            }
+          }
+        }
       }
 
-      // Populate contact person
-      const contactField = document.getElementById('quotationContactPerson');
-      if (contactField) {
-        contactField.value = quotation.contactPerson;
+      // Always populate the specific quotation data (this overrides customer defaults)
+      if (emailField && quotation.email) {
+        emailField.value = quotation.email;
       }
 
-      // Populate email and phone
-      const emailField = document.getElementById('quotationEmail');
-      if (emailField) {
+      if (phoneField && quotation.phone) {
+        phoneField.value = quotation.phone;
+      }
+
+      if (contactField && quotation.contactPerson) {
+        // If contact dropdown was populated with members, try to select the right one
+        // Otherwise, just set the value directly
+        const existingOption = Array.from(contactField.options).find(option =>
+          option.value === quotation.contactPerson
+        );
+        if (existingOption) {
+          contactField.value = quotation.contactPerson;
+        } else {
+          // Add the contact person as an option if not already there
+          const option = document.createElement('option');
+          option.value = quotation.contactPerson;
+          option.textContent = quotation.contactPerson;
+          contactField.appendChild(option);
+          contactField.value = quotation.contactPerson;
+        }
+      }
+
+      // Populate email and phone (fallback if not set above)
+      if (emailField && !emailField.value) {
         emailField.value = quotation.email || '';
       }
 
-      const phoneField = document.getElementById('quotationPhone');
-      if (phoneField) {
+      if (phoneField && !phoneField.value) {
         phoneField.value = quotation.phone || '';
       }
 
