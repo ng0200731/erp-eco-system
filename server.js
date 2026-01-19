@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import { createTask, getTaskById, listTasks, TASK_STATUS, updateTaskStatus, createSentEmail, listSentEmails, getSentEmailById, getSentEmailsCount } from './db/tasksDb.js';
+import SkillManager from './skills/skillManager.js';
 
 // ---------- ENV ----------
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -224,6 +225,16 @@ app.use(express.json());
 
 // serve static UI
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ---------- SKILL MANAGER ----------
+let skillManager;
+try {
+  skillManager = new SkillManager('./skills');
+  console.log('Skill manager initialized successfully');
+} catch (error) {
+  console.error('Failed to initialize skill manager:', error);
+  skillManager = null;
+}
 
 // Health check endpoint with connection diagnostics
 app.get('/api/health', async (req, res) => {
@@ -1645,6 +1656,96 @@ app.post('/api/email/test', async (req, res) => {
     });
   }
 });
+
+// ---------- SKILL MANAGEMENT API ----------
+if (skillManager) {
+  // Get all skills
+  app.get('/api/skills', (req, res) => {
+    try {
+      const { status, category, search } = req.query;
+      let skills = skillManager.getAllSkills();
+
+      if (status) {
+        skills = skills.filter(skill => skill.status === status);
+      }
+
+      if (category) {
+        skills = skills.filter(skill => skill.category === category);
+      }
+
+      if (search) {
+        skills = skillManager.searchSkills(search);
+      }
+
+      res.json({ success: true, skills });
+    } catch (err) {
+      console.error('Error getting skills:', err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Get skill statistics
+  app.get('/api/skills/stats', (req, res) => {
+    try {
+      const stats = skillManager.getSkillStats();
+      res.json({ success: true, stats });
+    } catch (err) {
+      console.error('Error getting skill stats:', err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Get single skill
+  app.get('/api/skills/:name', (req, res) => {
+    try {
+      const skill = skillManager.getSkill(req.params.name);
+      if (!skill) {
+        return res.status(404).json({ success: false, error: 'Skill not found' });
+      }
+      res.json({ success: true, skill });
+    } catch (err) {
+      console.error('Error getting skill:', err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Create new skill
+  app.post('/api/skills', (req, res) => {
+    try {
+      const skillData = req.body;
+      const skill = skillManager.createSkill(skillData);
+      res.json({ success: true, skill });
+    } catch (err) {
+      console.error('Error creating skill:', err);
+      res.status(400).json({ success: false, error: err.message });
+    }
+  });
+
+  // Update skill
+  app.put('/api/skills/:name', (req, res) => {
+    try {
+      const updates = req.body;
+      const skill = skillManager.updateSkill(req.params.name, updates);
+      res.json({ success: true, skill });
+    } catch (err) {
+      console.error('Error updating skill:', err);
+      res.status(400).json({ success: false, error: err.message });
+    }
+  });
+
+  // Delete skill
+  app.delete('/api/skills/:name', (req, res) => {
+    try {
+      skillManager.deleteSkill(req.params.name);
+      res.json({ success: true, message: 'Skill deleted successfully' });
+    } catch (err) {
+      console.error('Error deleting skill:', err);
+      res.status(400).json({ success: false, error: err.message });
+    }
+  });
+} else {
+  console.log('Skill API endpoints not available - skill manager failed to initialize');
+}
 
 // Global error handlers to prevent server crashes
 process.on('uncaughtException', (err) => {

@@ -269,6 +269,16 @@
       background:#f0f0f0;
       color:#999;
     }
+
+    /* Quotation tag selection styles */
+    .quotation-tag-btn.selected {
+      background:#000 !important;
+      color:#fff !important;
+    }
+    .quotation-tag-btn:hover:not(.selected) {
+      background:#ccc !important;
+      color:#000 !important;
+    }
     .tab-close{
       display:none;
       border:none;
@@ -357,7 +367,12 @@
       </div>
       <button id="menuTasks" class="page-btn" data-short="T" data-full="Task List">T</button>
       <button id="menuSkills" class="page-btn" data-short="K" data-full="Skills">K</button>
+      <div class="menu-group">
       <button id="menuQuotation" class="page-btn" data-short="Q" data-full="Quotation">Q</button>
+        <div id="quotationSubmenu" class="submenu" style="display:none;">
+          <button id="quotationCreateBtn" class="submenu-btn">Create</button>
+        </div>
+      </div>
       <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
       <div style="flex:1;"></div>
       <div style="font-size:0.75em; text-align:center; color:#666; margin-top:10px; padding:5px;">
@@ -512,11 +527,46 @@
         </div>
       </div>
 
-      <!-- Skills board -->
+      <!-- Agent Skills board -->
       <div id="skillsPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
         <div style="margin-bottom:15px;">
-          <button id="addSkillBtn" class="page-btn">Add Skill</button>
-          <button id="refreshSkillsBtn" class="page-btn" style="margin-left:10px;">Refresh List</button>
+          <h3>Agent Skills Documentation System</h3>
+          <p class="meta" style="margin-bottom:10px;">Track technical skills, implementations, and achievements</p>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button id="addSkillBtn" class="page-btn">Create Skill</button>
+            <button id="refreshSkillsBtn" class="page-btn">Refresh</button>
+            <select id="skillStatusFilter" class="page-btn" style="background:#fff; color:#000; border:1px solid #000; padding:8px;">
+              <option value="">All Status</option>
+              <option value="planned">Planned</option>
+              <option value="in-progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="deprecated">Deprecated</option>
+            </select>
+            <select id="skillCategoryFilter" class="page-btn" style="background:#fff; color:#000; border:1px solid #000; padding:8px;">
+              <option value="">All Categories</option>
+              <option value="frontend">Frontend</option>
+              <option value="backend">Backend</option>
+              <option value="database">Database</option>
+              <option value="deployment">Deployment</option>
+              <option value="design">Design</option>
+              <option value="testing">Testing</option>
+              <option value="documentation">Documentation</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div style="margin-top:10px;">
+            <input type="text" id="skillSearch" placeholder="Search skills..." style="width:100%; padding:8px; border:1px solid #000; box-sizing:border-box;">
+          </div>
+        </div>
+
+        <!-- Skills Statistics -->
+        <div id="skillsStats" style="margin-bottom:20px; padding:15px; background:#f8f8f8; border:1px solid #000;">
+          <div style="display:flex; gap:20px; flex-wrap:wrap;">
+            <div><strong>Total Skills:</strong> <span id="totalSkills">0</span></div>
+            <div><strong>Completed:</strong> <span id="completedSkills">0</span></div>
+            <div><strong>In Progress:</strong> <span id="inProgressSkills">0</span></div>
+            <div><strong>Planned:</strong> <span id="plannedSkills">0</span></div>
+          </div>
         </div>
 
         <!-- Skills Table -->
@@ -525,33 +575,17 @@
             <thead>
               <tr style="background:#f8f8f8;">
                 <th style="border:1px solid #000; padding:8px; text-align:left;">Skill Name</th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">Status</th>
                 <th style="border:1px solid #000; padding:8px; text-align:left;">Category</th>
                 <th style="border:1px solid #000; padding:8px; text-align:left;">Description</th>
-                <th style="border:1px solid #000; padding:8px; text-align:left;">Proficiency</th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">Version</th>
                 <th style="border:1px solid #000; padding:8px; text-align:left;">Actions</th>
-              </tr>
-              <tr style="background:#fff;">
-                <th style="border:1px solid #000; padding:8px;">
-                  <input type="text" id="skillNameSearch" placeholder="Search skill name..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
-                </th>
-                <th style="border:1px solid #000; padding:8px;">
-                  <input type="text" id="skillCategorySearch" placeholder="Search category..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
-                </th>
-                <th style="border:1px solid #000; padding:8px;">
-                  <input type="text" id="skillDescriptionSearch" placeholder="Search description..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
-                </th>
-                <th style="border:1px solid #000; padding:8px;">
-                  <input type="text" id="skillProficiencySearch" placeholder="Search proficiency..." style="width:100%; border:1px solid #000; padding:4px; box-sizing:border-box;">
-                </th>
-                <th style="border:1px solid #000; padding:8px;">
-                  <!-- Actions column - no search input needed -->
-                </th>
               </tr>
             </thead>
             <tbody id="skillsTableBody">
-              <tr>
-                <td colspan="5" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
-                  No skills saved yet. Add your first skill.
+              <tr id="skillsLoadingRow">
+                <td colspan="6" style="border:1px solid #000; padding:20px; text-align:center;">
+                  Loading skills...
                 </td>
               </tr>
             </tbody>
@@ -561,12 +595,22 @@
 
       <!-- Quotation board -->
       <div id="quotationPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
-        <div class="row" style="gap:10px; flex-wrap:wrap;">
-          <button class="page-btn" id="hangTagBtn">Hang Tag</button>
-          <button class="page-btn" id="wovenLabelBtn">Woven Label</button>
-          <button class="page-btn" id="careLabelBtn">Care Label</button>
-          <button class="page-btn" id="heatTransferBtn">Heat Transfer</button>
-          <button class="page-btn" id="othersBtn">Others</button>
+        <div class="row" style="gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+          <button class="quotation-tag-btn page-btn" id="hangTagBtn" data-tag="hang-tag">Hang Tag</button>
+          <button class="quotation-tag-btn page-btn" id="wovenLabelBtn" data-tag="woven-label">Woven Label</button>
+          <button class="quotation-tag-btn page-btn" id="careLabelBtn" data-tag="care-label">Care Label</button>
+          <button class="quotation-tag-btn page-btn" id="heatTransferBtn" data-tag="heat-transfer">Heat Transfer</button>
+          <button class="quotation-tag-btn page-btn" id="othersBtn" data-tag="others">Others</button>
+        </div>
+
+        <!-- Quotation Sub-board -->
+        <div id="quotationSubBoard" style="display:none; margin-top:20px; padding:20px; border:1px solid #000;">
+          <div id="quotationSubBoardHeader" style="margin-bottom:15px; padding-bottom:10px; border-bottom:1px solid #000;">
+            <h3 id="quotationSubBoardTitle" style="margin:0;"></h3>
+          </div>
+          <div id="quotationSubBoardContent">
+            <!-- Content will be dynamically loaded here -->
+          </div>
         </div>
       </div>
 
@@ -1329,6 +1373,20 @@
       submenu.style.display = isVisible ? 'none' : 'block';
     };
 
+    // Menu click: toggle quotation submenu
+    menuQuotationBtn.onclick = () => {
+      const submenu = document.getElementById('quotationSubmenu');
+      const isVisible = submenu.style.display !== 'none';
+
+      // Hide all other submenus first
+      document.querySelectorAll('.submenu').forEach(sub => {
+        sub.style.display = 'none';
+      });
+
+      // Toggle this submenu
+      submenu.style.display = isVisible ? 'none' : 'block';
+    };
+
     // Customer submenu buttons
     const customerCreateBtn = document.getElementById('customerCreateBtn');
     const customerViewBtn = document.getElementById('customerViewBtn');
@@ -1408,17 +1466,22 @@
       activateTab('tasks');
     };
 
-    // Menu click: show skills
+    // Menu click: show agent skills
     menuSkillsBtn.onclick = () => {
-      ensureTab('skills', 'Skills');
+      ensureTab('skills', 'Agent Skills');
       activateTab('skills');
-      loadSkills();
+      loadAgentSkills();
     };
 
-    // Menu click: show quotation
-    menuQuotationBtn.onclick = () => {
-      ensureTab('quotation', 'Quotation');
+    // Quotation submenu button
+    const quotationCreateBtn = document.getElementById('quotationCreateBtn');
+
+    quotationCreateBtn.onclick = () => {
+      // Hide submenu and go to quotation creation board
+      document.getElementById('quotationSubmenu').style.display = 'none';
+      ensureTab('quotation', 'Quotation (create)');
       activateTab('quotation');
+      initializeQuotationPanel();
     };
 
     // Add profile button
@@ -3391,37 +3454,340 @@
       displayCustomers();
     }
 
-    // -------- SKILLS MANAGEMENT --------
-    let currentSkills = [];
+    // -------- QUOTATION TAG SELECTION --------
+    let selectedQuotationTag = null;
 
-    function loadSkills() {
-      try {
-        currentSkills = JSON.parse(localStorage.getItem('erpSkills') || '[]');
-        displaySkills();
-      } catch (error) {
-        console.error('Error loading skills:', error);
-        currentSkills = [];
-        displaySkills();
-      }
+    function initializeQuotationPanel() {
+      const quotationButtons = document.querySelectorAll('.quotation-tag-btn');
+
+      quotationButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const tagType = button.dataset.tag;
+          const tagName = button.textContent;
+
+          // Remove selected class from all buttons
+          quotationButtons.forEach(btn => btn.classList.remove('selected'));
+
+          // Add selected class to clicked button
+          button.classList.add('selected');
+
+          // Update selected tag
+          selectedQuotationTag = tagType;
+
+          // Show sub-board with content
+          showQuotationSubBoard(tagType, tagName);
+        });
+      });
     }
 
-    function saveSkills() {
-      try {
-        localStorage.setItem('erpSkills', JSON.stringify(currentSkills));
-      } catch (error) {
-        console.error('Error saving skills:', error);
-      }
+    function showQuotationSubBoard(tagType, tagName) {
+      const subBoard = document.getElementById('quotationSubBoard');
+      const subBoardTitle = document.getElementById('quotationSubBoardTitle');
+      const subBoardContent = document.getElementById('quotationSubBoardContent');
+
+      // Update title
+      subBoardTitle.textContent = `${tagName} Quotation`;
+
+      // Generate content based on tag type
+      const content = generateQuotationContent(tagType, tagName);
+      subBoardContent.innerHTML = content;
+
+      // Set up event listeners for total calculation
+      setTimeout(() => {
+        const quantityInput = document.getElementById('quotationQuantity');
+        const unitPriceInput = document.getElementById('quotationUnitPrice');
+
+        if (quantityInput && unitPriceInput) {
+          const updateTotal = () => {
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const unitPrice = parseFloat(unitPriceInput.value) || 0;
+            const total = quantity * unitPrice;
+            const totalInput = document.getElementById('quotationTotal');
+            if (totalInput) {
+              totalInput.value = total.toFixed(2);
+            }
+          };
+
+          quantityInput.addEventListener('input', updateTotal);
+          unitPriceInput.addEventListener('input', updateTotal);
+        }
+      }, 100);
+
+      // Show sub-board
+      subBoard.style.display = 'block';
     }
 
-    function displaySkills() {
+    function generateQuotationContent(tagType, tagName) {
+      // Base form structure for all quotation types
+      return '<form id="quotationForm" style="max-width:600px;">' +
+        '<div style="margin-bottom:20px;">' +
+          '<h4>Customer Information</h4>' +
+          '<div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">' +
+            '<div>' +
+              '<label style="display:block; margin-bottom:5px; font-weight:600;">Customer Name *</label>' +
+              '<input type="text" id="quotationCustomerName" style="width:100%; padding:8px; border:1px solid #000;" placeholder="Enter customer name">' +
+            '</div>' +
+            '<div>' +
+              '<label style="display:block; margin-bottom:5px; font-weight:600;">Contact Person</label>' +
+              '<input type="text" id="quotationContactPerson" style="width:100%; padding:8px; border:1px solid #000;" placeholder="Contact person">' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">' +
+            '<div>' +
+              '<label style="display:block; margin-bottom:5px; font-weight:600;">Email</label>' +
+              '<input type="email" id="quotationEmail" style="width:100%; padding:8px; border:1px solid #000;" placeholder="customer@email.com">' +
+            '</div>' +
+            '<div>' +
+              '<label style="display:block; margin-bottom:5px; font-weight:600;">Phone</label>' +
+              '<input type="tel" id="quotationPhone" style="width:100%; padding:8px; border:1px solid #000;" placeholder="+852 1234 5678">' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div style="margin-bottom:20px;">' +
+          '<h4>Product Specifications</h4>' +
+          getProductSpecificFields(tagType) +
+        '</div>' +
+
+        '<div style="margin-bottom:20px;">' +
+          '<h4>Quantity & Pricing</h4>' +
+          '<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:15px;">' +
+            '<div>' +
+              '<label style="display:block; margin-bottom:5px; font-weight:600;">Quantity *</label>' +
+              '<input type="number" id="quotationQuantity" style="width:100%; padding:8px; border:1px solid #000;" placeholder="1000" min="1">' +
+            '</div>' +
+            '<div>' +
+              '<label style="display:block; margin-bottom:5px; font-weight:600;">Unit Price (HKD)</label>' +
+              '<input type="number" id="quotationUnitPrice" style="width:100%; padding:8px; border:1px solid #000;" placeholder="0.50" step="0.01" min="0">' +
+            '</div>' +
+            '<div>' +
+              '<label style="display:block; margin-bottom:5px; font-weight:600;">Total (Auto)</label>' +
+              '<input type="text" id="quotationTotal" style="width:100%; padding:8px; border:1px solid #000; background:#f5f5f5;" readonly>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div style="margin-bottom:20px;">' +
+          '<h4>Additional Notes</h4>' +
+          '<textarea id="quotationNotes" style="width:100%; min-height:80px; padding:8px; border:1px solid #000;" placeholder="Special requirements, delivery instructions, etc."></textarea>' +
+        '</div>' +
+
+        '<div style="display:flex; gap:10px; justify-content:flex-end;">' +
+          '<button type="button" class="page-btn" onclick="clearQuotationForm()">Clear</button>' +
+          '<button type="button" class="page-btn" onclick="saveQuotation(\'' + tagType + '\')">Save Quotation</button>' +
+          '<button type="button" class="page-btn primary" onclick="generateQuotation(\'' + tagType + '\')">Generate PDF</button>' +
+        '</div>' +
+      '</form>';
+    }
+
+    function getProductSpecificFields(tagType) {
+      const fields = {
+        'hang-tag': `
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Material</label>
+              <select id="quotationMaterial" style="width:100%; padding:8px; border:1px solid #000;">
+                <option value="">Select Material</option>
+                <option value="paper">Paper</option>
+                <option value="cardboard">Cardboard</option>
+                <option value="plastic">Plastic</option>
+                <option value="fabric">Fabric</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Size</label>
+              <input type="text" id="quotationSize" style="width:100%; padding:8px; border:1px solid #000;" placeholder="2x3 inches">
+            </div>
+          </div>
+          <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:5px; font-weight:600;">Printing Method</label>
+            <select id="quotationPrintingMethod" style="width:100%; padding:8px; border:1px solid #000;">
+              <option value="">Select Printing Method</option>
+              <option value="screen-printing">Screen Printing</option>
+              <option value="digital-printing">Digital Printing</option>
+              <option value="offset-printing">Offset Printing</option>
+              <option value="embroidery">Embroidery</option>
+            </select>
+          </div>
+        `,
+        'woven-label': `
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Width</label>
+              <input type="text" id="quotationWidth" style="width:100%; padding:8px; border:1px solid #000;" placeholder="1 inch">
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Length</label>
+              <input type="text" id="quotationLength" style="width:100%; padding:8px; border:1px solid #000;" placeholder="2 inches">
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Color Count</label>
+              <select id="quotationColorCount" style="width:100%; padding:8px; border:1px solid #000;">
+                <option value="1">1 Color</option>
+                <option value="2">2 Colors</option>
+                <option value="3">3 Colors</option>
+                <option value="4">4+ Colors</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Edge Finish</label>
+              <select id="quotationEdgeFinish" style="width:100%; padding:8px; border:1px solid #000;">
+                <option value="cut">Cut Edge</option>
+                <option value="hemmed">Hemmed Edge</option>
+                <option value="overlocked">Overlocked</option>
+              </select>
+            </div>
+          </div>
+        `,
+        'care-label': `
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Material Type</label>
+              <select id="quotationMaterialType" style="width:100%; padding:8px; border:1px solid #000;">
+                <option value="">Select Material</option>
+                <option value="satin">Satin Tape</option>
+                <option value="cotton">Cotton Tape</option>
+                <option value="woven">Woven Fabric</option>
+                <option value="paper">Paper</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Wash Care Symbols</label>
+              <input type="text" id="quotationWashSymbols" style="width:100%; padding:8px; border:1px solid #000;" placeholder="Machine wash, tumble dry, etc.">
+            </div>
+          </div>
+        `,
+        'heat-transfer': `
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Transfer Type</label>
+              <select id="quotationTransferType" style="width:100%; padding:8px; border:1px solid #000;">
+                <option value="">Select Type</option>
+                <option value="screen-print">Screen Print Transfer</option>
+                <option value="digital-print">Digital Print Transfer</option>
+                <option value="vinyl-cut">Vinyl Cut Transfer</option>
+                <option value="sublimation">Sublimation Transfer</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Application Method</label>
+              <select id="quotationApplication" style="width:100%; padding:8px; border:1px solid #000;">
+                <option value="heat-press">Heat Press</option>
+                <option value="iron">Household Iron</option>
+                <option value="commercial">Commercial Press</option>
+              </select>
+            </div>
+          </div>
+        `,
+        'others': `
+          <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:5px; font-weight:600;">Product Description *</label>
+            <textarea id="quotationProductDescription" style="width:100%; min-height:60px; padding:8px; border:1px solid #000;" placeholder="Describe the custom product or service..."></textarea>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Category</label>
+              <input type="text" id="quotationCategory" style="width:100%; padding:8px; border:1px solid #000;" placeholder="e.g., Packaging, Stickers">
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Complexity</label>
+              <select id="quotationComplexity" style="width:100%; padding:8px; border:1px solid #000;">
+                <option value="simple">Simple</option>
+                <option value="medium">Medium</option>
+                <option value="complex">Complex</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+          </div>
+        `
+      };
+
+      return fields[tagType] || fields['others'];
+    }
+
+    // Global functions for quotation form
+    window.clearQuotationForm = function() {
+      const form = document.getElementById('quotationForm');
+      if (form) {
+        form.reset();
+        document.getElementById('quotationTotal').value = '';
+      }
+    };
+
+    window.saveQuotation = function(tagType) {
+      // TODO: Implement save functionality
+      showModal({
+        title: 'Save Quotation',
+        body: 'Save functionality will be implemented. For now, this is a placeholder.',
+        buttons: [{ text: 'OK', action: 'close' }]
+      });
+    };
+
+    window.generateQuotation = function(tagType) {
+      // TODO: Implement PDF generation
+      showModal({
+        title: 'Generate PDF',
+        body: 'PDF generation functionality will be implemented. For now, this is a placeholder.',
+        buttons: [{ text: 'OK', action: 'close' }]
+      });
+    };
+
+    // -------- AGENT SKILLS MANAGEMENT --------
+    let currentAgentSkills = [];
+
+    function loadAgentSkills() {
       const tbody = document.getElementById('skillsTableBody');
-      const filteredSkills = applySkillsFilters(currentSkills);
+      const loadingRow = document.getElementById('skillsLoadingRow');
+      loadingRow.style.display = 'table-row';
 
-      if (filteredSkills.length === 0 && currentSkills.length === 0) {
+      fetch('/api/skills')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            currentAgentSkills = data.skills;
+            displayAgentSkills();
+            loadSkillStats();
+          } else {
+            tbody.innerHTML = `<tr><td colspan="6" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">Error: ${data.error}</td></tr>`;
+          }
+        })
+        .catch(error => {
+          console.error('Error loading skills:', error);
+          tbody.innerHTML = `<tr><td colspan="6" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">Failed to load skills: ${error.message}</td></tr>`;
+        })
+        .finally(() => {
+          loadingRow.style.display = 'none';
+        });
+    }
+
+    function loadSkillStats() {
+      fetch('/api/skills/stats')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const stats = data.stats;
+            document.getElementById('totalSkills').textContent = stats.total;
+            document.getElementById('completedSkills').textContent = stats.byStatus.completed || 0;
+            document.getElementById('inProgressSkills').textContent = stats.byStatus['in-progress'] || 0;
+            document.getElementById('plannedSkills').textContent = stats.byStatus.planned || 0;
+          }
+        })
+        .catch(error => {
+          console.error('Error loading skill stats:', error);
+        });
+    }
+
+    function displayAgentSkills() {
+      const tbody = document.getElementById('skillsTableBody');
+      let filteredSkills = applyAgentSkillFilters(currentAgentSkills);
+
+      if (filteredSkills.length === 0 && currentAgentSkills.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="5" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
-              No skills saved yet. Add your first skill.
+            <td colspan="6" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+              No skills documented yet. Create your first skill.
             </td>
           </tr>
         `;
@@ -3431,7 +3797,7 @@
       if (filteredSkills.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="5" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+            <td colspan="6" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
               No skills match the current filters.
             </td>
           </tr>
@@ -3440,157 +3806,315 @@
       }
 
       let html = '';
-      filteredSkills.forEach((skill, index) => {
-        const originalIndex = currentSkills.findIndex(s => s.id === skill.id);
-        html += `
-          <tr style="background:#fff;">
-            <td style="border:1px solid #000; padding:8px;">${skill.name}</td>
-            <td style="border:1px solid #000; padding:8px;">${skill.category}</td>
-            <td style="border:1px solid #000; padding:8px;">${skill.description || ''}</td>
-            <td style="border:1px solid #000; padding:8px;">${skill.proficiency}</td>
-            <td style="border:1px solid #000; padding:8px;">
-              <button class="page-btn edit-skill-btn" data-index="${originalIndex}" style="font-size:12px; padding:4px 8px;">Edit</button>
-              <button class="page-btn delete-skill-btn" data-index="${originalIndex}" style="font-size:12px; padding:4px 8px; margin-left:5px;">Delete</button>
-            </td>
-          </tr>
-        `;
+      filteredSkills.forEach((skill) => {
+        const statusColor = getStatusColor(skill.status);
+        const categoryColor = getCategoryColor(skill.category);
+
+        html += '<tr style="background:#fff;">' +
+          '<td style="border:1px solid #000; padding:8px; font-weight:600;">' + skill.name + '</td>' +
+          '<td style="border:1px solid #000; padding:8px;">' +
+            '<span style="background:' + statusColor + '; color:#fff; padding:2px 6px; border-radius:0; font-size:11px; font-weight:600;">' +
+              skill.status.replace('-', ' ').toUpperCase() +
+            '</span>' +
+          '</td>' +
+          '<td style="border:1px solid #000; padding:8px;">' +
+            '<span style="background:' + categoryColor + '; color:#fff; padding:2px 6px; border-radius:0; font-size:11px; font-weight:600;">' +
+              skill.category.toUpperCase() +
+            '</span>' +
+          '</td>' +
+          '<td style="border:1px solid #000; padding:8px;">' + skill.description + '</td>' +
+          '<td style="border:1px solid #000; padding:8px;">' + skill.version + '</td>' +
+          '<td style="border:1px solid #000; padding:8px;">' +
+            '<button class="page-btn view-skill-btn" data-skill="' + skill.name + '" style="font-size:12px; padding:4px 8px;">View</button>' +
+            '<button class="page-btn edit-skill-btn" data-skill="' + skill.name + '" style="font-size:12px; padding:4px 8px; margin-left:5px;">Edit</button>' +
+            '<button class="page-btn delete-skill-btn" data-skill="' + skill.name + '" style="font-size:12px; padding:4px 8px; margin-left:5px;">Delete</button>' +
+          '</td>' +
+        '</tr>';
       });
 
       tbody.innerHTML = html;
 
       // Add event listeners
+      document.querySelectorAll('.view-skill-btn').forEach(btn => {
+        btn.onclick = () => viewSkill(btn.dataset.skill);
+      });
       document.querySelectorAll('.edit-skill-btn').forEach(btn => {
-        btn.onclick = () => editSkill(parseInt(btn.dataset.index));
+        btn.onclick = () => editSkill(btn.dataset.skill);
       });
       document.querySelectorAll('.delete-skill-btn').forEach(btn => {
-        btn.onclick = () => deleteSkill(parseInt(btn.dataset.index));
+        btn.onclick = () => deleteSkill(btn.dataset.skill);
       });
     }
 
-    function applySkillsFilters(skills) {
-      const nameSearch = document.getElementById('skillNameSearch').value.toLowerCase();
-      const categorySearch = document.getElementById('skillCategorySearch').value.toLowerCase();
-      const descriptionSearch = document.getElementById('skillDescriptionSearch').value.toLowerCase();
-      const proficiencySearch = document.getElementById('skillProficiencySearch').value.toLowerCase();
+    function getStatusColor(status) {
+      switch (status) {
+        case 'completed': return '#28a745';
+        case 'in-progress': return '#ffc107';
+        case 'planned': return '#6c757d';
+        case 'deprecated': return '#dc3545';
+        default: return '#6c757d';
+      }
+    }
+
+    function getCategoryColor(category) {
+      switch (category) {
+        case 'frontend': return '#007bff';
+        case 'backend': return '#28a745';
+        case 'database': return '#fd7e14';
+        case 'deployment': return '#6f42c1';
+        case 'design': return '#e83e8c';
+        case 'testing': return '#20c997';
+        case 'documentation': return '#17a2b8';
+        default: return '#6c757d';
+      }
+    }
+
+    function applyAgentSkillFilters(skills) {
+      const statusFilter = document.getElementById('skillStatusFilter').value;
+      const categoryFilter = document.getElementById('skillCategoryFilter').value;
+      const searchFilter = document.getElementById('skillSearch').value.toLowerCase();
 
       return skills.filter(skill => {
-        const matchesName = !nameSearch || skill.name.toLowerCase().includes(nameSearch);
-        const matchesCategory = !categorySearch || skill.category.toLowerCase().includes(categorySearch);
-        const matchesDescription = !descriptionSearch || (skill.description || '').toLowerCase().includes(descriptionSearch);
-        const matchesProficiency = !proficiencySearch || skill.proficiency.toLowerCase().includes(proficiencySearch);
+        const matchesStatus = !statusFilter || skill.status === statusFilter;
+        const matchesCategory = !categoryFilter || skill.category === categoryFilter;
+        const matchesSearch = !searchFilter ||
+          skill.name.toLowerCase().includes(searchFilter) ||
+          skill.description.toLowerCase().includes(searchFilter) ||
+          (skill.tags && skill.tags.some(tag => tag.toLowerCase().includes(searchFilter)));
 
-        return matchesName && matchesCategory && matchesDescription && matchesProficiency;
+        return matchesStatus && matchesCategory && matchesSearch;
       });
     }
 
-    function addSkill() {
+    function createSkill() {
       showModal({
-        title: 'Add Skill',
+        title: 'Create New Skill',
         body: `
           <div style="margin-bottom:15px;">
-            <label style="display:block; margin-bottom:5px;">Skill Name *</label>
-            <input type="text" id="skillNameInput" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="display:block; margin-bottom:5px;">Skill Name * <small>(kebab-case, e.g., email-integration)</small></label>
+            <input type="text" id="skillNameInput" style="width:100%; padding:8px; border:1px solid #000;" placeholder="email-system-integration">
           </div>
           <div style="margin-bottom:15px;">
             <label style="display:block; margin-bottom:5px;">Category *</label>
             <select id="skillCategoryInput" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">
               <option value="">Select Category</option>
-              <option value="Programming">Programming</option>
-              <option value="Design">Design</option>
-              <option value="Marketing">Marketing</option>
-              <option value="Management">Management</option>
-              <option value="Communication">Communication</option>
-              <option value="Technical">Technical</option>
-              <option value="Other">Other</option>
+              <option value="frontend">Frontend</option>
+              <option value="backend">Backend</option>
+              <option value="database">Database</option>
+              <option value="deployment">Deployment</option>
+              <option value="design">Design</option>
+              <option value="testing">Testing</option>
+              <option value="documentation">Documentation</option>
+              <option value="other">Other</option>
             </select>
           </div>
           <div style="margin-bottom:15px;">
-            <label style="display:block; margin-bottom:5px;">Description</label>
-            <textarea id="skillDescriptionInput" style="width:100%; min-height:60px; padding:8px; border:1px solid #000;"></textarea>
+            <label style="display:block; margin-bottom:5px;">Status *</label>
+            <select id="skillStatusInput" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">
+              <option value="planned">Planned</option>
+              <option value="in-progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="deprecated">Deprecated</option>
+            </select>
           </div>
           <div style="margin-bottom:15px;">
-            <label style="display:block; margin-bottom:5px;">Proficiency *</label>
-            <select id="skillProficiencyInput" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">
-              <option value="">Select Proficiency</option>
-              <option value="Beginner">Beginner</option>
-              <option value="Intermediate">Intermediate</option>
-              <option value="Advanced">Advanced</option>
-              <option value="Expert">Expert</option>
-            </select>
+            <label style="display:block; margin-bottom:5px;">Version *</label>
+            <input type="text" id="skillVersionInput" value="1.0.0" style="width:100%; padding:8px; border:1px solid #000;" placeholder="1.0.0">
+          </div>
+          <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:5px;">Description *</label>
+            <textarea id="skillDescriptionInput" style="width:100%; min-height:80px; padding:8px; border:1px solid #000;" placeholder="Brief description of what this skill accomplishes"></textarea>
+          </div>
+          <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:5px;">Tags <small>(comma-separated)</small></label>
+            <input type="text" id="skillTagsInput" style="width:100%; padding:8px; border:1px solid #000;" placeholder="ui, email, integration">
           </div>
         `,
         buttons: [
           { text: 'Cancel', action: 'close' },
-          { text: 'Add Skill', action: 'add', primary: true }
+          { text: 'Create Skill', action: 'create', primary: true }
         ]
       });
 
-      // Handle add skill
-      const addBtn = document.querySelector('.modal-btn[data-action="add"]');
-      if (addBtn) {
-        addBtn.onclick = () => {
+      // Handle create skill
+      const createBtn = document.querySelector('.modal-btn[data-action="create"]');
+      if (createBtn) {
+        createBtn.onclick = () => {
           const name = document.getElementById('skillNameInput').value.trim();
           const category = document.getElementById('skillCategoryInput').value;
+          const status = document.getElementById('skillStatusInput').value;
+          const version = document.getElementById('skillVersionInput').value.trim();
           const description = document.getElementById('skillDescriptionInput').value.trim();
-          const proficiency = document.getElementById('skillProficiencyInput').value;
+          const tagsInput = document.getElementById('skillTagsInput').value.trim();
 
-          if (!name || !category || !proficiency) {
-            alert('Please fill in all required fields.');
+          if (!name || !category || !status || !version || !description) {
+            showModal({
+              title: 'Validation Error',
+              body: 'Please fill in all required fields marked with *.',
+              buttons: [{ text: 'OK', action: 'close' }]
+            });
             return;
           }
 
-          currentSkills.push({
-            id: Date.now(),
+          const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+          const now = new Date().toISOString().split('T')[0];
+
+          const skillData = {
             name,
             category,
+            status,
+            version,
             description,
-            proficiency
-          });
+            tags,
+            created: now,
+            updated: now
+          };
 
-          saveSkills();
-          displaySkills();
+          fetch('/api/skills', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(skillData)
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
           closeModal();
+              loadAgentSkills();
+              showModal({
+                title: 'Success',
+                body: `Skill "${name}" created successfully!`,
+                buttons: [{ text: 'OK', action: 'close' }]
+              });
+            } else {
+              throw new Error(data.error);
+            }
+          })
+          .catch(error => {
+            showModal({
+              title: 'Error',
+              body: `Failed to create skill: ${error.message}`,
+              buttons: [{ text: 'OK', action: 'close' }]
+            });
+          });
         };
       }
     }
 
-    function editSkill(index) {
-      const skill = currentSkills[index];
-      if (!skill) return;
+    function viewSkill(skillName) {
+      fetch(`/api/skills/${skillName}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const skill = data.skill;
+            let body = '<div style="margin-bottom:15px;">' +
+              '<strong>Name:</strong> ' + skill.name +
+            '</div>' +
+            '<div style="margin-bottom:15px;">' +
+              '<strong>Status:</strong> <span style="background:' + getStatusColor(skill.status) + '; color:#fff; padding:2px 6px; font-size:11px; font-weight:600;">' + skill.status.toUpperCase() + '</span>' +
+            '</div>' +
+            '<div style="margin-bottom:15px;">' +
+              '<strong>Category:</strong> <span style="background:' + getCategoryColor(skill.category) + '; color:#fff; padding:2px 6px; font-size:11px; font-weight:600;">' + skill.category.toUpperCase() + '</span>' +
+            '</div>' +
+            '<div style="margin-bottom:15px;">' +
+              '<strong>Version:</strong> ' + skill.version +
+            '</div>' +
+            '<div style="margin-bottom:15px;">' +
+              '<strong>Description:</strong><br>' + skill.description +
+            '</div>';
 
+            if (skill.tags && skill.tags.length > 0) {
+              body += `<div style="margin-bottom:15px;"><strong>Tags:</strong> ${skill.tags.join(', ')}</div>`;
+            }
+
+            if (skill.changes && skill.changes.length > 0) {
+              body += `<div style="margin-bottom:15px;"><strong>Changes:</strong><ul>`;
+              skill.changes.forEach(change => {
+                body += `<li><strong>${change.component}:</strong> ${change.description}`;
+                if (change.impact) body += ` <em>(${change.impact})</em>`;
+                body += `</li>`;
+              });
+              body += `</ul></div>`;
+            }
+
+            if (skill.dependencies && skill.dependencies.length > 0) {
+              body += `<div style="margin-bottom:15px;"><strong>Dependencies:</strong> ${skill.dependencies.join(', ')}</div>`;
+            }
+
+            body += `
+              <div style="margin-bottom:15px;">
+                <strong>Created:</strong> ${skill.created}
+              </div>
+              <div style="margin-bottom:15px;">
+                <strong>Updated:</strong> ${skill.updated}
+              </div>
+            `;
+
+            showModal({
+              title: `Skill: ${skill.name}`,
+              body: body,
+              buttons: [{ text: 'Close', action: 'close' }]
+            });
+          } else {
+            throw new Error(data.error);
+          }
+        })
+        .catch(error => {
+          showModal({
+            title: 'Error',
+            body: `Failed to load skill details: ${error.message}`,
+            buttons: [{ text: 'OK', action: 'close' }]
+          });
+        });
+    }
+
+    function editSkill(skillName) {
+      // Load skill data first
+      fetch(`/api/skills/${skillName}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const skill = data.skill;
       showModal({
         title: 'Edit Skill',
         body: `
           <div style="margin-bottom:15px;">
             <label style="display:block; margin-bottom:5px;">Skill Name *</label>
-            <input type="text" id="skillNameInput" value="${skill.name}" style="width:100%; padding:8px; border:1px solid #000;">
+                  <input type="text" id="editSkillNameInput" value="${skill.name}" style="width:100%; padding:8px; border:1px solid #000;" readonly>
+                  <small style="color:#666;">Skill name cannot be changed</small>
           </div>
           <div style="margin-bottom:15px;">
             <label style="display:block; margin-bottom:5px;">Category *</label>
-            <select id="skillCategoryInput" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">
-              <option value="">Select Category</option>
-              <option value="Programming" ${skill.category === 'Programming' ? 'selected' : ''}>Programming</option>
-              <option value="Design" ${skill.category === 'Design' ? 'selected' : ''}>Design</option>
-              <option value="Marketing" ${skill.category === 'Marketing' ? 'selected' : ''}>Marketing</option>
-              <option value="Management" ${skill.category === 'Management' ? 'selected' : ''}>Management</option>
-              <option value="Communication" ${skill.category === 'Communication' ? 'selected' : ''}>Communication</option>
-              <option value="Technical" ${skill.category === 'Technical' ? 'selected' : ''}>Technical</option>
-              <option value="Other" ${skill.category === 'Other' ? 'selected' : ''}>Other</option>
+                  <select id="editSkillCategoryInput" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">
+                    <option value="frontend" ${skill.category === 'frontend' ? 'selected' : ''}>Frontend</option>
+                    <option value="backend" ${skill.category === 'backend' ? 'selected' : ''}>Backend</option>
+                    <option value="database" ${skill.category === 'database' ? 'selected' : ''}>Database</option>
+                    <option value="deployment" ${skill.category === 'deployment' ? 'selected' : ''}>Deployment</option>
+                    <option value="design" ${skill.category === 'design' ? 'selected' : ''}>Design</option>
+                    <option value="testing" ${skill.category === 'testing' ? 'selected' : ''}>Testing</option>
+                    <option value="documentation" ${skill.category === 'documentation' ? 'selected' : ''}>Documentation</option>
+                    <option value="other" ${skill.category === 'other' ? 'selected' : ''}>Other</option>
             </select>
           </div>
           <div style="margin-bottom:15px;">
-            <label style="display:block; margin-bottom:5px;">Description</label>
-            <textarea id="skillDescriptionInput" style="width:100%; min-height:60px; padding:8px; border:1px solid #000;">${skill.description || ''}</textarea>
+                  <label style="display:block; margin-bottom:5px;">Status *</label>
+                  <select id="editSkillStatusInput" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">
+                    <option value="planned" ${skill.status === 'planned' ? 'selected' : ''}>Planned</option>
+                    <option value="in-progress" ${skill.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+                    <option value="completed" ${skill.status === 'completed' ? 'selected' : ''}>Completed</option>
+                    <option value="deprecated" ${skill.status === 'deprecated' ? 'selected' : ''}>Deprecated</option>
+                  </select>
           </div>
           <div style="margin-bottom:15px;">
-            <label style="display:block; margin-bottom:5px;">Proficiency *</label>
-            <select id="skillProficiencyInput" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">
-              <option value="">Select Proficiency</option>
-              <option value="Beginner" ${skill.proficiency === 'Beginner' ? 'selected' : ''}>Beginner</option>
-              <option value="Intermediate" ${skill.proficiency === 'Intermediate' ? 'selected' : ''}>Intermediate</option>
-              <option value="Advanced" ${skill.proficiency === 'Advanced' ? 'selected' : ''}>Advanced</option>
-              <option value="Expert" ${skill.proficiency === 'Expert' ? 'selected' : ''}>Expert</option>
-            </select>
+                  <label style="display:block; margin-bottom:5px;">Version *</label>
+                  <input type="text" id="editSkillVersionInput" value="${skill.version}" style="width:100%; padding:8px; border:1px solid #000;">
+                </div>
+                <div style="margin-bottom:15px;">
+                  <label style="display:block; margin-bottom:5px;">Description *</label>
+                  <textarea id="editSkillDescriptionInput" style="width:100%; min-height:80px; padding:8px; border:1px solid #000;">${skill.description}</textarea>
+                </div>
+                <div style="margin-bottom:15px;">
+                  <label style="display:block; margin-bottom:5px;">Tags <small>(comma-separated)</small></label>
+                  <input type="text" id="editSkillTagsInput" value="${skill.tags ? skill.tags.join(', ') : ''}" style="width:100%; padding:8px; border:1px solid #000;">
           </div>
         `,
         buttons: [
@@ -3603,51 +4127,124 @@
       const saveBtn = document.querySelector('.modal-btn[data-action="save"]');
       if (saveBtn) {
         saveBtn.onclick = () => {
-          const name = document.getElementById('skillNameInput').value.trim();
-          const category = document.getElementById('skillCategoryInput').value;
-          const description = document.getElementById('skillDescriptionInput').value.trim();
-          const proficiency = document.getElementById('skillProficiencyInput').value;
+                const category = document.getElementById('editSkillCategoryInput').value;
+                const status = document.getElementById('editSkillStatusInput').value;
+                const version = document.getElementById('editSkillVersionInput').value.trim();
+                const description = document.getElementById('editSkillDescriptionInput').value.trim();
+                const tagsInput = document.getElementById('editSkillTagsInput').value.trim();
 
-          if (!name || !category || !proficiency) {
-            alert('Please fill in all required fields.');
+                if (!category || !status || !version || !description) {
+                  showModal({
+                    title: 'Validation Error',
+                    body: 'Please fill in all required fields marked with *.',
+                    buttons: [{ text: 'OK', action: 'close' }]
+                  });
             return;
           }
 
-          currentSkills[index] = {
-            ...skill,
-            name,
-            category,
-            description,
-            proficiency
-          };
+                const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+                const now = new Date().toISOString().split('T')[0];
 
-          saveSkills();
-          displaySkills();
+                const updates = {
+            category,
+                  status,
+                  version,
+            description,
+                  tags,
+                  updated: now
+                };
+
+                fetch(`/api/skills/${skillName}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(updates)
+                })
+                .then(response => response.json())
+                .then(data => {
+                  if (data.success) {
           closeModal();
+                    loadAgentSkills();
+                    showModal({
+                      title: 'Success',
+                      body: `Skill "${skillName}" updated successfully!`,
+                      buttons: [{ text: 'OK', action: 'close' }]
+                    });
+                  } else {
+                    throw new Error(data.error);
+                  }
+                })
+                .catch(error => {
+                  showModal({
+                    title: 'Error',
+                    body: `Failed to update skill: ${error.message}`,
+                    buttons: [{ text: 'OK', action: 'close' }]
+                  });
+                });
+              };
+            }
+          } else {
+            throw new Error(data.error);
+          }
+        })
+        .catch(error => {
+          showModal({
+            title: 'Error',
+            body: `Failed to load skill for editing: ${error.message}`,
+            buttons: [{ text: 'OK', action: 'close' }]
+          });
+        });
+    }
+
+    function deleteSkill(skillName) {
+      showModal({
+        title: 'Confirm Delete',
+        body: `Are you sure you want to delete the skill "${skillName}"? This action cannot be undone.`,
+        buttons: [
+          { text: 'Cancel', action: 'close' },
+          { text: 'Delete', action: 'delete', primary: true }
+        ]
+      });
+
+      const deleteBtn = document.querySelector('.modal-btn[data-action="delete"]');
+      if (deleteBtn) {
+        deleteBtn.onclick = () => {
+          fetch(`/api/skills/${skillName}`, {
+            method: 'DELETE'
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              closeModal();
+              loadAgentSkills();
+              showModal({
+                title: 'Success',
+                body: `Skill "${skillName}" deleted successfully!`,
+                buttons: [{ text: 'OK', action: 'close' }]
+              });
+            } else {
+              throw new Error(data.error);
+            }
+          })
+          .catch(error => {
+            closeModal();
+            showModal({
+              title: 'Error',
+              body: `Failed to delete skill: ${error.message}`,
+              buttons: [{ text: 'OK', action: 'close' }]
+            });
+          });
         };
       }
     }
 
-    function deleteSkill(index) {
-      const skill = currentSkills[index];
-      if (!skill) return;
+    // Agent Skills panel event listeners
+    document.getElementById('addSkillBtn').onclick = () => createSkill();
+    document.getElementById('refreshSkillsBtn').onclick = () => loadAgentSkills();
 
-      if (confirm(`Are you sure you want to delete the skill "${skill.name}"?`)) {
-        currentSkills.splice(index, 1);
-        saveSkills();
-        displaySkills();
-      }
-    }
-
-    // Skills panel event listeners
-    document.getElementById('addSkillBtn').onclick = () => addSkill();
-    document.getElementById('refreshSkillsBtn').onclick = () => displaySkills();
-
-    // Skills search input event listeners
-    document.getElementById('skillNameSearch').addEventListener('input', () => displaySkills());
-    document.getElementById('skillCategorySearch').addEventListener('input', () => displaySkills());
-    document.getElementById('skillDescriptionSearch').addEventListener('input', () => displaySkills());
-    document.getElementById('skillProficiencySearch').addEventListener('input', () => displaySkills());
+    // Skills filter event listeners
+    document.getElementById('skillStatusFilter').addEventListener('change', () => displayAgentSkills());
+    document.getElementById('skillCategoryFilter').addEventListener('change', () => displayAgentSkills());
+    document.getElementById('skillSearch').addEventListener('input', () => displayAgentSkills());
     
     load();
   </script>

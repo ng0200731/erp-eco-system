@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Skill Documentation Schema",
+  "description": "Schema for documenting technical skills and implementations",
+  "type": "object",
+  "required": ["name", "description", "version", "status"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique skill identifier (kebab-case)",
+      "pattern": "^[a-z0-9-]+(-[a-z0-9]+)*$",
+      "minLength": 3,
+      "maxLength": 50
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of what this skill accomplishes",
+      "minLength": 10,
+      "maxLength": 200
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of the skill",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["planned", "in-progress", "completed", "deprecated"],
+      "description": "Current status of the skill implementation"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["frontend", "backend", "database", "deployment", "design", "testing", "documentation", "other"],
+      "description": "Primary category for this skill"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Additional tags for filtering and searching",
+      "uniqueItems": true
+    },
+    "changes": {
+      "type": "array",
+      "description": "List of changes made as part of this skill",
+      "items": {
+        "type": "object",
+        "properties": {
+          "component": {
+            "type": "string",
+            "description": "Component or file that was changed"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the change"
+          },
+          "impact": {
+            "type": "string",
+            "description": "Impact or benefit of this change"
+          }
+        },
+        "required": ["component", "description"]
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "description": "Skills that this skill depends on",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "created": {
+      "type": "string",
+      "description": "Date when skill was first created (YYYY-MM-DD format)"
+    },
+    "updated": {
+      "type": "string",
+      "description": "Date when skill was last updated (YYYY-MM-DD format)"
+    },
+    "author": {
+      "type": "string",
+      "description": "Person or team responsible for this skill"
+    }
+  }
+}
