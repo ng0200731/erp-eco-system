@@ -6,7 +6,16 @@ import nodemailer from 'nodemailer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
-import { createTask, getTaskById, listTasks, TASK_STATUS, updateTaskStatus, createSentEmail, listSentEmails, getSentEmailById, getSentEmailsCount } from './db/tasksDb.js';
+import {
+  createTask, getTaskById, listTasks, TASK_STATUS, updateTaskStatus,
+  createSentEmail, listSentEmails, getSentEmailById, getSentEmailsCount,
+  // Customer functions
+  getAllCustomers, getCustomerById, createCustomer, updateCustomer, deleteCustomer, createCustomerMember,
+  // Quotation functions
+  getAllQuotations, getQuotationById, createQuotation, updateQuotation, deleteQuotation,
+  // Skills functions
+  getAllSkills, getSkillsStats, getSkillByName, getSkillById, createSkill, updateSkill, deleteSkill
+} from './db/tasksDb.js';
 import SkillManager from './skills/skillManager.js';
 
 // ---------- ENV ----------
@@ -1660,7 +1669,281 @@ app.post('/api/email/test', async (req, res) => {
 // ---------- SKILL MANAGEMENT API ----------
 if (skillManager) {
   // Get all skills
-  app.get('/api/skills', (req, res) => {
+  // ========== CUSTOMER API ENDPOINTS ==========
+
+  app.get('/api/customers', async (req, res) => {
+    try {
+      const customers = await getAllCustomers();
+      res.json({ success: true, customers });
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch customers' });
+    }
+  });
+
+  app.get('/api/customers/:id', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const customer = await getCustomerById(id);
+      if (!customer) {
+        return res.status(404).json({ success: false, error: 'Customer not found' });
+      }
+      res.json({ success: true, customer });
+    } catch (error) {
+      console.error('Error fetching customer:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch customer' });
+    }
+  });
+
+  app.post('/api/customers', async (req, res) => {
+    try {
+      const customerData = req.body;
+
+      // Validate required fields
+      if (!customerData.companyName || !customerData.emailDomain || !customerData.companyType) {
+        return res.status(400).json({ success: false, error: 'Missing required fields' });
+      }
+
+      const customerId = await createCustomer(customerData);
+
+      // Create members if provided
+      if (customerData.members && Array.isArray(customerData.members)) {
+        for (const member of customerData.members) {
+          await createCustomerMember(customerId, member);
+        }
+      }
+
+      const customer = await getCustomerById(customerId);
+      res.json({ success: true, customer });
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      res.status(500).json({ success: false, error: 'Failed to create customer' });
+    }
+  });
+
+  app.put('/api/customers/:id', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const customerData = req.body;
+
+      const existing = await getCustomerById(id);
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'Customer not found' });
+      }
+
+      await updateCustomer(id, customerData);
+      const updated = await getCustomerById(id);
+      res.json({ success: true, customer: updated });
+    } catch (error) {
+      console.error('Error updating customer:', error);
+      res.status(500).json({ success: false, error: 'Failed to update customer' });
+    }
+  });
+
+  app.delete('/api/customers/:id', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const existing = await getCustomerById(id);
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'Customer not found' });
+      }
+
+      await deleteCustomer(id);
+      res.json({ success: true, message: 'Customer deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      res.status(500).json({ success: false, error: 'Failed to delete customer' });
+    }
+  });
+
+  // ========== QUOTATION API ENDPOINTS ==========
+
+  app.get('/api/quotations', async (req, res) => {
+    try {
+      const quotations = await getAllQuotations();
+      res.json({ success: true, quotations });
+    } catch (error) {
+      console.error('Error fetching quotations:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch quotations' });
+    }
+  });
+
+  app.get('/api/quotations/:id', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const quotation = await getQuotationById(id);
+      if (!quotation) {
+        return res.status(404).json({ success: false, error: 'Quotation not found' });
+      }
+      res.json({ success: true, quotation });
+    } catch (error) {
+      console.error('Error fetching quotation:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch quotation' });
+    }
+  });
+
+  app.post('/api/quotations', async (req, res) => {
+    try {
+      const quotationData = req.body;
+
+      // Validate required fields
+      if (!quotationData.customerName || !quotationData.productType || !quotationData.quantity) {
+        return res.status(400).json({ success: false, error: 'Missing required fields' });
+      }
+
+      const quotationId = await createQuotation(quotationData);
+      const quotation = await getQuotationById(quotationId);
+      res.json({ success: true, quotation });
+    } catch (error) {
+      console.error('Error creating quotation:', error);
+      res.status(500).json({ success: false, error: 'Failed to create quotation' });
+    }
+  });
+
+  app.put('/api/quotations/:id', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const quotationData = req.body;
+
+      const existing = await getQuotationById(id);
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'Quotation not found' });
+      }
+
+      await updateQuotation(id, quotationData);
+      const updated = await getQuotationById(id);
+      res.json({ success: true, quotation: updated });
+    } catch (error) {
+      console.error('Error updating quotation:', error);
+      res.status(500).json({ success: false, error: 'Failed to update quotation' });
+    }
+  });
+
+  app.delete('/api/quotations/:id', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const existing = await getQuotationById(id);
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'Quotation not found' });
+      }
+
+      await deleteQuotation(id);
+      res.json({ success: true, message: 'Quotation deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting quotation:', error);
+      res.status(500).json({ success: false, error: 'Failed to delete quotation' });
+    }
+  });
+
+  // ========== SKILL API ENDPOINTS (UPDATED TO USE DATABASE) ==========
+
+  app.get('/api/skills', async (req, res) => {
+    try {
+      const { status, category, search } = req.query;
+      let skills = await getAllSkills();
+
+      // Apply filters
+      if (status) {
+        skills = skills.filter(skill => skill.status === status);
+      }
+      if (category) {
+        skills = skills.filter(skill => skill.tags && skill.tags.includes(category));
+      }
+      if (search) {
+        const searchLower = search.toLowerCase();
+        skills = skills.filter(skill =>
+          skill.name.toLowerCase().includes(searchLower) ||
+          skill.description?.toLowerCase().includes(searchLower)
+        );
+      }
+
+      res.json({ success: true, skills });
+    } catch (error) {
+      console.error('Error fetching skills:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch skills' });
+    }
+  });
+
+  app.get('/api/skills/stats', async (req, res) => {
+    try {
+      const stats = await getSkillsStats();
+      res.json({ success: true, stats });
+    } catch (error) {
+      console.error('Error fetching skills stats:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch skills stats' });
+    }
+  });
+
+  app.get('/api/skills/:name', async (req, res) => {
+    try {
+      const skill = await getSkillByName(req.params.name);
+      if (!skill) {
+        return res.status(404).json({ success: false, error: 'Skill not found' });
+      }
+      res.json({ success: true, skill });
+    } catch (error) {
+      console.error('Error fetching skill:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch skill' });
+    }
+  });
+
+  app.post('/api/skills', async (req, res) => {
+    try {
+      const skillData = req.body;
+
+      // Validate required fields
+      if (!skillData.name || !skillData.version || !skillData.status) {
+        return res.status(400).json({ success: false, error: 'Missing required fields' });
+      }
+
+      const skillId = await createSkill(skillData);
+      const skill = await getSkillById(skillId);
+      res.json({ success: true, skill });
+    } catch (error) {
+      console.error('Error creating skill:', error);
+      res.status(500).json({ success: false, error: 'Failed to create skill' });
+    }
+  });
+
+  app.put('/api/skills/:name', async (req, res) => {
+    try {
+      const skillName = req.params.name;
+      const updates = req.body;
+
+      const existing = await getSkillByName(skillName);
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'Skill not found' });
+      }
+
+      updates.updated = new Date().toISOString();
+      await updateSkill(existing.id, { ...existing, ...updates });
+
+      const updated = await getSkillByName(skillName);
+      res.json({ success: true, skill: updated });
+    } catch (error) {
+      console.error('Error updating skill:', error);
+      res.status(500).json({ success: false, error: 'Failed to update skill' });
+    }
+  });
+
+  app.delete('/api/skills/:name', async (req, res) => {
+    try {
+      const skillName = req.params.name;
+      const existing = await getSkillByName(skillName);
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'Skill not found' });
+      }
+
+      await deleteSkill(existing.id);
+      res.json({ success: true, message: 'Skill deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting skill:', error);
+      res.status(500).json({ success: false, error: 'Failed to delete skill' });
+    }
+  });
+
+  // Keep the old skill manager endpoints for backward compatibility
+  app.get('/api/skills-old', (req, res) => {
     try {
       const { status, category, search } = req.query;
       let skills = skillManager.getAllSkills();

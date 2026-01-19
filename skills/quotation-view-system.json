@@ -1,0 +1,94 @@
+{
+  "name": "quotation-view-system",
+  "description": "Implements quotation view system with table display and filtering capabilities",
+  "version": "1.0.0",
+  "status": "completed",
+  "created": "2025-01-19",
+  "updated": "2025-01-19",
+  "tags": ["quotation", "view", "table", "filter", "localStorage"],
+  "components": {
+    "frontend": {
+      "files": ["public/index.html"],
+      "functions": [
+        "initializeQuotationViewPanel()",
+        "displayQuotations()",
+        "applyQuotationFilters()",
+        "viewQuotationDetails()",
+        "saveQuotationToStorage()",
+        "loadQuotationsFromStorage()"
+      ]
+    }
+  },
+  "features": [
+    {
+      "name": "Quotation Storage System",
+      "description": "localStorage-based quotation persistence system similar to customer storage",
+      "implementation": "Uses JSON storage with unique IDs and timestamps"
+    },
+    {
+      "name": "Table View with Filters",
+      "description": "Responsive table displaying quotations with real-time filtering",
+      "columns": [
+        "Customer Name",
+        "Contact Person",
+        "Email",
+        "Phone",
+        "Product Type",
+        "Quantity",
+        "Total (HKD)",
+        "Date Created"
+      ]
+    },
+    {
+      "name": "Advanced Filtering",
+      "description": "Input fields for each column with real-time filtering",
+      "filters": [
+        "Text filters for customer, contact, email, phone",
+        "Dropdown filter for product type",
+        "Numeric filters for quantity and total",
+        "Date filter for creation date"
+      ]
+    },
+    {
+      "name": "Detail Modal",
+      "description": "Click-to-view detailed quotation information",
+      "sections": [
+        "Customer Information",
+        "Product Details",
+        "Pricing Information",
+        "Notes",
+        "Creation Date"
+      ]
+    }
+  ],
+  "dependencies": [
+    "localStorage API",
+    "JSON parsing/stringification",
+    "DOM manipulation",
+    "Event handling"
+  ],
+  "data_structure": {
+    "quotation": {
+      "id": "number (timestamp)",
+      "customerName": "string",
+      "contactPerson": "string",
+      "email": "string",
+      "phone": "string",
+      "productType": "string (hang-tag|woven-label|care-label|heat-transfer|others)",
+      "productDetails": "object (material, size, printingMethod, etc.)",
+      "quantity": "number",
+      "unitPrice": "number",
+      "total": "number",
+      "notes": "string",
+      "dateCreated": "ISO string",
+      "status": "string (draft|approved|sent)"
+    }
+  },
+  "ui_components": {
+    "quotationViewPanel": "Main container div with table and filters",
+    "quotationsTable": "HTML table with filter inputs in headers",
+    "filter-input": "CSS class for filter input styling",
+    "refreshQuotationsBtn": "Button to reload quotation data"
+  }
+}
+

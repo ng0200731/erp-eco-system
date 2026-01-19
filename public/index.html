@@ -422,6 +422,7 @@
       <button id="menuQuotation" class="page-btn" data-short="Q" data-full="Quotation">Q</button>
         <div id="quotationSubmenu" class="submenu" style="display:none;">
           <button id="quotationCreateBtn" class="submenu-btn">Create</button>
+          <button id="quotationViewBtn" class="submenu-btn">View</button>
         </div>
       </div>
       <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
@@ -559,18 +560,103 @@
           <table id="customersTable" style="width:100%; border-collapse:collapse; border:1px solid #000;">
             <thead>
               <tr style="background:#f8f8f8;">
-                <th style="border:1px solid #000; padding:8px; text-align:left;">Company Name</th>
-                <th style="border:1px solid #000; padding:8px; text-align:left;">Type</th>
-                <th style="border:1px solid #000; padding:8px; text-align:left;">Email Domain</th>
-                <th style="border:1px solid #000; padding:8px; text-align:left;">Phone</th>
-                <th style="border:1px solid #000; padding:8px; text-align:left;">Website</th>
-                <th style="border:1px solid #000; padding:8px; text-align:left;">Members</th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Company Name</div>
+                  <input type="text" id="customerFilterName" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Type</div>
+                  <select id="customerFilterType" class="filter-input" style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                    <option value="">All Types</option>
+                    <option value="buyer">Buyer</option>
+                    <option value="agent">Agent</option>
+                  </select>
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Email Domain</div>
+                  <input type="text" id="customerFilterDomain" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Phone</div>
+                  <input type="text" id="customerFilterPhone" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Website</div>
+                  <input type="text" id="customerFilterWebsite" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Members</div>
+                  <input type="text" id="customerFilterMembers" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
               </tr>
             </thead>
             <tbody id="customersTableBody">
               <tr>
                 <td colspan="6" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
                   No customers saved yet. Create customers first.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Quotation View board -->
+      <div id="quotationViewPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
+        <div style="margin-bottom:15px;">
+          <button id="refreshQuotationsBtn" class="page-btn">Refresh List</button>
+        </div>
+
+        <!-- Quotation Table -->
+        <div id="quotationsTableContainer">
+          <table id="quotationsTable" style="width:100%; border-collapse:collapse; border:1px solid #000;">
+            <thead>
+              <tr style="background:#f8f8f8;">
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Customer Name</div>
+                  <input type="text" id="quotationFilterCustomer" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Contact Person</div>
+                  <input type="text" id="quotationFilterContact" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Email</div>
+                  <input type="text" id="quotationFilterEmail" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Phone</div>
+                  <input type="text" id="quotationFilterPhone" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Product Type</div>
+                  <select id="quotationFilterType" class="filter-input" style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                    <option value="">All Types</option>
+                    <option value="hang-tag">Hang Tag</option>
+                    <option value="woven-label">Woven Label</option>
+                    <option value="care-label">Care Label</option>
+                    <option value="heat-transfer">Heat Transfer</option>
+                    <option value="others">Others</option>
+                  </select>
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Quantity</div>
+                  <input type="text" id="quotationFilterQuantity" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Total (HKD)</div>
+                  <input type="text" id="quotationFilterTotal" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Date Created</div>
+                  <input type="text" id="quotationFilterDate" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+              </tr>
+            </thead>
+            <tbody id="quotationsTableBody">
+              <tr>
+                <td colspan="8" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+                  No quotations saved yet. Create quotations first.
                 </td>
               </tr>
             </tbody>
@@ -1232,6 +1318,7 @@
       document.getElementById('tasksPanel').style.display = id === 'tasks' ? 'block' : 'none';
       document.getElementById('skillsPanel').style.display = id === 'skills' ? 'block' : 'none';
       document.getElementById('quotationPanel').style.display = id === 'quotation' ? 'block' : 'none';
+      document.getElementById('quotationViewPanel').style.display = id === 'quotation-view' ? 'block' : 'none';
       // settingsPanel is shown inline within profiles when a profile is clicked
       settingsPanel.style.display = 'none';
 
@@ -1550,6 +1637,14 @@
       ensureTab('quotation', 'Quotation (create)');
       activateTab('quotation');
       initializeQuotationPanel();
+    };
+
+    quotationViewBtn.onclick = () => {
+      // Hide submenu and go to quotation view
+      document.getElementById('quotationSubmenu').style.display = 'none';
+      ensureTab('quotation-view', 'Quotation (View)');
+      activateTab('quotation-view');
+      initializeQuotationViewPanel();
     };
 
     // Add profile button
@@ -2988,7 +3083,7 @@
       }
     }
 
-    function saveCustomerInfo() {
+    async function saveCustomerInfo() {
       const companyName = document.getElementById('companyName').value.trim();
       const emailDomain = document.getElementById('emailDomain').value.trim();
       const companyAddress = document.getElementById('companyAddress').value.trim();
@@ -3097,7 +3192,7 @@
       });
     }
 
-    function saveMember(index) {
+    async function saveMember(index) {
       const memberDiv = document.querySelectorAll('.member-item')[index];
       const name = memberDiv.querySelector('.member-name').value.trim();
       const emailPrefix = memberDiv.querySelector('.member-email-prefix').value.trim();
@@ -3123,8 +3218,8 @@
       // Update current customer with members
       if (currentCustomerData) {
         currentCustomerData.members = [...membersData];
-        // Save to localStorage
-        saveCustomerToStorage(currentCustomerData);
+      // Save to database
+      await saveCustomerToStorage(currentCustomerData);
       }
 
       // Handle save completion with add more prompt
@@ -3306,47 +3401,67 @@
       });
     }
 
-    function saveCustomerToStorage(customer) {
+    async function saveCustomerToStorage(customer) {
       try {
-        // Load existing customers
-        const existing = JSON.parse(localStorage.getItem('erpCustomers') || '[]');
+        const response = await fetch(`/api/customers${customer.id ? `/${customer.id}` : ''}`, {
+          method: customer.id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(customer)
+        });
 
-        // Check if customer already exists (update) or add new
-        const existingIndex = existing.findIndex(c => c.id === customer.id);
-        if (existingIndex >= 0) {
-          existing[existingIndex] = customer;
-        } else {
-          existing.push(customer);
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to save customer');
         }
-
-        // Save back to localStorage
-        localStorage.setItem('erpCustomers', JSON.stringify(existing));
-        savedCustomers = existing;
 
         // Refresh autocomplete if it exists
         if (window.customerAutocomplete) {
           window.customerAutocomplete.refreshCustomers();
         }
 
-        console.log('Customer saved:', customer);
+        console.log('Customer saved:', result.customer);
+        return result.customer;
       } catch (error) {
-        console.error('Error saving customer:', error);
+        console.error('Error saving customer to database:', error);
+        throw error;
       }
     }
 
-    function loadCustomersFromStorage() {
+    async function loadCustomersFromStorage() {
       try {
-        savedCustomers = JSON.parse(localStorage.getItem('erpCustomers') || '[]');
-        return savedCustomers;
+        const response = await fetch('/api/customers');
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to load customers');
+        }
+        return result.customers || [];
       } catch (error) {
-        console.error('Error loading customers:', error);
+        console.error('Error loading customers from database:', error);
         return [];
       }
     }
 
-    function displayCustomers() {
+    async function deleteCustomerFromStorage(customerId) {
+      try {
+        const response = await fetch(`/api/customers/${customerId}`, {
+          method: 'DELETE'
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to delete customer');
+        }
+
+        return true;
+      } catch (error) {
+        console.error('Error deleting customer from database:', error);
+        throw error;
+      }
+    }
+
+    async function displayCustomers() {
       const tbody = document.getElementById('customersTableBody');
-      const customers = loadCustomersFromStorage();
+      const customers = await loadCustomersFromStorage();
 
       if (customers.length === 0) {
         tbody.innerHTML = `
@@ -3408,7 +3523,29 @@
     }
 
     function applyCustomerFilters(customers) {
-      return customers; // No filtering applied
+      const filters = {
+        name: document.getElementById('customerFilterName').value.toLowerCase().trim(),
+        type: document.getElementById('customerFilterType').value,
+        domain: document.getElementById('customerFilterDomain').value.toLowerCase().trim(),
+        phone: document.getElementById('customerFilterPhone').value.toLowerCase().trim(),
+        website: document.getElementById('customerFilterWebsite').value.toLowerCase().trim(),
+        members: document.getElementById('customerFilterMembers').value.toLowerCase().trim()
+      };
+
+      return customers.filter(customer => {
+        if (filters.name && !customer.companyName.toLowerCase().includes(filters.name)) return false;
+        if (filters.type && customer.companyType !== filters.type) return false;
+        if (filters.domain && !customer.emailDomain.toLowerCase().includes(filters.domain)) return false;
+        if (filters.phone && !customer.companyTel?.toLowerCase().includes(filters.phone)) return false;
+        if (filters.website && !customer.companyWebsite?.toLowerCase().includes(filters.website)) return false;
+        if (filters.members && customer.members && customer.members.length > 0) {
+          const memberNames = customer.members.map(m => m.name.toLowerCase()).join(' ');
+          if (!memberNames.includes(filters.members)) return false;
+        } else if (filters.members) {
+          return false; // No members but filter requires members
+        }
+        return true;
+      });
     }
 
     function addDummyMember() {
@@ -3518,13 +3655,386 @@
       });
     }
 
-    function initializeCustomerViewPanel() {
+    async function initializeCustomerViewPanel() {
       // Refresh button functionality
       const refreshBtn = document.getElementById('refreshCustomersBtn');
-      refreshBtn.onclick = () => displayCustomers();
+      refreshBtn.onclick = async () => await displayCustomers();
+
+      // Set up filter event listeners
+      const filterInputs = document.querySelectorAll('#customerViewPanel .filter-input');
+      filterInputs.forEach(input => {
+        input.addEventListener('input', async () => await displayCustomers());
+        input.addEventListener('change', async () => await displayCustomers());
+      });
 
       // Load customers on initialization
-      displayCustomers();
+      await displayCustomers();
+    }
+
+    async function initializeQuotationViewPanel() {
+      // Refresh button functionality
+      const refreshBtn = document.getElementById('refreshQuotationsBtn');
+      refreshBtn.onclick = async () => await displayQuotations();
+
+      // Set up filter event listeners
+      const filterInputs = document.querySelectorAll('#quotationViewPanel .filter-input');
+      filterInputs.forEach(input => {
+        input.addEventListener('input', async () => await displayQuotations());
+        input.addEventListener('change', async () => await displayQuotations());
+      });
+
+      // Load quotations on initialization
+      await displayQuotations();
+    }
+
+    async function displayQuotations() {
+      const tbody = document.getElementById('quotationsTableBody');
+      const quotations = await loadQuotationsFromStorage();
+
+      if (quotations.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+              No quotations saved yet. Create quotations first.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      // Apply filters
+      const filteredQuotations = applyQuotationFilters(quotations);
+
+      if (filteredQuotations.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+              No quotations match the current filters.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      // Sort by date created (newest first)
+      filteredQuotations.sort((a, b) => new Date(b.dateCreated) - new Date(a.dateCreated));
+
+      tbody.innerHTML = filteredQuotations.map(quotation => `
+        <tr style="cursor:pointer;" onclick="viewQuotationDetails(${quotation.id})">
+          <td style="border:1px solid #000; padding:8px;">${quotation.customerName}</td>
+          <td style="border:1px solid #000; padding:8px;">${quotation.contactPerson || 'N/A'}</td>
+          <td style="border:1px solid #000; padding:8px;">${quotation.email || 'N/A'}</td>
+          <td style="border:1px solid #000; padding:8px;">${quotation.phone || 'N/A'}</td>
+          <td style="border:1px solid #000; padding:8px;">${getProductTypeDisplayName(quotation.productType)}</td>
+          <td style="border:1px solid #000; padding:8px; text-align:right;">${quotation.quantity.toLocaleString()}</td>
+          <td style="border:1px solid #000; padding:8px; text-align:right;">${quotation.total.toFixed(2)}</td>
+          <td style="border:1px solid #000; padding:8px;">${new Date(quotation.dateCreated).toLocaleDateString()}</td>
+        </tr>
+      `).join('');
+    }
+
+    function applyQuotationFilters(quotations) {
+      const filters = {
+        customer: document.getElementById('quotationFilterCustomer').value.toLowerCase().trim(),
+        contact: document.getElementById('quotationFilterContact').value.toLowerCase().trim(),
+        email: document.getElementById('quotationFilterEmail').value.toLowerCase().trim(),
+        phone: document.getElementById('quotationFilterPhone').value.toLowerCase().trim(),
+        type: document.getElementById('quotationFilterType').value,
+        quantity: document.getElementById('quotationFilterQuantity').value.toLowerCase().trim(),
+        total: document.getElementById('quotationFilterTotal').value.toLowerCase().trim(),
+        date: document.getElementById('quotationFilterDate').value.toLowerCase().trim()
+      };
+
+      return quotations.filter(quotation => {
+        if (filters.customer && !quotation.customerName.toLowerCase().includes(filters.customer)) return false;
+        if (filters.contact && !quotation.contactPerson?.toLowerCase().includes(filters.contact)) return false;
+        if (filters.email && !quotation.email?.toLowerCase().includes(filters.email)) return false;
+        if (filters.phone && !quotation.phone?.toLowerCase().includes(filters.phone)) return false;
+        if (filters.type && quotation.productType !== filters.type) return false;
+        if (filters.quantity && !quotation.quantity.toString().includes(filters.quantity)) return false;
+        if (filters.total && !quotation.total.toString().includes(filters.total)) return false;
+        if (filters.date && !new Date(quotation.dateCreated).toLocaleDateString().toLowerCase().includes(filters.date)) return false;
+        return true;
+      });
+    }
+
+    function getProductTypeDisplayName(type) {
+      const names = {
+        'hang-tag': 'Hang Tag',
+        'woven-label': 'Woven Label',
+        'care-label': 'Care Label',
+        'heat-transfer': 'Heat Transfer',
+        'others': 'Others'
+      };
+      return names[type] || type;
+    }
+
+    function viewQuotationDetails(quotationId) {
+      const quotations = loadQuotationsFromStorage();
+      const quotation = quotations.find(q => q.id === quotationId);
+
+      if (!quotation) {
+        showModal({
+          title: 'Error',
+          body: 'Quotation not found.',
+          buttons: [{ text: 'OK', action: 'close' }]
+        });
+        return;
+      }
+
+      // Generate the quotation form HTML for this product type
+      const tagName = getProductTypeDisplayName(quotation.productType);
+      const formHtml = generateQuotationContent(quotation.productType, tagName);
+
+      // Create modal with the form
+      const modalContent = `
+        <div style="max-width: 800px; max-height: 70vh; overflow-y: auto;">
+          <div style="margin-bottom: 15px; padding: 10px; background: #f8f8f8; border: 1px solid #000;">
+            <strong>Quotation Details</strong> - Created: ${new Date(quotation.dateCreated).toLocaleString()}
+            <span style="float: right; font-size: 0.9em; color: #666;">Status: ${quotation.status || 'Draft'}</span>
+          </div>
+          <div id="quotationViewFormContainer">
+            ${formHtml}
+          </div>
+        </div>
+      `;
+
+      // Create a custom modal overlay for the quotation form
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.style.zIndex = '11000';
+
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.style.maxWidth = '900px';
+      modal.style.width = '90vw';
+
+      const header = document.createElement('div');
+      header.className = 'modal-header';
+      header.textContent = `Quotation Details - ${quotation.customerName}`;
+
+      const body = document.createElement('div');
+      body.className = 'modal-body';
+      body.innerHTML = modalContent;
+
+      const actions = document.createElement('div');
+      actions.className = 'modal-actions';
+      actions.innerHTML = `
+        <button class="btn" onclick="closeQuotationViewModal()">Close</button>
+        <button class="btn primary" onclick="editQuotationFromView(${quotation.id})">Edit Quotation</button>
+        <button class="btn" style="background: #ff6b6b; color: white;" onclick="deleteQuotation(${quotation.id})">Delete</button>
+      `;
+
+      modal.appendChild(header);
+      modal.appendChild(body);
+      modal.appendChild(actions);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+
+      // Prevent body scroll when modal is open
+      document.body.classList.add('modal-open');
+
+      // Populate the form with quotation data
+      setTimeout(() => {
+        populateQuotationViewForm(quotation);
+      }, 100);
+
+      // Global function to close the modal
+      window.closeQuotationViewModal = function() {
+        document.body.removeChild(overlay);
+        document.body.classList.remove('modal-open');
+      };
+    }
+
+    function populateQuotationViewForm(quotation) {
+      // Disable and dim all input, textarea, and select elements in the form
+      const allFormElements = document.querySelectorAll('#quotationViewFormContainer input, #quotationViewFormContainer textarea, #quotationViewFormContainer select');
+      allFormElements.forEach(element => {
+        element.disabled = true;
+        element.readOnly = true;
+        element.style.backgroundColor = '#f5f5f5';
+        element.style.color = '#666';
+        element.style.cursor = 'not-allowed';
+      });
+
+      // Populate customer information
+      const customerNameField = document.getElementById('quotationCustomerName');
+      if (customerNameField) {
+        customerNameField.value = quotation.customerName;
+      }
+
+      // Populate contact person dropdown
+      const contactField = document.getElementById('quotationContactPerson');
+      if (contactField) {
+        contactField.innerHTML = `<option value="${quotation.contactPerson}" selected>${quotation.contactPerson}</option>`;
+      }
+
+      // Populate email and phone
+      const emailField = document.getElementById('quotationEmail');
+      if (emailField) {
+        emailField.value = quotation.email || '';
+      }
+
+      const phoneField = document.getElementById('quotationPhone');
+      if (phoneField) {
+        phoneField.value = quotation.phone || '';
+      }
+
+      // Populate product-specific fields
+      if (quotation.productDetails) {
+        Object.entries(quotation.productDetails).forEach(([key, value]) => {
+          const fieldId = `quotation${key.charAt(0).toUpperCase() + key.slice(1)}`;
+          const field = document.getElementById(fieldId);
+          if (field) {
+            field.value = value;
+          }
+        });
+      }
+
+      // Populate quantity and pricing
+      const quantityField = document.getElementById('quotationQuantity');
+      if (quantityField) {
+        quantityField.value = quotation.quantity;
+      }
+
+      const unitPriceField = document.getElementById('quotationUnitPrice');
+      if (unitPriceField) {
+        unitPriceField.value = quotation.unitPrice.toFixed(2);
+      }
+
+      const totalField = document.getElementById('quotationTotal');
+      if (totalField) {
+        totalField.value = quotation.total.toFixed(2);
+      }
+
+      // Populate notes
+      const notesField = document.getElementById('quotationNotes');
+      if (notesField) {
+        notesField.value = quotation.notes || '';
+      }
+
+      // Hide all action buttons in view mode
+      const allButtons = document.querySelectorAll('#quotationViewFormContainer button');
+      allButtons.forEach(button => {
+        button.style.display = 'none';
+      });
+
+      // Hide the action row completely
+      const formActions = document.querySelector('#quotationViewFormContainer .row:last-child');
+      if (formActions) {
+        formActions.style.display = 'none';
+      }
+    }
+
+    function editQuotationFromView(quotationId) {
+      // Close the view modal
+      closeQuotationViewModal();
+
+      // Switch to create tab and load the quotation for editing
+      ensureTab('quotation', 'Quotation (create)');
+      activateTab('quotation');
+
+      // Load the quotation data into the form for editing
+      const quotations = loadQuotationsFromStorage();
+      const quotation = quotations.find(q => q.id === quotationId);
+
+      if (quotation) {
+        // Switch to the appropriate product type tab
+        const quotationButtons = document.querySelectorAll('.quotation-tag-btn');
+        quotationButtons.forEach(button => {
+          if (button.dataset.tag === quotation.productType) {
+            button.click();
+          }
+        });
+
+        // Populate the form with quotation data for editing
+        setTimeout(() => {
+          populateQuotationForEditing(quotation);
+        }, 200);
+      }
+    }
+
+    function populateQuotationForEditing(quotation) {
+      // Populate customer name
+      const customerNameField = document.getElementById('quotationCustomerName');
+      if (customerNameField) {
+        customerNameField.value = quotation.customerName;
+      }
+
+      // Populate contact person
+      const contactField = document.getElementById('quotationContactPerson');
+      if (contactField) {
+        contactField.value = quotation.contactPerson;
+      }
+
+      // Populate email and phone
+      const emailField = document.getElementById('quotationEmail');
+      if (emailField) {
+        emailField.value = quotation.email || '';
+      }
+
+      const phoneField = document.getElementById('quotationPhone');
+      if (phoneField) {
+        phoneField.value = quotation.phone || '';
+      }
+
+      // Populate product-specific fields
+      if (quotation.productDetails) {
+        Object.entries(quotation.productDetails).forEach(([key, value]) => {
+          const fieldId = `quotation${key.charAt(0).toUpperCase() + key.slice(1)}`;
+          const field = document.getElementById(fieldId);
+          if (field) {
+            field.value = value;
+          }
+        });
+      }
+
+      // Populate quantity and pricing
+      const quantityField = document.getElementById('quotationQuantity');
+      if (quantityField) {
+        quantityField.value = quotation.quantity;
+        quantityField.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+
+      const unitPriceField = document.getElementById('quotationUnitPrice');
+      if (unitPriceField) {
+        unitPriceField.value = quotation.unitPrice.toFixed(2);
+        unitPriceField.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+
+      // Populate notes
+      const notesField = document.getElementById('quotationNotes');
+      if (notesField) {
+        notesField.value = quotation.notes || '';
+      }
+
+      // Store the quotation ID for updating
+      window.editingQuotationId = quotation.id;
+    }
+
+    async function deleteQuotation(quotationId) {
+      if (!confirm('Are you sure you want to delete this quotation? This action cannot be undone.')) {
+        return;
+      }
+
+      try {
+        await deleteQuotationFromStorage(quotationId);
+        closeQuotationViewModal();
+        await displayQuotations(); // Refresh the table
+
+        showModal({
+          title: 'Success',
+          body: 'Quotation deleted successfully.',
+          buttons: [{ text: 'OK', action: 'close' }]
+        });
+      } catch (error) {
+        console.error('Error deleting quotation:', error);
+        showModal({
+          title: 'Error',
+          body: 'Failed to delete quotation. Please try again.',
+          buttons: [{ text: 'OK', action: 'close' }]
+        });
+      }
     }
 
     // -------- QUOTATION TAG SELECTION --------
@@ -3576,19 +4086,38 @@
         if (contactPersonField) {
           contactPersonField.addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
-            if (selectedOption && selectedOption.dataset.memberData) {
+            const emailField = document.getElementById('quotationEmail');
+            const phoneField = document.getElementById('quotationPhone');
+
+            if (selectedOption && selectedOption.value && selectedOption.dataset.memberData) {
               const memberData = JSON.parse(selectedOption.dataset.memberData);
 
-              // Auto-populate email with member's email if available
-              const emailField = document.getElementById('quotationEmail');
-              if (emailField && memberData.emailPrefix && !emailField.value.includes('@')) {
+              // Auto-populate and disable email field
+              if (emailField && memberData.emailPrefix) {
                 emailField.value = `${memberData.emailPrefix}@${window.customerAutocomplete.selectedCustomer.emailDomain}`;
+                emailField.disabled = true;
+                emailField.style.backgroundColor = '#f5f5f5';
+                emailField.style.color = '#666';
               }
 
-              // Auto-populate phone with member's phone if available and company phone field is empty
-              const phoneField = document.getElementById('quotationPhone');
-              if (phoneField && memberData.tel && !phoneField.value.trim()) {
+              // Auto-populate and disable phone field
+              if (phoneField && memberData.tel) {
                 phoneField.value = memberData.tel;
+                phoneField.disabled = true;
+                phoneField.style.backgroundColor = '#f5f5f5';
+                phoneField.style.color = '#666';
+              }
+            } else {
+              // No contact person selected - enable fields for manual entry
+              if (emailField) {
+                emailField.disabled = false;
+                emailField.style.backgroundColor = '#fff';
+                emailField.style.color = '#000';
+              }
+              if (phoneField) {
+                phoneField.disabled = false;
+                phoneField.style.backgroundColor = '#fff';
+                phoneField.style.color = '#000';
               }
             }
           });
@@ -3828,6 +4357,23 @@
         if (contactField) {
           contactField.innerHTML = '<option value="">Select Contact Person</option>';
         }
+
+        // Re-enable email and phone fields
+        const emailField = document.getElementById('quotationEmail');
+        const phoneField = document.getElementById('quotationPhone');
+        if (emailField) {
+          emailField.disabled = false;
+          emailField.style.backgroundColor = '#fff';
+          emailField.style.color = '#000';
+        }
+        if (phoneField) {
+          phoneField.disabled = false;
+          phoneField.style.backgroundColor = '#fff';
+          phoneField.style.color = '#000';
+        }
+
+        // Clear edit mode
+        window.editingQuotationId = null;
       }
     };
 
@@ -3838,14 +4384,134 @@
       }
     };
 
-    window.saveQuotation = function(tagType) {
-      // TODO: Implement save functionality
-      showModal({
-        title: 'Save Quotation',
-        body: 'Save functionality will be implemented. For now, this is a placeholder.',
-        buttons: [{ text: 'OK', action: 'close' }]
-      });
+    window.saveQuotation = async function(tagType) {
+      try {
+        const customerName = document.getElementById('quotationCustomerName').value.trim();
+        const contactPerson = document.getElementById('quotationContactPerson').value;
+        const email = document.getElementById('quotationEmail').value.trim();
+        const phone = document.getElementById('quotationPhone').value.trim();
+        const quantity = document.getElementById('quotationQuantity').value;
+        const unitPrice = document.getElementById('quotationUnitPrice').value;
+        const total = document.getElementById('quotationTotal').value;
+        const notes = document.getElementById('quotationNotes').value.trim();
+
+        // Get product-specific fields
+        let productDetails = {};
+        if (tagType === 'hang-tag') {
+          productDetails = {
+            material: document.getElementById('quotationMaterial')?.value || '',
+            size: document.getElementById('quotationSize')?.value || '',
+            printingMethod: document.getElementById('quotationPrintingMethod')?.value || ''
+          };
+        }
+        // Add other product types as needed
+
+        // Validation
+        if (!customerName) {
+          showModal({ title: 'Validation Error', body: 'Customer Name is required.' });
+          return;
+        }
+        if (!quantity || quantity <= 0) {
+          showModal({ title: 'Validation Error', body: 'Quantity must be greater than 0.' });
+          return;
+        }
+
+        // Create quotation object
+        const quotation = {
+          id: window.editingQuotationId || Date.now(),
+          customerName,
+          contactPerson,
+          email,
+          phone,
+          productType: tagType,
+          productDetails,
+          quantity: parseInt(quantity),
+          unitPrice: parseFloat(unitPrice) || 0,
+          total: parseFloat(total) || 0,
+          notes,
+          dateCreated: window.editingQuotationId ?
+            loadQuotationsFromStorage().find(q => q.id === window.editingQuotationId)?.dateCreated || new Date().toISOString() :
+            new Date().toISOString(),
+          status: 'draft'
+        };
+
+        // Save to database
+        await saveQuotationToStorage(quotation);
+
+        // Clear edit mode
+        window.editingQuotationId = null;
+
+        showModal({
+          title: 'Success',
+          body: window.editingQuotationId ? 'Quotation updated successfully!' : 'Quotation saved successfully!',
+          buttons: [{ text: 'OK', action: 'close' }]
+        });
+
+        // Clear form
+        clearQuotationForm();
+
+      } catch (error) {
+        console.error('Error saving quotation:', error);
+        showModal({
+          title: 'Save Error',
+          body: 'Failed to save quotation. Please try again.',
+          buttons: [{ text: 'OK', action: 'close' }]
+        });
+      }
     };
+
+    async function saveQuotationToStorage(quotation) {
+      try {
+        const response = await fetch(`/api/quotations${quotation.id ? `/${quotation.id}` : ''}`, {
+          method: quotation.id ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(quotation)
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to save quotation');
+        }
+
+        console.log('Quotation saved:', result.quotation);
+        return result.quotation;
+      } catch (error) {
+        console.error('Error saving quotation to database:', error);
+        throw error;
+      }
+    }
+
+    async function loadQuotationsFromStorage() {
+      try {
+        const response = await fetch('/api/quotations');
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to load quotations');
+        }
+        return result.quotations || [];
+      } catch (error) {
+        console.error('Error loading quotations from database:', error);
+        return [];
+      }
+    }
+
+    async function deleteQuotationFromStorage(quotationId) {
+      try {
+        const response = await fetch(`/api/quotations/${quotationId}`, {
+          method: 'DELETE'
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to delete quotation');
+        }
+
+        return true;
+      } catch (error) {
+        console.error('Error deleting quotation from database:', error);
+        throw error;
+      }
+    }
 
     window.generateQuotation = function(tagType) {
       // TODO: Implement PDF generation
@@ -4129,9 +4795,9 @@
           if (data.success) {
             const stats = data.stats;
             document.getElementById('totalSkills').textContent = stats.total;
-            document.getElementById('completedSkills').textContent = stats.byStatus.completed || 0;
-            document.getElementById('inProgressSkills').textContent = stats.byStatus['in-progress'] || 0;
-            document.getElementById('plannedSkills').textContent = stats.byStatus.planned || 0;
+            document.getElementById('completedSkills').textContent = stats.completed || 0;
+            document.getElementById('inProgressSkills').textContent = stats.inProgress || 0;
+            document.getElementById('plannedSkills').textContent = stats.planned || 0;
           }
         })
         .catch(error => {

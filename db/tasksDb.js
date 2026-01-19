@@ -67,6 +67,62 @@ async function ensureSchema(db) {
       FOREIGN KEY (profile_id) REFERENCES profiles(id)
     );
 
+    CREATE TABLE IF NOT EXISTS customers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      companyName TEXT NOT NULL,
+      emailDomain TEXT NOT NULL,
+      companyAddress TEXT,
+      companyTel TEXT,
+      companyType TEXT NOT NULL,
+      companyWebsite TEXT,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS customer_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customerId INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      emailPrefix TEXT,
+      title TEXT,
+      tel TEXT,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL,
+      FOREIGN KEY (customerId) REFERENCES customers(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS quotations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customerName TEXT NOT NULL,
+      contactPerson TEXT,
+      email TEXT,
+      phone TEXT,
+      productType TEXT NOT NULL,
+      productDetails TEXT,
+      quantity INTEGER NOT NULL,
+      unitPrice REAL NOT NULL,
+      total REAL NOT NULL,
+      notes TEXT,
+      dateCreated TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft'
+    );
+
+    CREATE TABLE IF NOT EXISTS skills (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT,
+      version TEXT NOT NULL,
+      status TEXT NOT NULL,
+      created TEXT NOT NULL,
+      updated TEXT NOT NULL,
+      tags TEXT,
+      components TEXT,
+      features TEXT,
+      dependencies TEXT,
+      data_structure TEXT,
+      ui_components TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
     CREATE INDEX IF NOT EXISTS idx_tasks_createdAt ON tasks(createdAt);
     CREATE INDEX IF NOT EXISTS idx_tasks_sourceEmailUid ON tasks(sourceEmailUid);
@@ -74,6 +130,15 @@ async function ensureSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_sent_emails_sent_at ON sent_emails(sent_at DESC);
     CREATE INDEX IF NOT EXISTS idx_sent_emails_profile_id ON sent_emails(profile_id);
     CREATE INDEX IF NOT EXISTS idx_sent_emails_to_email ON sent_emails(to_email);
+    CREATE INDEX IF NOT EXISTS idx_customers_companyName ON customers(companyName);
+    CREATE INDEX IF NOT EXISTS idx_customers_emailDomain ON customers(emailDomain);
+    CREATE INDEX IF NOT EXISTS idx_customer_members_customerId ON customer_members(customerId);
+    CREATE INDEX IF NOT EXISTS idx_customer_members_name ON customer_members(name);
+    CREATE INDEX IF NOT EXISTS idx_quotations_customerName ON quotations(customerName);
+    CREATE INDEX IF NOT EXISTS idx_quotations_productType ON quotations(productType);
+    CREATE INDEX IF NOT EXISTS idx_quotations_dateCreated ON quotations(dateCreated DESC);
+    CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name);
+    CREATE INDEX IF NOT EXISTS idx_skills_status ON skills(status);
   `);
 }
 
@@ -334,6 +399,360 @@ export async function getSentEmailsCount({ profile_id, sender_email } = {}) {
 
   const result = await db.get(query, params);
   return result.count;
+}
+
+// ========== CUSTOMER FUNCTIONS ==========
+
+export async function createCustomer(customerData) {
+  const db = await getTasksDb();
+  const now = new Date().toISOString();
+
+  const result = await db.run(
+    `
+      INSERT INTO customers (companyName, emailDomain, companyAddress, companyTel, companyType, companyWebsite, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      customerData.companyName,
+      customerData.emailDomain,
+      customerData.companyAddress || null,
+      customerData.companyTel || null,
+      customerData.companyType,
+      customerData.companyWebsite || null,
+      now,
+      now
+    ]
+  );
+
+  return result.lastID;
+}
+
+export async function getCustomerById(id) {
+  const db = await getTasksDb();
+  const customer = await db.get(`SELECT * FROM customers WHERE id = ?`, [id]);
+
+  if (customer) {
+    // Get members
+    const members = await db.all(`SELECT * FROM customer_members WHERE customerId = ? ORDER BY name`, [id]);
+    customer.members = members;
+  }
+
+  return customer;
+}
+
+export async function getAllCustomers() {
+  const db = await getTasksDb();
+  const customers = await db.all(`SELECT * FROM customers ORDER BY companyName`);
+
+  // Get members for each customer
+  for (const customer of customers) {
+    const members = await db.all(`SELECT * FROM customer_members WHERE customerId = ? ORDER BY name`, [customer.id]);
+    customer.members = members;
+  }
+
+  return customers;
+}
+
+export async function updateCustomer(id, customerData) {
+  const db = await getTasksDb();
+  const now = new Date().toISOString();
+
+  await db.run(
+    `
+      UPDATE customers
+      SET companyName = ?, emailDomain = ?, companyAddress = ?, companyTel = ?, companyType = ?, companyWebsite = ?, updatedAt = ?
+      WHERE id = ?
+    `,
+    [
+      customerData.companyName,
+      customerData.emailDomain,
+      customerData.companyAddress || null,
+      customerData.companyTel || null,
+      customerData.companyType,
+      customerData.companyWebsite || null,
+      now,
+      id
+    ]
+  );
+
+  return true;
+}
+
+export async function deleteCustomer(id) {
+  const db = await getTasksDb();
+  await db.run(`DELETE FROM customers WHERE id = ?`, [id]);
+  return true;
+}
+
+export async function createCustomerMember(customerId, memberData) {
+  const db = await getTasksDb();
+  const now = new Date().toISOString();
+
+  const result = await db.run(
+    `
+      INSERT INTO customer_members (customerId, name, emailPrefix, title, tel, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      customerId,
+      memberData.name,
+      memberData.emailPrefix || null,
+      memberData.title || null,
+      memberData.tel || null,
+      now,
+      now
+    ]
+  );
+
+  return result.lastID;
+}
+
+export async function updateCustomerMember(id, memberData) {
+  const db = await getTasksDb();
+  const now = new Date().toISOString();
+
+  await db.run(
+    `
+      UPDATE customer_members
+      SET name = ?, emailPrefix = ?, title = ?, tel = ?, updatedAt = ?
+      WHERE id = ?
+    `,
+    [
+      memberData.name,
+      memberData.emailPrefix || null,
+      memberData.title || null,
+      memberData.tel || null,
+      now,
+      id
+    ]
+  );
+
+  return true;
+}
+
+export async function deleteCustomerMember(id) {
+  const db = await getTasksDb();
+  await db.run(`DELETE FROM customer_members WHERE id = ?`, [id]);
+  return true;
+}
+
+// ========== QUOTATION FUNCTIONS ==========
+
+export async function createQuotation(quotationData) {
+  const db = await getTasksDb();
+
+  const result = await db.run(
+    `
+      INSERT INTO quotations (customerName, contactPerson, email, phone, productType, productDetails, quantity, unitPrice, total, notes, dateCreated, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      quotationData.customerName,
+      quotationData.contactPerson || null,
+      quotationData.email || null,
+      quotationData.phone || null,
+      quotationData.productType,
+      JSON.stringify(quotationData.productDetails || {}),
+      quotationData.quantity,
+      quotationData.unitPrice,
+      quotationData.total,
+      quotationData.notes || null,
+      quotationData.dateCreated,
+      quotationData.status || 'draft'
+    ]
+  );
+
+  return result.lastID;
+}
+
+export async function getQuotationById(id) {
+  const db = await getTasksDb();
+  const quotation = await db.get(`SELECT * FROM quotations WHERE id = ?`, [id]);
+
+  if (quotation) {
+    quotation.productDetails = JSON.parse(quotation.productDetails || '{}');
+  }
+
+  return quotation;
+}
+
+export async function getAllQuotations() {
+  const db = await getTasksDb();
+  const quotations = await db.all(`SELECT * FROM quotations ORDER BY dateCreated DESC`);
+
+  // Parse productDetails JSON
+  for (const quotation of quotations) {
+    quotation.productDetails = JSON.parse(quotation.productDetails || '{}');
+  }
+
+  return quotations;
+}
+
+export async function updateQuotation(id, quotationData) {
+  const db = await getTasksDb();
+
+  await db.run(
+    `
+      UPDATE quotations
+      SET customerName = ?, contactPerson = ?, email = ?, phone = ?, productType = ?, productDetails = ?, quantity = ?, unitPrice = ?, total = ?, notes = ?, status = ?
+      WHERE id = ?
+    `,
+    [
+      quotationData.customerName,
+      quotationData.contactPerson || null,
+      quotationData.email || null,
+      quotationData.phone || null,
+      quotationData.productType,
+      JSON.stringify(quotationData.productDetails || {}),
+      quotationData.quantity,
+      quotationData.unitPrice,
+      quotationData.total,
+      quotationData.notes || null,
+      quotationData.status || 'draft',
+      id
+    ]
+  );
+
+  return true;
+}
+
+export async function deleteQuotation(id) {
+  const db = await getTasksDb();
+  await db.run(`DELETE FROM quotations WHERE id = ?`, [id]);
+  return true;
+}
+
+// ========== SKILL FUNCTIONS ==========
+
+export async function createSkill(skillData) {
+  const db = await getTasksDb();
+
+  const result = await db.run(
+    `
+      INSERT INTO skills (name, description, version, status, created, updated, tags, components, features, dependencies, data_structure, ui_components)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      skillData.name,
+      skillData.description || null,
+      skillData.version,
+      skillData.status,
+      skillData.created,
+      skillData.updated,
+      JSON.stringify(skillData.tags || []),
+      JSON.stringify(skillData.components || {}),
+      JSON.stringify(skillData.features || []),
+      JSON.stringify(skillData.dependencies || []),
+      JSON.stringify(skillData.data_structure || {}),
+      JSON.stringify(skillData.ui_components || {})
+    ]
+  );
+
+  return result.lastID;
+}
+
+export async function getSkillById(id) {
+  const db = await getTasksDb();
+  const skill = await db.get(`SELECT * FROM skills WHERE id = ?`, [id]);
+
+  if (skill) {
+    // Parse JSON fields
+    skill.tags = JSON.parse(skill.tags || '[]');
+    skill.components = JSON.parse(skill.components || '{}');
+    skill.features = JSON.parse(skill.features || '[]');
+    skill.dependencies = JSON.parse(skill.dependencies || '[]');
+    skill.data_structure = JSON.parse(skill.data_structure || '{}');
+    skill.ui_components = JSON.parse(skill.ui_components || '{}');
+  }
+
+  return skill;
+}
+
+export async function getSkillByName(name) {
+  const db = await getTasksDb();
+  const skill = await db.get(`SELECT * FROM skills WHERE name = ?`, [name]);
+
+  if (skill) {
+    // Parse JSON fields
+    skill.tags = JSON.parse(skill.tags || '[]');
+    skill.components = JSON.parse(skill.components || '{}');
+    skill.features = JSON.parse(skill.features || '[]');
+    skill.dependencies = JSON.parse(skill.dependencies || '[]');
+    skill.data_structure = JSON.parse(skill.data_structure || '{}');
+    skill.ui_components = JSON.parse(skill.ui_components || '{}');
+  }
+
+  return skill;
+}
+
+export async function getAllSkills() {
+  const db = await getTasksDb();
+  const skills = await db.all(`SELECT * FROM skills ORDER BY updated DESC`);
+
+  // Parse JSON fields
+  for (const skill of skills) {
+    skill.tags = JSON.parse(skill.tags || '[]');
+    skill.components = JSON.parse(skill.components || '{}');
+    skill.features = JSON.parse(skill.features || '[]');
+    skill.dependencies = JSON.parse(skill.dependencies || '[]');
+    skill.data_structure = JSON.parse(skill.data_structure || '{}');
+    skill.ui_components = JSON.parse(skill.ui_components || '{}');
+  }
+
+  return skills;
+}
+
+export async function updateSkill(id, skillData) {
+  const db = await getTasksDb();
+
+  await db.run(
+    `
+      UPDATE skills
+      SET name = ?, description = ?, version = ?, status = ?, updated = ?, tags = ?, components = ?, features = ?, dependencies = ?, data_structure = ?, ui_components = ?
+      WHERE id = ?
+    `,
+    [
+      skillData.name,
+      skillData.description || null,
+      skillData.version,
+      skillData.status,
+      skillData.updated,
+      JSON.stringify(skillData.tags || []),
+      JSON.stringify(skillData.components || {}),
+      JSON.stringify(skillData.features || []),
+      JSON.stringify(skillData.dependencies || []),
+      JSON.stringify(skillData.data_structure || {}),
+      JSON.stringify(skillData.ui_components || {}),
+      id
+    ]
+  );
+
+  return true;
+}
+
+export async function deleteSkill(id) {
+  const db = await getTasksDb();
+  await db.run(`DELETE FROM skills WHERE id = ?`, [id]);
+  return true;
+}
+
+export async function getSkillsStats() {
+  const db = await getTasksDb();
+  const stats = await db.get(`
+    SELECT
+      COUNT(*) as total,
+      SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+      SUM(CASE WHEN status = 'in-progress' THEN 1 ELSE 0 END) as inProgress,
+      SUM(CASE WHEN status = 'planned' THEN 1 ELSE 0 END) as planned
+    FROM skills
+  `);
+
+  return {
+    total: stats.total || 0,
+    completed: stats.completed || 0,
+    inProgress: stats.inProgress || 0,
+    planned: stats.planned || 0
+  };
 }
 
 

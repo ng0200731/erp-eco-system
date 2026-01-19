@@ -55,3 +55,4 @@ Skills are integrated into the main web application through:
 - Skills panel in the sidebar (K menu)
 - REST API endpoints for skill management
 - Real-time skill status updates
+
