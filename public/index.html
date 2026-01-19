@@ -346,6 +346,57 @@
       background: #000;
       color: #fff;
     }
+
+    /* Autocomplete dropdown styling */
+    .autocomplete-container {
+      position: relative;
+      width: 100%;
+    }
+    .autocomplete-input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #000;
+      background: #fff;
+      color: #000;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+    .autocomplete-input:focus {
+      outline: none;
+      border-color: #666;
+    }
+    .autocomplete-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1px solid #000;
+      border-top: none;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+      display: none;
+    }
+    .autocomplete-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+    }
+    .autocomplete-item:hover,
+    .autocomplete-item.highlighted {
+      background: #000;
+      color: #fff;
+    }
+    .autocomplete-item:last-child {
+      border-bottom: none;
+    }
+    .autocomplete-no-results {
+      padding: 8px 12px;
+      color: #666;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -928,6 +979,16 @@
           el.dispatchEvent(new Event('input', { bubbles: true }));
           continue;
         }
+        if (el.tagName === 'SELECT') {
+          if (hint.includes('contact') && hint.includes('person')) {
+            // Special handling for contact person - will be populated when customer is selected
+            continue;
+          }
+          const enabledOptions = Array.from(el.options).filter(o => !o.disabled && o.value !== '');
+          if (enabledOptions.length) el.value = randomFrom(enabledOptions).value;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          continue;
+        }
         if (type === 'email') {
           if (!el.value.trim()) el.value = `dummy${randomInt(10, 999)}@example.com`;
           el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -948,6 +1009,13 @@
           else if (hint.includes('smtp_port')) el.value = '465';
           else if (hint.includes('port')) el.value = '3001';
           else if (hint.includes('tls') || hint.includes('secure')) el.value = 'true';
+          else if (hint.includes('customer') && hint.includes('name')) el.value = 'ABC Company Ltd';
+          else if (hint.includes('contact') && hint.includes('person')) el.value = 'John Smith';
+          else if (hint.includes('phone')) el.value = '+852 ' + randomInt(90000000, 99999999);
+          else if (hint.includes('size')) el.value = randomInt(1, 5) + 'x' + randomInt(1, 8) + ' inches';
+          else if (hint.includes('width')) el.value = randomInt(1, 4) + ' inch';
+          else if (hint.includes('quantity')) el.value = String(randomFrom([500, 1000, 2000, 5000, 10000]));
+          else if (hint.includes('unit') && hint.includes('price')) el.value = String(randomFrom([0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0]));
           else el.value = 'Dummy ' + randomInt(1000, 9999);
         }
         el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -3255,6 +3323,11 @@
         localStorage.setItem('erpCustomers', JSON.stringify(existing));
         savedCustomers = existing;
 
+        // Refresh autocomplete if it exists
+        if (window.customerAutocomplete) {
+          window.customerAutocomplete.refreshCustomers();
+        }
+
         console.log('Customer saved:', customer);
       } catch (error) {
         console.error('Error saving customer:', error);
@@ -3492,6 +3565,36 @@
       const content = generateQuotationContent(tagType, tagName);
       subBoardContent.innerHTML = content;
 
+      // Initialize autocomplete for customer field
+      setTimeout(() => {
+        if (document.getElementById('quotationCustomerName')) {
+          window.customerAutocomplete = new CustomerAutocomplete('quotationCustomerName', 'customerAutocompleteDropdown');
+        }
+
+        // Add event listener for contact person selection
+        const contactPersonField = document.getElementById('quotationContactPerson');
+        if (contactPersonField) {
+          contactPersonField.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption && selectedOption.dataset.memberData) {
+              const memberData = JSON.parse(selectedOption.dataset.memberData);
+
+              // Auto-populate email with member's email if available
+              const emailField = document.getElementById('quotationEmail');
+              if (emailField && memberData.emailPrefix && !emailField.value.includes('@')) {
+                emailField.value = `${memberData.emailPrefix}@${window.customerAutocomplete.selectedCustomer.emailDomain}`;
+              }
+
+              // Auto-populate phone with member's phone if available and company phone field is empty
+              const phoneField = document.getElementById('quotationPhone');
+              if (phoneField && memberData.tel && !phoneField.value.trim()) {
+                phoneField.value = memberData.tel;
+              }
+            }
+          });
+        }
+      }, 100);
+
       // Set up event listeners for total calculation
       setTimeout(() => {
         const quantityInput = document.getElementById('quotationQuantity');
@@ -3525,11 +3628,16 @@
           '<div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">' +
             '<div>' +
               '<label style="display:block; margin-bottom:5px; font-weight:600;">Customer Name *</label>' +
-              '<input type="text" id="quotationCustomerName" style="width:100%; padding:8px; border:1px solid #000;" placeholder="Enter customer name">' +
+              '<div class="autocomplete-container">' +
+                '<input type="text" id="quotationCustomerName" class="autocomplete-input" placeholder="Enter customer name" autocomplete="off">' +
+                '<div id="customerAutocompleteDropdown" class="autocomplete-dropdown"></div>' +
+              '</div>' +
             '</div>' +
             '<div>' +
               '<label style="display:block; margin-bottom:5px; font-weight:600;">Contact Person</label>' +
-              '<input type="text" id="quotationContactPerson" style="width:100%; padding:8px; border:1px solid #000;" placeholder="Contact person">' +
+              '<select id="quotationContactPerson" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">' +
+                '<option value="">Select Contact Person</option>' +
+              '</select>' +
             '</div>' +
           '</div>' +
           '<div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">' +
@@ -3573,6 +3681,7 @@
         '</div>' +
 
         '<div style="display:flex; gap:10px; justify-content:flex-end;">' +
+          '<button type="button" class="page-btn" onclick="fillDummyQuotationForm()">Dummy Fill</button>' +
           '<button type="button" class="page-btn" onclick="clearQuotationForm()">Clear</button>' +
           '<button type="button" class="page-btn" onclick="saveQuotation(\'' + tagType + '\')">Save Quotation</button>' +
           '<button type="button" class="page-btn primary" onclick="generateQuotation(\'' + tagType + '\')">Generate PDF</button>' +
@@ -3713,6 +3822,19 @@
       if (form) {
         form.reset();
         document.getElementById('quotationTotal').value = '';
+
+        // Reset contact person dropdown to default state
+        const contactField = document.getElementById('quotationContactPerson');
+        if (contactField) {
+          contactField.innerHTML = '<option value="">Select Contact Person</option>';
+        }
+      }
+    };
+
+    window.fillDummyQuotationForm = function() {
+      const form = document.getElementById('quotationForm');
+      if (form) {
+        fillDummyForm(form);
       }
     };
 
@@ -3733,6 +3855,244 @@
         buttons: [{ text: 'OK', action: 'close' }]
       });
     };
+
+    // -------- FUZZY SEARCH AND AUTOCOMPLETE --------
+
+    // Fuzzy search function using Levenshtein distance
+    function fuzzySearch(query, target) {
+      if (!query || !target) return 0;
+
+      query = query.toLowerCase();
+      target = target.toLowerCase();
+
+      // Exact match gets highest score
+      if (target.includes(query)) return 1;
+
+      // Calculate Levenshtein distance
+      const matrix = [];
+      for (let i = 0; i <= target.length; i++) {
+        matrix[i] = [i];
+      }
+      for (let j = 0; j <= query.length; j++) {
+        matrix[0][j] = j;
+      }
+      for (let i = 1; i <= target.length; i++) {
+        for (let j = 1; j <= query.length; j++) {
+          if (target.charAt(i - 1) === query.charAt(j - 1)) {
+            matrix[i][j] = matrix[i - 1][j - 1];
+          } else {
+            matrix[i][j] = Math.min(
+              matrix[i - 1][j - 1] + 1, // substitution
+              matrix[i][j - 1] + 1,     // insertion
+              matrix[i - 1][j] + 1      // deletion
+            );
+          }
+        }
+      }
+
+      const distance = matrix[target.length][query.length];
+      const maxLength = Math.max(query.length, target.length);
+
+      // Return similarity score (1 = perfect match, 0 = no similarity)
+      return 1 - (distance / maxLength);
+    }
+
+    // Autocomplete class for customer search
+    class CustomerAutocomplete {
+      constructor(inputId, dropdownId) {
+        this.input = document.getElementById(inputId);
+        this.dropdown = document.getElementById(dropdownId);
+        this.customers = [];
+        this.currentIndex = -1;
+        this.selectedCustomer = null;
+
+        this.init();
+      }
+
+      init() {
+        this.loadCustomers();
+
+        this.input.addEventListener('input', (e) => this.onInput(e));
+        this.input.addEventListener('keydown', (e) => this.onKeydown(e));
+        this.input.addEventListener('blur', () => setTimeout(() => this.hideDropdown(), 200));
+        this.input.addEventListener('focus', () => {
+          if (this.input.value.trim()) {
+            this.showSuggestions(this.input.value.trim());
+          }
+        });
+      }
+
+      loadCustomers() {
+        this.customers = loadCustomersFromStorage();
+      }
+
+      onInput(e) {
+        const query = e.target.value.trim();
+        this.selectedCustomer = null;
+
+        if (query.length < 2) {
+          this.hideDropdown();
+          return;
+        }
+
+        this.showSuggestions(query);
+      }
+
+      onKeydown(e) {
+        if (!this.dropdown.style.display || this.dropdown.style.display === 'none') {
+          return;
+        }
+
+        const items = this.dropdown.querySelectorAll('.autocomplete-item');
+        if (!items.length) return;
+
+        switch (e.key) {
+          case 'ArrowDown':
+            e.preventDefault();
+            this.currentIndex = (this.currentIndex + 1) % items.length;
+            this.highlightItem(this.currentIndex);
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            this.currentIndex = this.currentIndex <= 0 ? items.length - 1 : this.currentIndex - 1;
+            this.highlightItem(this.currentIndex);
+            break;
+          case 'Enter':
+            e.preventDefault();
+            if (this.currentIndex >= 0 && this.currentIndex < items.length) {
+              const selectedItem = items[this.currentIndex];
+              const customerId = parseInt(selectedItem.dataset.customerId);
+              this.selectCustomer(customerId);
+            }
+            break;
+          case 'Escape':
+            this.hideDropdown();
+            break;
+        }
+      }
+
+      showSuggestions(query) {
+        const suggestions = this.getSuggestions(query);
+
+        if (suggestions.length === 0) {
+          this.dropdown.innerHTML = '<div class="autocomplete-no-results">No matching customers found</div>';
+          this.dropdown.style.display = 'block';
+          return;
+        }
+
+        const html = suggestions.map(customer => `
+          <div class="autocomplete-item" data-customer-id="${customer.id}">
+            <div style="font-weight: 600;">${this.highlightMatch(customer.companyName, query)}</div>
+            <div style="font-size: 12px; color: #666;">${customer.emailDomain} • ${customer.companyType}</div>
+          </div>
+        `).join('');
+
+        this.dropdown.innerHTML = html;
+        this.dropdown.style.display = 'block';
+        this.currentIndex = -1;
+
+        // Add click handlers
+        this.dropdown.querySelectorAll('.autocomplete-item').forEach((item, index) => {
+          item.addEventListener('click', () => {
+            const customerId = parseInt(item.dataset.customerId);
+            this.selectCustomer(customerId);
+          });
+          item.addEventListener('mouseenter', () => {
+            this.currentIndex = index;
+            this.highlightItem(index);
+          });
+        });
+      }
+
+      getSuggestions(query) {
+        return this.customers
+          .map(customer => ({
+            ...customer,
+            score: fuzzySearch(query, customer.companyName)
+          }))
+          .filter(customer => customer.score > 0.3) // Minimum similarity threshold
+          .sort((a, b) => b.score - a.score) // Sort by similarity score
+          .slice(0, 10); // Limit to top 10 results
+      }
+
+      highlightMatch(text, query) {
+        if (!query) return text;
+
+        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        return text.replace(regex, '<mark>$1</mark>');
+      }
+
+      highlightItem(index) {
+        const items = this.dropdown.querySelectorAll('.autocomplete-item');
+        items.forEach((item, i) => {
+          item.classList.toggle('highlighted', i === index);
+        });
+      }
+
+      selectCustomer(customerId) {
+        const customer = this.customers.find(c => c.id === customerId);
+        if (!customer) return;
+
+        this.selectedCustomer = customer;
+        this.input.value = customer.companyName;
+        this.hideDropdown();
+
+        // Auto-populate other quotation fields if they exist and are empty
+        this.populateRelatedFields(customer);
+
+        // Make input more compact after selection
+        this.input.style.fontSize = '14px';
+        this.input.style.padding = '6px';
+      }
+
+      populateRelatedFields(customer) {
+        // Populate email field if empty
+        const emailField = document.getElementById('quotationEmail');
+        if (emailField && !emailField.value.trim()) {
+          emailField.value = `contact@${customer.emailDomain}`;
+        }
+
+        // Populate phone field if empty
+        const phoneField = document.getElementById('quotationPhone');
+        if (phoneField && !phoneField.value.trim() && customer.companyTel) {
+          phoneField.value = customer.companyTel;
+        }
+
+        // Populate contact person dropdown with all members
+        const contactField = document.getElementById('quotationContactPerson');
+        if (contactField) {
+          // Clear existing options except the default
+          contactField.innerHTML = '<option value="">Select Contact Person</option>';
+
+          // Add all members as options
+          if (customer.members && customer.members.length > 0) {
+            customer.members.forEach(member => {
+              if (member.name) {
+                const option = document.createElement('option');
+                option.value = member.name;
+                option.textContent = `${member.name}${member.title ? ` (${member.title})` : ''}`;
+                option.dataset.memberData = JSON.stringify(member);
+                contactField.appendChild(option);
+              }
+            });
+
+            // Auto-select first member if no selection yet
+            if (contactField.selectedIndex === 0) {
+              contactField.selectedIndex = 1; // Select first member
+            }
+          }
+        }
+      }
+
+      hideDropdown() {
+        this.dropdown.style.display = 'none';
+        this.currentIndex = -1;
+      }
+
+      refreshCustomers() {
+        this.loadCustomers();
+      }
+    }
 
     // -------- AGENT SKILLS MANAGEMENT --------
     let currentAgentSkills = [];
