@@ -3218,8 +3218,8 @@
       // Update current customer with members
       if (currentCustomerData) {
         currentCustomerData.members = [...membersData];
-      // Save to database
-      await saveCustomerToStorage(currentCustomerData);
+        // Save to database (this will create or update the customer)
+        await saveCustomerToStorage(currentCustomerData);
       }
 
       // Handle save completion with add more prompt
@@ -3403,15 +3403,45 @@
 
     async function saveCustomerToStorage(customer) {
       try {
-        const response = await fetch(`/api/customers${customer.id ? `/${customer.id}` : ''}`, {
-          method: customer.id ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(customer)
-        });
+        let response;
+        let result;
 
-        const result = await response.json();
+        if (customer.id) {
+          // Try to update first
+          response = await fetch(`/api/customers/${customer.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(customer)
+          });
+
+          // If customer not found (404), try to create instead
+          if (response.status === 404) {
+            console.log('Customer not found, creating new customer instead');
+            response = await fetch('/api/customers', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...customer, id: undefined }) // Remove ID for creation
+            });
+          }
+
+          result = await response.json();
+        } else {
+          // Create new customer
+          response = await fetch('/api/customers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(customer)
+          });
+          result = await response.json();
+        }
+
         if (!result.success) {
           throw new Error(result.error || 'Failed to save customer');
+        }
+
+        // Update customer ID if it was created
+        if (result.customer && result.customer.id && !customer.id) {
+          customer.id = result.customer.id;
         }
 
         // Refresh autocomplete if it exists
@@ -3769,8 +3799,8 @@
       return names[type] || type;
     }
 
-    function viewQuotationDetails(quotationId) {
-      const quotations = loadQuotationsFromStorage();
+    async function viewQuotationDetails(quotationId) {
+      const quotations = await loadQuotationsFromStorage();
       const quotation = quotations.find(q => q.id === quotationId);
 
       if (!quotation) {
@@ -3926,7 +3956,7 @@
       }
     }
 
-    function editQuotationFromView(quotationId) {
+    async function editQuotationFromView(quotationId) {
       // Close the view modal
       closeQuotationViewModal();
 
@@ -3935,7 +3965,7 @@
       activateTab('quotation');
 
       // Load the quotation data into the form for editing
-      const quotations = loadQuotationsFromStorage();
+      const quotations = await loadQuotationsFromStorage();
       const quotation = quotations.find(q => q.id === quotationId);
 
       if (quotation) {
@@ -4429,9 +4459,7 @@
           unitPrice: parseFloat(unitPrice) || 0,
           total: parseFloat(total) || 0,
           notes,
-          dateCreated: window.editingQuotationId ?
-            loadQuotationsFromStorage().find(q => q.id === window.editingQuotationId)?.dateCreated || new Date().toISOString() :
-            new Date().toISOString(),
+          dateCreated: new Date().toISOString(),
           status: 'draft'
         };
 
@@ -4462,15 +4490,45 @@
 
     async function saveQuotationToStorage(quotation) {
       try {
-        const response = await fetch(`/api/quotations${quotation.id ? `/${quotation.id}` : ''}`, {
-          method: quotation.id ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(quotation)
-        });
+        let response;
+        let result;
 
-        const result = await response.json();
+        if (quotation.id) {
+          // Try to update first
+          response = await fetch(`/api/quotations/${quotation.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(quotation)
+          });
+
+          // If quotation not found (404), try to create instead
+          if (response.status === 404) {
+            console.log('Quotation not found, creating new quotation instead');
+            response = await fetch('/api/quotations', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...quotation, id: undefined }) // Remove ID for creation
+            });
+          }
+
+          result = await response.json();
+        } else {
+          // Create new quotation
+          response = await fetch('/api/quotations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(quotation)
+          });
+          result = await response.json();
+        }
+
         if (!result.success) {
           throw new Error(result.error || 'Failed to save quotation');
+        }
+
+        // Update quotation ID if it was created
+        if (result.quotation && result.quotation.id && !quotation.id) {
+          quotation.id = result.quotation.id;
         }
 
         console.log('Quotation saved:', result.quotation);
@@ -4571,12 +4629,14 @@
         this.customers = [];
         this.currentIndex = -1;
         this.selectedCustomer = null;
+        this.loaded = false;
 
         this.init();
       }
 
-      init() {
-        this.loadCustomers();
+      async init() {
+        await this.loadCustomers();
+        this.loaded = true;
 
         this.input.addEventListener('input', (e) => this.onInput(e));
         this.input.addEventListener('keydown', (e) => this.onKeydown(e));
@@ -4588,15 +4648,19 @@
         });
       }
 
-      loadCustomers() {
-        this.customers = loadCustomersFromStorage();
+      async loadCustomers() {
+        this.customers = await loadCustomersFromStorage();
+      }
+
+      async refreshCustomers() {
+        await this.loadCustomers();
       }
 
       onInput(e) {
         const query = e.target.value.trim();
         this.selectedCustomer = null;
 
-        if (query.length < 2) {
+        if (!this.loaded || query.length < 2) {
           this.hideDropdown();
           return;
         }
