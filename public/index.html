@@ -2472,6 +2472,8 @@
             document.getElementById('toSendEmail').value = '';
             document.getElementById('subjectSendEmail').value = '';
             document.getElementById('bodySendEmail').value = '';
+            // Auto refresh the sent emails table to show the newly sent email
+            loadSentEmails();
           } else {
             const errorMsg = data.error || 'Unknown error';
             const errorCode = data.code ? ` (Code: ${data.code})` : '';
