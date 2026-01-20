@@ -6,6 +6,7 @@ import nodemailer from 'nodemailer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
+import multer from 'multer';
 import {
   createTask, getTaskById, listTasks, TASK_STATUS, updateTaskStatus,
   createSentEmail, listSentEmails, getSentEmailById, getSentEmailsCount,
@@ -22,6 +23,54 @@ import SkillManager from './skills/skillManager.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, 'env');
 dotenv.config({ path: envPath, override: true });
+
+// ---------- FILE UPLOAD CONFIG ----------
+const uploadsDir = path.join(__dirname, 'uploads');
+const profileImagesDir = path.join(uploadsDir, 'profile-images');
+const attachmentsDir = path.join(uploadsDir, 'attachments');
+
+// Ensure upload directories exist
+await fs.mkdir(uploadsDir, { recursive: true });
+await fs.mkdir(profileImagesDir, { recursive: true });
+await fs.mkdir(attachmentsDir, { recursive: true });
+
+// Multer configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    if (file.fieldname === 'profileImage') {
+      cb(null, profileImagesDir);
+    } else if (file.fieldname === 'attachments') {
+      cb(null, attachmentsDir);
+    } else {
+      cb(new Error('Invalid field name'), null);
+    }
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  // Allow all file types for attachments, but restrict profile images to images only
+  if (file.fieldname === 'profileImage') {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Profile image must be an image file'), false);
+    }
+  } else {
+    cb(null, true); // Allow all file types for attachments
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  }
+});
 
 const {
   MAIL_USER,
@@ -1832,6 +1881,162 @@ if (skillManager) {
     } catch (error) {
       console.error('Error deleting quotation:', error);
       res.status(500).json({ success: false, error: 'Failed to delete quotation' });
+    }
+  });
+
+  // ========== FILE UPLOAD ENDPOINTS ==========
+
+  // Upload profile image for quotation
+  app.post('/api/quotations/:id/upload-profile-image', upload.single('profileImage'), async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: 'No file uploaded' });
+      }
+
+      const quotation = await getQuotationById(id);
+      if (!quotation) {
+        return res.status(404).json({ success: false, error: 'Quotation not found' });
+      }
+
+      // Delete old profile image if exists
+      if (quotation.profileImagePath) {
+        try {
+          await fs.unlink(path.join(__dirname, quotation.profileImagePath));
+        } catch (error) {
+          console.warn('Failed to delete old profile image:', error);
+        }
+      }
+
+      // Update quotation with new profile image path
+      const relativePath = path.relative(__dirname, req.file.path);
+      await updateQuotation(id, { ...quotation, profileImagePath: relativePath });
+
+      res.json({
+        success: true,
+        profileImagePath: relativePath,
+        message: 'Profile image uploaded successfully'
+      });
+    } catch (error) {
+      console.error('Error uploading profile image:', error);
+      res.status(500).json({ success: false, error: 'Failed to upload profile image' });
+    }
+  });
+
+  // Upload attachments for quotation
+  app.post('/api/quotations/:id/upload-attachments', upload.array('attachments', 10), async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ success: false, error: 'No files uploaded' });
+      }
+
+      const quotation = await getQuotationById(id);
+      if (!quotation) {
+        return res.status(404).json({ success: false, error: 'Quotation not found' });
+      }
+
+      // Get relative paths for uploaded files
+      const newAttachmentPaths = req.files.map(file => path.relative(__dirname, file.path));
+
+      // Combine existing attachments with new ones
+      const allAttachmentPaths = [...quotation.attachmentPaths, ...newAttachmentPaths];
+
+      // Update quotation with new attachment paths
+      await updateQuotation(id, { ...quotation, attachmentPaths: allAttachmentPaths });
+
+      res.json({
+        success: true,
+        attachmentPaths: newAttachmentPaths,
+        allAttachmentPaths: allAttachmentPaths,
+        message: `${req.files.length} attachment(s) uploaded successfully`
+      });
+    } catch (error) {
+      console.error('Error uploading attachments:', error);
+      res.status(500).json({ success: false, error: 'Failed to upload attachments' });
+    }
+  });
+
+  // Delete attachment from quotation
+  app.delete('/api/quotations/:id/attachments/:filename', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const filename = req.params.filename;
+
+      const quotation = await getQuotationById(id);
+      if (!quotation) {
+        return res.status(404).json({ success: false, error: 'Quotation not found' });
+      }
+
+      // Find and remove the attachment
+      const attachmentIndex = quotation.attachmentPaths.findIndex(path => path.includes(filename));
+      if (attachmentIndex === -1) {
+        return res.status(404).json({ success: false, error: 'Attachment not found' });
+      }
+
+      const filePath = quotation.attachmentPaths[attachmentIndex];
+      const fullPath = path.join(__dirname, filePath);
+
+      // Delete file from filesystem
+      try {
+        await fs.unlink(fullPath);
+      } catch (error) {
+        console.warn('Failed to delete file from filesystem:', error);
+      }
+
+      // Remove from database
+      const updatedAttachments = quotation.attachmentPaths.filter((_, index) => index !== attachmentIndex);
+      await updateQuotation(id, { ...quotation, attachmentPaths: updatedAttachments });
+
+      res.json({ success: true, message: 'Attachment deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting attachment:', error);
+      res.status(500).json({ success: false, error: 'Failed to delete attachment' });
+    }
+  });
+
+  // Serve uploaded files
+  app.use('/uploads', express.static(uploadsDir));
+
+  // ========== TEMPORARY FILE UPLOAD ENDPOINTS (for new quotations) ==========
+
+  // Temporary profile image upload
+  app.post('/api/quotations/temp/upload-profile-image', upload.single('profileImage'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: 'No file uploaded' });
+      }
+
+      const relativePath = path.relative(__dirname, req.file.path);
+      res.json({
+        success: true,
+        profileImagePath: relativePath,
+        message: 'Profile image uploaded temporarily'
+      });
+    } catch (error) {
+      console.error('Error uploading temporary profile image:', error);
+      res.status(500).json({ success: false, error: 'Failed to upload profile image' });
+    }
+  });
+
+  // Temporary attachments upload
+  app.post('/api/quotations/temp/upload-attachments', upload.array('attachments', 10), async (req, res) => {
+    try {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ success: false, error: 'No files uploaded' });
+      }
+
+      const attachmentPaths = req.files.map(file => path.relative(__dirname, file.path));
+      res.json({
+        success: true,
+        attachmentPaths: attachmentPaths,
+        message: `${req.files.length} attachment(s) uploaded temporarily`
+      });
+    } catch (error) {
+      console.error('Error uploading temporary attachments:', error);
+      res.status(500).json({ success: false, error: 'Failed to upload attachments' });
     }
   });
 

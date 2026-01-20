@@ -1,6 +1,6 @@
 {
   "name": "erp-email-service",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "IMAP fetch + SMTP send service for ERP",
   "main": "server.js",
   "type": "module",
@@ -13,6 +13,7 @@
     "dotenv": "^16.1.4",
     "express": "^4.18.2",
     "imapflow": "^1.0.92",
+    "multer": "^1.4.5-lts.2",
     "nodemailer": "^6.9.12",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7"

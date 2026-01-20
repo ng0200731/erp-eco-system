@@ -103,6 +103,8 @@ async function ensureSchema(db) {
       unitPrice REAL NOT NULL,
       total REAL NOT NULL,
       notes TEXT,
+      profileImagePath TEXT,
+      attachmentPaths TEXT,
       dateCreated TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'draft'
     );
@@ -140,6 +142,25 @@ async function ensureSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name);
     CREATE INDEX IF NOT EXISTS idx_skills_status ON skills(status);
   `);
+
+  // Add new columns if they don't exist (for database migration)
+  try {
+    await db.exec(`ALTER TABLE quotations ADD COLUMN profileImagePath TEXT;`);
+  } catch (err) {
+    // Column might already exist, ignore error
+    if (!err.message.includes('duplicate column name')) {
+      console.warn('Error adding profileImagePath column:', err);
+    }
+  }
+
+  try {
+    await db.exec(`ALTER TABLE quotations ADD COLUMN attachmentPaths TEXT;`);
+  } catch (err) {
+    // Column might already exist, ignore error
+    if (!err.message.includes('duplicate column name')) {
+      console.warn('Error adding attachmentPaths column:', err);
+    }
+  }
 }
 
 export async function getTasksDb() {
@@ -543,8 +564,8 @@ export async function createQuotation(quotationData) {
 
   const result = await db.run(
     `
-      INSERT INTO quotations (customerName, contactPerson, email, phone, productType, productDetails, quantity, unitPrice, total, notes, dateCreated, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO quotations (customerName, contactPerson, email, phone, productType, productDetails, quantity, unitPrice, total, notes, profileImagePath, attachmentPaths, dateCreated, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       quotationData.customerName,
@@ -557,6 +578,8 @@ export async function createQuotation(quotationData) {
       quotationData.unitPrice,
       quotationData.total,
       quotationData.notes || null,
+      quotationData.profileImagePath || null,
+      JSON.stringify(quotationData.attachmentPaths || []),
       quotationData.dateCreated,
       quotationData.status || 'draft'
     ]
@@ -571,6 +594,7 @@ export async function getQuotationById(id) {
 
   if (quotation) {
     quotation.productDetails = JSON.parse(quotation.productDetails || '{}');
+    quotation.attachmentPaths = JSON.parse(quotation.attachmentPaths || '[]');
   }
 
   return quotation;
@@ -580,9 +604,10 @@ export async function getAllQuotations() {
   const db = await getTasksDb();
   const quotations = await db.all(`SELECT * FROM quotations ORDER BY dateCreated DESC`);
 
-  // Parse productDetails JSON
+  // Parse JSON fields
   for (const quotation of quotations) {
     quotation.productDetails = JSON.parse(quotation.productDetails || '{}');
+    quotation.attachmentPaths = JSON.parse(quotation.attachmentPaths || '[]');
   }
 
   return quotations;
@@ -594,7 +619,7 @@ export async function updateQuotation(id, quotationData) {
   await db.run(
     `
       UPDATE quotations
-      SET customerName = ?, contactPerson = ?, email = ?, phone = ?, productType = ?, productDetails = ?, quantity = ?, unitPrice = ?, total = ?, notes = ?, status = ?
+      SET customerName = ?, contactPerson = ?, email = ?, phone = ?, productType = ?, productDetails = ?, quantity = ?, unitPrice = ?, total = ?, notes = ?, profileImagePath = ?, attachmentPaths = ?, status = ?
       WHERE id = ?
     `,
     [
@@ -608,6 +633,8 @@ export async function updateQuotation(id, quotationData) {
       quotationData.unitPrice,
       quotationData.total,
       quotationData.notes || null,
+      quotationData.profileImagePath || null,
+      JSON.stringify(quotationData.attachmentPaths || []),
       quotationData.status || 'draft',
       id
     ]

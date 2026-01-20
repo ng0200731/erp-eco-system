@@ -53,11 +53,12 @@
     - `sourceEmailUid`, `sourceSubject`, `customerEmail`
   - Shows monochrome modal on success/failure (no browser popups)
 
-### 2026-01-20 — Quotation viewing fix
-- Fixed quotation viewing modal to properly display saved data ✅ DONE
-  - Issue: After creating quotation, view popup showed empty fields instead of saved data
-  - Root cause: Timing issue with DOM population in `populateQuotationViewForm()`
-  - Fix: Replaced `setTimeout` with `requestAnimationFrame` and added additional `setTimeout` wrapper for DOM readiness
-  - Result: Quotation view modal now properly displays all saved customer, product, and pricing data
+### 2026-01-20 — Quotation viewing layout fix
+- Fixed quotation view modal to match create form layout exactly ✅ DONE
+  - Issue: View popup had different layout than create form (files shown above form instead of split layout)
+  - Solution: Created `generateQuotationContentForView()` function that uses same split layout (form left, files right)
+  - Added `getProductSpecificFieldsForView()` to populate product fields with saved data
+  - Updated `populateQuotationViewForm()` to only disable fields since data is pre-populated
+  - Result: View modal now shows exact same layout and styling as create form, with all saved data displayed including images and attachments
 
 

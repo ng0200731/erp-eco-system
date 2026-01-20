@@ -3810,10 +3810,19 @@
       const quotations = await loadQuotationsFromStorage();
       console.log('All quotations:', quotations);
 
-      const quotation = quotations.find(q => q.id === quotationId);
+      const quotation = quotations.find(q => q.id == quotationId); // Use == for type coercion
       console.log('Found quotation:', quotation ? 'YES' : 'NO');
       console.log('Looking for ID:', quotationId, 'Type:', typeof quotationId);
       console.log('Available IDs:', quotations.map(q => ({ id: q.id, type: typeof q.id })));
+
+      if (quotation) {
+        console.log('Found quotation data:', {
+          id: quotation.id,
+          customerName: quotation.customerName,
+          profileImagePath: quotation.profileImagePath,
+          attachmentPaths: quotation.attachmentPaths
+        });
+      }
 
       if (!quotation) {
         console.error('Quotation not found for ID:', quotationId);
@@ -3826,13 +3835,12 @@
         return;
       }
 
-      // Generate the quotation form HTML for this product type
+      // Generate the quotation form HTML for this product type (same as create form)
       const tagName = getProductTypeDisplayName(quotation.productType);
-      const formHtml = generateQuotationContent(quotation.productType, tagName);
+      const formHtml = generateQuotationContentForView(quotation.productType, tagName, quotation);
 
-      // Create modal with the form
       const modalContent = `
-        <div style="max-width: 800px; max-height: 70vh; overflow-y: auto;">
+        <div style="max-width: 1200px; max-height: 85vh; overflow-y: auto;">
           <div style="margin-bottom: 15px; padding: 10px; background: #f8f8f8; border: 1px solid #000;">
             <strong>Quotation Details</strong> - Created: ${new Date(quotation.dateCreated).toLocaleString()}
             <span style="float: right; font-size: 0.9em; color: #666;">Status: ${quotation.status || 'Draft'}</span>
@@ -3888,14 +3896,45 @@
         document.body.removeChild(overlay);
         document.body.classList.remove('modal-open');
       };
+
+      // Helper function to get file icon from path
+      function getFileIconFromPath(filePath) {
+        const fileName = filePath.toLowerCase();
+        if (fileName.includes('.pdf')) return '📄';
+        if (fileName.includes('.doc') || fileName.includes('.docx')) return '📝';
+        if (fileName.includes('.txt')) return '📄';
+        if (fileName.includes('.jpg') || fileName.includes('.jpeg') || fileName.includes('.png') || fileName.includes('.gif')) return '🖼️';
+        return '📄';
+      }
+
+      // Global function to preview attachment
+      window.previewAttachment = function(attachmentPath) {
+        const fileName = (attachmentPath.split('/').pop() || attachmentPath.split('\\\\').pop());
+        const fileNameLower = attachmentPath.toLowerCase();
+        if (fileNameLower.includes('.jpg') || fileNameLower.includes('.jpeg') || fileNameLower.includes('.png') || fileNameLower.includes('.gif')) {
+          // Image preview
+          showModal({
+            title: fileName,
+            body: `<img src="/${attachmentPath}" style="max-width:100%; max-height:400px; object-fit:contain;" alt="Attachment">`,
+            buttons: [{ text: 'Close', action: 'close' }]
+          });
+        } else {
+          // Download prompt for other files
+          showModal({
+            title: 'File Preview',
+            body: `Preview not available for this file type. <a href="/${attachmentPath}" download="${fileName}" style="color:#000; text-decoration:underline;">Click here to download</a> the file.`,
+            buttons: [{ text: 'Close', action: 'close' }]
+          });
+        }
+      };
     }
 
     function populateQuotationViewForm(quotation) {
-      console.log('Populating view form with quotation data:', quotation);
+      console.log('Setting up view form (fields already populated):', quotation);
 
-      // Wait for DOM to be fully ready, then populate fields BEFORE disabling them
+      // Wait for DOM to be fully ready, then disable all form elements for view mode
       setTimeout(() => {
-        console.log('Starting to populate form fields...');
+        console.log('Disabling form fields for view mode...');
 
         // Get the form container first
         const formContainer = document.getElementById('quotationViewFormContainer');
@@ -3906,66 +3945,7 @@
           return;
         }
 
-        // FIRST: Populate all the values
-        // Populate customer information
-        const customerNameField = formContainer.querySelector('#quotationCustomerName');
-        console.log('Customer name field found:', customerNameField ? 'YES' : 'NO');
-        if (customerNameField) {
-          customerNameField.value = quotation.customerName || '';
-          console.log('Set customer name to:', quotation.customerName);
-        }
-
-        // Populate contact person dropdown
-        const contactField = formContainer.querySelector('#quotationContactPerson');
-        if (contactField && quotation.contactPerson) {
-          contactField.innerHTML = `<option value="${quotation.contactPerson}" selected>${quotation.contactPerson}</option>`;
-        }
-
-        // Populate email and phone
-        const emailField = formContainer.querySelector('#quotationEmail');
-        if (emailField) {
-          emailField.value = quotation.email || '';
-        }
-
-        const phoneField = formContainer.querySelector('#quotationPhone');
-        if (phoneField) {
-          phoneField.value = quotation.phone || '';
-        }
-
-        // Populate product-specific fields
-        if (quotation.productDetails) {
-          Object.entries(quotation.productDetails).forEach(([key, value]) => {
-            const fieldId = `quotation${key.charAt(0).toUpperCase() + key.slice(1)}`;
-            const field = formContainer.querySelector(`#${fieldId}`);
-            if (field) {
-              field.value = value;
-            }
-          });
-        }
-
-        // Populate quantity and pricing
-        const quantityField = formContainer.querySelector('#quotationQuantity');
-        if (quantityField && quotation.quantity) {
-          quantityField.value = quotation.quantity;
-        }
-
-        const unitPriceField = formContainer.querySelector('#quotationUnitPrice');
-        if (unitPriceField && quotation.unitPrice) {
-          unitPriceField.value = quotation.unitPrice.toFixed(2);
-        }
-
-        const totalField = formContainer.querySelector('#quotationTotal');
-        if (totalField && quotation.total) {
-          totalField.value = quotation.total.toFixed(2);
-        }
-
-        // Populate notes
-        const notesField = formContainer.querySelector('#quotationNotes');
-        if (notesField) {
-          notesField.value = quotation.notes || '';
-        }
-
-        // THEN: Disable and dim all input, textarea, and select elements in the form
+        // Disable and dim all input, textarea, and select elements in the form
         const allFormElements = document.querySelectorAll('#quotationViewFormContainer input, #quotationViewFormContainer textarea, #quotationViewFormContainer select');
         allFormElements.forEach(element => {
           element.disabled = true;
@@ -3974,6 +3954,8 @@
           element.style.color = '#666';
           element.style.cursor = 'not-allowed';
         });
+
+        console.log('Form fields disabled for view mode');
       }, 200);
     }
 
@@ -4059,8 +4041,113 @@
         notesField.value = quotation.notes || '';
       }
 
+      // Populate existing files
+      populateExistingFilesForEditing(quotation);
+
       // Store the quotation ID for updating
       window.editingQuotationId = quotation.id;
+    }
+
+    function populateExistingFilesForEditing(quotation) {
+      // Populate profile image if exists
+      if (quotation.profileImagePath) {
+        const profileImagePreview = document.getElementById('profileImagePreview');
+        const profileImagePlaceholder = document.getElementById('profileImagePlaceholder');
+        const removeProfileImageBtn = document.getElementById('removeProfileImageBtn');
+        const profileImageDropZone = document.getElementById('profileImageDropZone');
+
+        if (profileImagePreview && profileImagePlaceholder && removeProfileImageBtn && profileImageDropZone) {
+          profileImagePreview.style.backgroundImage = `url(${(quotation.profileImagePath.startsWith('/') ? '' : '/') + quotation.profileImagePath.replace(/\\/g, '/')})`;
+          profileImagePreview.style.display = 'block';
+          profileImagePlaceholder.style.display = 'none';
+          removeProfileImageBtn.style.display = 'inline-block';
+
+          // Update drop zone styling
+          profileImageDropZone.style.borderColor = '#000';
+          profileImageDropZone.style.backgroundColor = '#f9f9f9';
+        }
+      }
+
+      // Populate attachments if exist
+      if (quotation.attachmentPaths && Array.isArray(quotation.attachmentPaths) && quotation.attachmentPaths.length > 0) {
+        const attachmentsList = document.getElementById('attachmentsList');
+
+        if (attachmentsList) {
+          // Hide placeholder
+          const placeholder = attachmentsList.querySelector('.text-align\\:center') || attachmentsList.querySelector('div');
+          if (placeholder) {
+            placeholder.style.display = 'none';
+          }
+
+          // Add existing attachments
+          quotation.attachmentPaths.forEach(attachmentPath => {
+            const fileName = attachmentPath.split('/').pop() || attachmentPath.split('\\\\').pop();
+            const fileIcon = getFileIconFromPath(attachmentPath);
+
+            const attachmentItem = document.createElement('div');
+            attachmentItem.className = 'attachment-item';
+            attachmentItem.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px; border:1px solid #ddd; margin-bottom:5px; background:#fff;';
+
+            const icon = document.createElement('span');
+            icon.style.cssText = 'font-size:16px;';
+            icon.textContent = fileIcon;
+
+            const fileNameSpan = document.createElement('span');
+            fileNameSpan.textContent = fileName;
+            fileNameSpan.style.cssText = 'flex:1; font-size:12px; cursor:pointer;';
+            fileNameSpan.onclick = () => previewAttachment(attachmentPath);
+
+            const downloadBtn = document.createElement('a');
+            downloadBtn.href = `/${attachmentPath}`;
+            downloadBtn.download = fileName;
+            downloadBtn.style.cssText = 'font-size:12px; color:#000; text-decoration:none;';
+            downloadBtn.textContent = '📥';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = '×';
+            removeBtn.className = 'btn';
+            removeBtn.style.cssText = 'font-size:12px; padding:2px 6px; background:#ff6b6b; color:white;';
+            removeBtn.onclick = () => {
+              // For existing attachments, we need to remove from the database
+              removeExistingAttachment(quotation.id, attachmentPath, attachmentItem);
+            };
+
+            attachmentItem.appendChild(icon);
+            attachmentItem.appendChild(fileNameSpan);
+            attachmentItem.appendChild(downloadBtn);
+            attachmentItem.appendChild(removeBtn);
+
+            attachmentsList.appendChild(attachmentItem);
+          });
+        }
+      }
+    }
+
+    async function removeExistingAttachment(quotationId, attachmentPath, attachmentItem) {
+      try {
+        // Call API to remove attachment from quotation
+        const response = await fetch(`/api/quotations/${quotationId}/attachments/${encodeURIComponent(attachmentPath.split('/').pop())}`, {
+          method: 'DELETE'
+        });
+
+        if (response.ok) {
+          attachmentItem.remove();
+
+          // Show placeholder if no attachments left
+          const attachmentsList = document.getElementById('attachmentsList');
+          const attachmentItems = attachmentsList.querySelectorAll('.attachment-item');
+          if (attachmentItems.length === 0) {
+            const placeholder = attachmentsList.querySelector('.text-align\\:center') || attachmentsList.querySelector('div');
+            if (placeholder) {
+              placeholder.style.display = 'block';
+            }
+          }
+        } else {
+          console.error('Failed to remove attachment');
+        }
+      } catch (error) {
+        console.error('Error removing attachment:', error);
+      }
     }
 
     async function deleteQuotation(quotationId) {
@@ -4126,11 +4213,14 @@
       const content = generateQuotationContent(tagType, tagName);
       subBoardContent.innerHTML = content;
 
-      // Initialize autocomplete for customer field
+      // Initialize autocomplete for customer field and file upload functionality
       setTimeout(() => {
         if (document.getElementById('quotationCustomerName')) {
           window.customerAutocomplete = new CustomerAutocomplete('quotationCustomerName', 'customerAutocompleteDropdown');
         }
+
+        // Initialize file upload functionality
+        initializeFileUploads(tagType);
 
         // Add event listener for contact person selection
         const contactPersonField = document.getElementById('quotationContactPerson');
@@ -4200,73 +4290,680 @@
       subBoard.style.display = 'block';
     }
 
-    function generateQuotationContent(tagType, tagName) {
-      // Base form structure for all quotation types
-      return '<form id="quotationForm" style="max-width:600px;">' +
-        '<div style="margin-bottom:20px;">' +
-          '<h4>Customer Information</h4>' +
-          '<div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">' +
-            '<div>' +
-              '<label style="display:block; margin-bottom:5px; font-weight:600;">Customer Name *</label>' +
-              '<div class="autocomplete-container">' +
-                '<input type="text" id="quotationCustomerName" class="autocomplete-input" placeholder="Enter customer name" autocomplete="off">' +
-                '<div id="customerAutocompleteDropdown" class="autocomplete-dropdown"></div>' +
+    function initializeFileUploads(tagType) {
+      // Profile Image Upload Functionality
+      const profileImageDropZone = document.getElementById('profileImageDropZone');
+      const profileImageInput = document.getElementById('profileImageInput');
+      const profileImagePreview = document.getElementById('profileImagePreview');
+      const profileImagePlaceholder = document.getElementById('profileImagePlaceholder');
+      const removeProfileImageBtn = document.getElementById('removeProfileImageBtn');
+
+      let currentQuotationId = null;
+
+      // Get current quotation ID if editing
+      const urlParams = new URLSearchParams(window.location.search);
+      currentQuotationId = urlParams.get('edit');
+
+      // Load existing profile image if editing
+      if (currentQuotationId) {
+        loadExistingProfileImage(currentQuotationId);
+      }
+
+      // Profile Image: Click to browse
+      profileImageDropZone.addEventListener('click', () => {
+        profileImageInput.click();
+      });
+
+      // Profile Image: File input change
+      profileImageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          handleProfileImageFile(file);
+        }
+      });
+
+      // Profile Image: Drag and drop
+      profileImageDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        profileImageDropZone.style.borderColor = '#000';
+        profileImageDropZone.style.backgroundColor = '#f0f0f0';
+      });
+
+      profileImageDropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        profileImageDropZone.style.borderColor = '#ccc';
+        profileImageDropZone.style.backgroundColor = '#fff';
+      });
+
+      profileImageDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        profileImageDropZone.style.borderColor = '#ccc';
+        profileImageDropZone.style.backgroundColor = '#fff';
+
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+          handleProfileImageFile(file);
+        } else {
+          showModal({
+            title: 'Invalid File',
+            body: 'Please select an image file.',
+            buttons: [{ text: 'OK', action: 'close' }]
+          });
+        }
+      });
+
+      // Profile Image: Paste functionality (Ctrl+V)
+      document.addEventListener('paste', (e) => {
+        if (document.activeElement.closest('#profileImageDropZone')) {
+          const items = e.clipboardData.items;
+          for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+              const file = items[i].getAsFile();
+              handleProfileImageFile(file);
+              break;
+            }
+          }
+        }
+      });
+
+      // Profile Image: Handle file processing
+      async function handleProfileImageFile(file) {
+        if (!file.type.startsWith('image/')) {
+          showModal({
+            title: 'Invalid File',
+            body: 'Please select an image file.',
+            buttons: [{ text: 'OK', action: 'close' }]
+          });
+          return;
+        }
+
+        // Show preview immediately
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          profileImagePreview.style.backgroundImage = `url(${e.target.result})`;
+          profileImagePreview.style.display = 'block';
+          profileImagePlaceholder.style.display = 'none';
+          removeProfileImageBtn.style.display = 'inline-block';
+
+          // Also update the drop zone styling to indicate it contains an image
+          profileImageDropZone.style.borderColor = '#000';
+          profileImageDropZone.style.backgroundColor = '#f9f9f9';
+        };
+        reader.readAsDataURL(file);
+
+        // Upload to server if we have a quotation ID
+        if (currentQuotationId) {
+          await uploadProfileImage(file, currentQuotationId);
+        } else {
+          // Store file temporarily until quotation is saved
+          window.tempProfileImageFile = file;
+        }
+      }
+
+      // Profile Image: Remove functionality
+      window.removeProfileImage = function() {
+        profileImagePreview.style.backgroundImage = '';
+        profileImagePreview.style.display = 'none';
+        profileImagePlaceholder.style.display = 'block';
+        removeProfileImageBtn.style.display = 'none';
+        profileImageInput.value = '';
+
+        // Reset drop zone styling
+        profileImageDropZone.style.borderColor = '#ccc';
+        profileImageDropZone.style.backgroundColor = '#fff';
+
+        // Clear temporary file
+        if (window.tempProfileImageFile) {
+          delete window.tempProfileImageFile;
+        }
+
+        // TODO: Remove from server if uploaded
+      };
+
+      // Attachments Upload Functionality
+      const attachmentsDropZone = document.getElementById('attachmentsDropZone');
+      const attachmentsInput = document.getElementById('attachmentsInput');
+      const attachmentsList = document.getElementById('attachmentsList');
+
+      // Attachments: Click to browse
+      attachmentsDropZone.addEventListener('click', (e) => {
+        // Don't trigger if clicking on attachment items
+        if (e.target.closest('.attachment-item')) return;
+        attachmentsInput.click();
+      });
+
+      // Attachments: File input change
+      attachmentsInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        files.forEach(file => handleAttachmentFile(file));
+      });
+
+      // Attachments: Drag and drop
+      attachmentsDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        attachmentsDropZone.style.borderColor = '#000';
+        attachmentsDropZone.style.backgroundColor = '#f0f0f0';
+      });
+
+      attachmentsDropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        attachmentsDropZone.style.borderColor = '#ccc';
+        attachmentsDropZone.style.backgroundColor = '#fff';
+      });
+
+      attachmentsDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        attachmentsDropZone.style.borderColor = '#ccc';
+        attachmentsDropZone.style.backgroundColor = '#fff';
+
+        const files = Array.from(e.dataTransfer.files);
+        files.forEach(file => handleAttachmentFile(file));
+      });
+
+      // Attachments: Paste functionality (Ctrl+V)
+      document.addEventListener('paste', (e) => {
+        if (document.activeElement.closest('#attachmentsDropZone')) {
+          const items = e.clipboardData.items;
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.kind === 'file') {
+              const file = item.getAsFile();
+              handleAttachmentFile(file);
+            }
+          }
+        }
+      });
+
+      // Attachments: Handle file processing
+      function handleAttachmentFile(file) {
+        // Validate file type
+        const allowedTypes = ['image/', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/'];
+        const isAllowed = allowedTypes.some(type => file.type.startsWith(type) || file.name.toLowerCase().endsWith('.pdf', '.doc', '.docx', '.txt'));
+
+        if (!isAllowed) {
+          showModal({
+            title: 'Unsupported File Type',
+            body: 'Please upload PDF, DOC, DOCX, TXT, or image files only.',
+            buttons: [{ text: 'OK', action: 'close' }]
+          });
+          return;
+        }
+
+        // Add to UI
+        addAttachmentToList(file);
+
+        // Upload to server if we have a quotation ID
+        if (currentQuotationId) {
+          uploadAttachment(file, currentQuotationId);
+        } else {
+          // Store files temporarily until quotation is saved
+          if (!window.tempAttachmentFiles) {
+            window.tempAttachmentFiles = [];
+          }
+          window.tempAttachmentFiles.push(file);
+        }
+      }
+
+      // Attachments: Add to UI list
+      function addAttachmentToList(file) {
+        const attachmentItem = document.createElement('div');
+        attachmentItem.className = 'attachment-item';
+        attachmentItem.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px; border:1px solid #ddd; margin-bottom:5px; background:#fff;';
+
+        const fileIcon = getFileIcon(file.type, file.name);
+        const fileName = document.createElement('span');
+        fileName.textContent = file.name;
+        fileName.style.cssText = 'flex:1; font-size:12px; cursor:pointer;';
+        fileName.onclick = () => previewFile(file);
+
+        const renameBtn = document.createElement('button');
+        renameBtn.textContent = 'Rename';
+        renameBtn.className = 'btn';
+        renameBtn.style.cssText = 'font-size:10px; padding:2px 6px;';
+        renameBtn.onclick = () => renameAttachment(file, attachmentItem);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = '×';
+        removeBtn.className = 'btn';
+        removeBtn.style.cssText = 'font-size:12px; padding:2px 6px; background:#ff6b6b; color:white;';
+        removeBtn.onclick = () => removeAttachment(file, attachmentItem);
+
+        attachmentItem.appendChild(fileIcon);
+        attachmentItem.appendChild(fileName);
+        attachmentItem.appendChild(renameBtn);
+        attachmentItem.appendChild(removeBtn);
+
+        // Hide placeholder if this is the first attachment
+        const placeholder = attachmentsList.querySelector('.text-align\\:center');
+        if (placeholder) {
+          placeholder.style.display = 'none';
+        }
+
+        attachmentsList.appendChild(attachmentItem);
+      }
+
+      // Attachments: Get file icon
+      function getFileIcon(mimeType, fileName) {
+        const icon = document.createElement('span');
+        icon.style.cssText = 'font-size:16px;';
+
+        if (mimeType.startsWith('image/')) {
+          icon.textContent = '🖼️';
+        } else if (mimeType === 'application/pdf') {
+          icon.textContent = '📄';
+        } else if (mimeType.includes('word') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
+          icon.textContent = '📝';
+        } else {
+          icon.textContent = '📄';
+        }
+
+        return icon;
+      }
+
+      // Attachments: Preview file
+      function previewFile(file) {
+        if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            showModal({
+              title: file.name,
+              body: `<img src="${e.target.result}" style="max-width:100%; max-height:400px;">`,
+              buttons: [{ text: 'Close', action: 'close' }]
+            });
+          };
+          reader.readAsDataURL(file);
+        } else {
+          showModal({
+            title: 'Preview Not Available',
+            body: `Preview for ${file.name} is not available in the browser. The file will be saved with the quotation.`,
+            buttons: [{ text: 'OK', action: 'close' }]
+          });
+        }
+      }
+
+      // Attachments: Rename functionality
+      function renameAttachment(file, attachmentItem) {
+        const currentName = file.name;
+        const newName = prompt('Enter new filename:', currentName);
+        if (newName && newName !== currentName) {
+          // Update file name display
+          const fileNameSpan = attachmentItem.querySelector('span');
+          fileNameSpan.textContent = newName;
+
+          // Update file object (create a new one with the new name)
+          const newFile = new File([file], newName, { type: file.type });
+          Object.setPrototypeOf(newFile, File.prototype);
+
+          // Replace in temporary storage
+          if (window.tempAttachmentFiles) {
+            const index = window.tempAttachmentFiles.indexOf(file);
+            if (index !== -1) {
+              window.tempAttachmentFiles[index] = newFile;
+            }
+          }
+
+          // TODO: Handle server-side rename if already uploaded
+        }
+      }
+
+      // Attachments: Remove functionality
+      function removeAttachment(file, attachmentItem) {
+        attachmentItem.remove();
+
+        // Remove from temporary storage
+        if (window.tempAttachmentFiles) {
+          const index = window.tempAttachmentFiles.indexOf(file);
+          if (index !== -1) {
+            window.tempAttachmentFiles.splice(index, 1);
+          }
+        }
+
+        // Show placeholder if no attachments left
+        const attachmentItems = attachmentsList.querySelectorAll('.attachment-item');
+        if (attachmentItems.length === 0) {
+          const placeholder = attachmentsList.querySelector('.text-align\\:center') || attachmentsList.querySelector('div');
+          if (placeholder) {
+            placeholder.style.display = 'block';
+          }
+        }
+
+        // TODO: Remove from server if uploaded
+      }
+
+      // Load existing profile image for editing
+      async function loadExistingProfileImage(quotationId) {
+        try {
+          const response = await fetch(`/api/quotations/${quotationId}`);
+          const result = await response.json();
+
+          if (result.success && result.quotation && result.quotation.profileImagePath) {
+            // Display existing profile image
+            profileImagePreview.style.backgroundImage = `url(${(result.quotation.profileImagePath.startsWith('/') ? '' : '/') + result.quotation.profileImagePath.replace(/\\/g, '/')})`;
+            profileImagePreview.style.display = 'block';
+            profileImagePlaceholder.style.display = 'none';
+            removeProfileImageBtn.style.display = 'inline-block';
+
+            // Update drop zone styling
+            profileImageDropZone.style.borderColor = '#000';
+            profileImageDropZone.style.backgroundColor = '#f9f9f9';
+          }
+        } catch (error) {
+          console.warn('Failed to load existing profile image:', error);
+        }
+      }
+    }
+
+    // File upload helper functions
+    async function uploadProfileImage(file, quotationId) {
+      const formData = new FormData();
+      formData.append('profileImage', file);
+
+      try {
+        const response = await fetch(`/api/quotations/${quotationId}/upload-profile-image`, {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Upload failed');
+        }
+
+        console.log('Profile image uploaded:', result.profileImagePath);
+      } catch (error) {
+        console.error('Error uploading profile image:', error);
+        showModal({
+          title: 'Upload Error',
+          body: 'Failed to upload profile image: ' + error.message,
+          buttons: [{ text: 'OK', action: 'close' }]
+        });
+      }
+    }
+
+    async function uploadAttachment(file, quotationId) {
+      const formData = new FormData();
+      formData.append('attachments', file);
+
+      try {
+        const response = await fetch(`/api/quotations/${quotationId}/upload-attachments`, {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Upload failed');
+        }
+
+        console.log('Attachment uploaded:', result.attachmentPaths);
+      } catch (error) {
+        console.error('Error uploading attachment:', error);
+        showModal({
+          title: 'Upload Error',
+          body: 'Failed to upload attachment: ' + error.message,
+          buttons: [{ text: 'OK', action: 'close' }]
+        });
+      }
+    }
+
+    function resetFileUploadUI() {
+      // Reset profile image UI
+      const profileImagePreview = document.getElementById('profileImagePreview');
+      const profileImagePlaceholder = document.getElementById('profileImagePlaceholder');
+      const removeProfileImageBtn = document.getElementById('removeProfileImageBtn');
+      const profileImageInput = document.getElementById('profileImageInput');
+
+      if (profileImagePreview) {
+        profileImagePreview.style.backgroundImage = '';
+        profileImagePreview.style.display = 'none';
+      }
+      if (profileImagePlaceholder) {
+        profileImagePlaceholder.style.display = 'block';
+      }
+      if (removeProfileImageBtn) {
+        removeProfileImageBtn.style.display = 'none';
+      }
+      if (profileImageInput) {
+        profileImageInput.value = '';
+      }
+
+      // Reset attachments UI
+      const attachmentsList = document.getElementById('attachmentsList');
+      const attachmentsInput = document.getElementById('attachmentsInput');
+
+      if (attachmentsList) {
+        // Remove all attachment items except the placeholder
+        const attachmentItems = attachmentsList.querySelectorAll('.attachment-item');
+        attachmentItems.forEach(item => item.remove());
+
+        // Show placeholder
+        const placeholder = attachmentsList.querySelector('div');
+        if (placeholder) {
+          placeholder.style.display = 'block';
+        }
+      }
+
+      if (attachmentsInput) {
+        attachmentsInput.value = '';
+      }
+    }
+
+    function generateQuotationContentForView(tagType, tagName, quotation) {
+      // Same split layout as create form but for view mode (form left, files right)
+      return '<div style="display:flex; gap:20px; height:650px;">' +
+        // Left side: Form (70% width) - same as create form
+        '<div style="flex:0 0 70%; overflow-y:auto; padding-right:10px;">' +
+          '<form id="quotationForm">' +
+            '<div style="margin-bottom:20px;">' +
+              '<h4>Customer Information</h4>' +
+              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">' +
+                '<div>' +
+                  '<label style="display:block; margin-bottom:5px; font-weight:600;">Customer Name *</label>' +
+                  '<div class="autocomplete-container">' +
+                    '<input type="text" id="quotationCustomerName" class="autocomplete-input" placeholder="Enter customer name" autocomplete="off" value="' + (quotation.customerName || '') + '">' +
+                    '<div id="customerAutocompleteDropdown" class="autocomplete-dropdown"></div>' +
+                  '</div>' +
+                '</div>' +
+                '<div>' +
+                  '<label style="display:block; margin-bottom:5px; font-weight:600;">Contact Person</label>' +
+                  '<select id="quotationContactPerson" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">' +
+                    '<option value="">Select Contact Person</option>' +
+                    (quotation.contactPerson ? '<option value="' + quotation.contactPerson + '" selected>' + quotation.contactPerson + '</option>' : '') +
+                  '</select>' +
+                '</div>' +
+              '</div>' +
+              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">' +
+                '<div>' +
+                  '<label style="display:block; margin-bottom:5px; font-weight:600;">Email</label>' +
+                  '<input type="email" id="quotationEmail" style="width:100%; padding:8px; border:1px solid #000;" placeholder="customer@email.com" value="' + (quotation.email || '') + '">' +
+                '</div>' +
+                '<div>' +
+                  '<label style="display:block; margin-bottom:5px; font-weight:600;">Phone</label>' +
+                  '<input type="tel" id="quotationPhone" style="width:100%; padding:8px; border:1px solid #000;" placeholder="+852 1234 5678" value="' + (quotation.phone || '') + '">' +
+                '</div>' +
               '</div>' +
             '</div>' +
-            '<div>' +
-              '<label style="display:block; margin-bottom:5px; font-weight:600;">Contact Person</label>' +
-              '<select id="quotationContactPerson" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">' +
-                '<option value="">Select Contact Person</option>' +
-              '</select>' +
+
+            '<div style="margin-bottom:20px;">' +
+              '<h4>Product Specifications</h4>' +
+              getProductSpecificFieldsForView(tagType, quotation.productDetails || {}) +
+            '</div>' +
+
+            '<div style="margin-bottom:20px;">' +
+              '<h4>Quantity & Pricing</h4>' +
+              '<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:15px;">' +
+                '<div>' +
+                  '<label style="display:block; margin-bottom:5px; font-weight:600;">Quantity *</label>' +
+                  '<input type="number" id="quotationQuantity" style="width:100%; padding:8px; border:1px solid #000;" placeholder="1000" min="1" value="' + (quotation.quantity || '') + '">' +
+                '</div>' +
+                '<div>' +
+                  '<label style="display:block; margin-bottom:5px; font-weight:600;">Unit Price (HKD)</label>' +
+                  '<input type="number" id="quotationUnitPrice" style="width:100%; padding:8px; border:1px solid #000;" placeholder="0.50" step="0.01" min="0" value="' + (quotation.unitPrice ? quotation.unitPrice.toFixed(2) : '') + '">' +
+                '</div>' +
+                '<div>' +
+                  '<label style="display:block; margin-bottom:5px; font-weight:600;">Total (Auto)</label>' +
+                  '<input type="text" id="quotationTotal" style="width:100%; padding:8px; border:1px solid #000; background:#f5f5f5;" readonly value="' + (quotation.total ? quotation.total.toFixed(2) : '') + '">' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+
+            '<div style="margin-bottom:20px;">' +
+              '<h4>Additional Notes</h4>' +
+              '<textarea id="quotationNotes" style="width:100%; min-height:80px; padding:8px; border:1px solid #000;" placeholder="Special requirements, delivery instructions, etc.">' + (quotation.notes || '') + '</textarea>' +
+            '</div>' +
+          '</form>' +
+        '</div>' +
+
+        // Right side: File uploads (30% width) - populated with saved data
+        '<div style="flex:0 0 30%; display:flex; flex-direction:column; gap:15px;">' +
+          // Profile Image Upload (upper 30%)
+          '<div style="flex:0 0 30%; border:1px solid #000; padding:10px; background:#fafafa;">' +
+            '<h5 style="margin:0 0 10px 0; font-size:14px;">Profile Image</h5>' +
+            '<div id="profileImageDropZone" style="width:100%; height:120px; border:2px dashed #ccc; border-radius:0; display:flex; align-items:center; justify-content:center; background:#fff; cursor:pointer; position:relative; overflow:hidden;">' +
+              '<div id="profileImagePreview" style="width:100%; height:100%; background-size:cover; background-repeat:no-repeat; background-position:center; position:absolute; top:0; left:0; z-index:1;' + (quotation.profileImagePath ? 'background-image: url(\'' + (quotation.profileImagePath.startsWith('/') ? '' : '/') + quotation.profileImagePath.replace(/\\/g, '/') + '\');' : 'display:none;') + '"></div>' +
+              '<div id="profileImagePlaceholder" style="text-align:center; color:#666; position:relative; z-index:2;' + (quotation.profileImagePath ? 'display:none;' : '') + '">' +
+                '<div style="font-size:24px; margin-bottom:5px;">📷</div>' +
+                '<div style="font-size:12px;">No image uploaded</div>' +
+              '</div>' +
+              '<input type="file" id="profileImageInput" accept="image/*" style="display:none; position:relative; z-index:3;" disabled readonly>' +
             '</div>' +
           '</div>' +
-          '<div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">' +
-            '<div>' +
-              '<label style="display:block; margin-bottom:5px; font-weight:600;">Email</label>' +
-              '<input type="email" id="quotationEmail" style="width:100%; padding:8px; border:1px solid #000;" placeholder="customer@email.com">' +
-            '</div>' +
-            '<div>' +
-              '<label style="display:block; margin-bottom:5px; font-weight:600;">Phone</label>' +
-              '<input type="tel" id="quotationPhone" style="width:100%; padding:8px; border:1px solid #000;" placeholder="+852 1234 5678">' +
+
+          // Attachments Upload (lower 70%)
+          '<div style="flex:1; border:1px solid #000; padding:10px; background:#fafafa; overflow:hidden; display:flex; flex-direction:column;">' +
+            '<h5 style="margin:0 0 10px 0; font-size:14px;">Attachments</h5>' +
+            '<div id="attachmentsDropZone" style="flex:1; border:2px dashed #ccc; border-radius:0; display:flex; flex-direction:column; background:#fff; position:relative; overflow-y:auto;">' +
+              '<div id="attachmentsList" style="flex:1; padding:10px;">' +
+                (quotation.attachmentPaths && quotation.attachmentPaths.length > 0 ?
+                  quotation.attachmentPaths.map(attachmentPath => {
+                    const fileName = attachmentPath.split('/').pop() || attachmentPath.split('\\\\').pop();
+                    const fileIcon = getFileIconFromPath(attachmentPath);
+                    return '<div style="display: flex; align-items: center; gap: 10px; padding: 5px; border-bottom: 1px solid #ddd;">' +
+                      '<span style="font-size: 16px;">' + fileIcon + '</span>' +
+                      '<span style="flex: 1; font-size: 12px; cursor: pointer;" onclick="previewAttachment(\'' + attachmentPath + '\')">' + fileName + '</span>' +
+                      '<a href="/' + attachmentPath + '" download="' + fileName + '" style="font-size: 12px; color: #000; text-decoration: none;">📥</a>' +
+                    '</div>';
+                  }).join('') :
+                  '<div style="text-align:center; color:#666; font-size:12px;">' +
+                    '<div style="font-size:20px; margin-bottom:5px;">📎</div>' +
+                    '<div>No attachments uploaded</div>' +
+                  '</div>'
+                ) +
+              '</div>' +
             '</div>' +
           '</div>' +
         '</div>' +
+      '</div>';
+    }
 
-        '<div style="margin-bottom:20px;">' +
-          '<h4>Product Specifications</h4>' +
-          getProductSpecificFields(tagType) +
+    function generateQuotationContent(tagType, tagName) {
+      // Base form structure with split layout (left: form, right: file uploads)
+      return '<div style="display:flex; gap:20px; height:600px;">' +
+        // Left side: Form (70% width)
+        '<div style="flex:0 0 70%; overflow-y:auto; padding-right:10px;">' +
+          '<form id="quotationForm">' +
+            '<div style="margin-bottom:20px;">' +
+              '<h4>Customer Information</h4>' +
+              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">' +
+                '<div>' +
+                  '<label style="display:block; margin-bottom:5px; font-weight:600;">Customer Name *</label>' +
+                  '<div class="autocomplete-container">' +
+                    '<input type="text" id="quotationCustomerName" class="autocomplete-input" placeholder="Enter customer name" autocomplete="off">' +
+                    '<div id="customerAutocompleteDropdown" class="autocomplete-dropdown"></div>' +
+                  '</div>' +
+                '</div>' +
+                '<div>' +
+                  '<label style="display:block; margin-bottom:5px; font-weight:600;">Contact Person</label>' +
+                  '<select id="quotationContactPerson" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">' +
+                    '<option value="">Select Contact Person</option>' +
+                  '</select>' +
+                '</div>' +
+              '</div>' +
+              '<div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">' +
+                '<div>' +
+                  '<label style="display:block; margin-bottom:5px; font-weight:600;">Email</label>' +
+                  '<input type="email" id="quotationEmail" style="width:100%; padding:8px; border:1px solid #000;" placeholder="customer@email.com">' +
+                '</div>' +
+                '<div>' +
+                  '<label style="display:block; margin-bottom:5px; font-weight:600;">Phone</label>' +
+                  '<input type="tel" id="quotationPhone" style="width:100%; padding:8px; border:1px solid #000;" placeholder="+852 1234 5678">' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+
+            '<div style="margin-bottom:20px;">' +
+              '<h4>Product Specifications</h4>' +
+              getProductSpecificFields(tagType) +
+            '</div>' +
+
+            '<div style="margin-bottom:20px;">' +
+              '<h4>Quantity & Pricing</h4>' +
+              '<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:15px;">' +
+                '<div>' +
+                  '<label style="display:block; margin-bottom:5px; font-weight:600;">Quantity *</label>' +
+                  '<input type="number" id="quotationQuantity" style="width:100%; padding:8px; border:1px solid #000;" placeholder="1000" min="1">' +
+                '</div>' +
+                '<div>' +
+                  '<label style="display:block; margin-bottom:5px; font-weight:600;">Unit Price (HKD)</label>' +
+                  '<input type="number" id="quotationUnitPrice" style="width:100%; padding:8px; border:1px solid #000;" placeholder="0.50" step="0.01" min="0">' +
+                '</div>' +
+                '<div>' +
+                  '<label style="display:block; margin-bottom:5px; font-weight:600;">Total (Auto)</label>' +
+                  '<input type="text" id="quotationTotal" style="width:100%; padding:8px; border:1px solid #000; background:#f5f5f5;" readonly>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+
+            '<div style="margin-bottom:20px;">' +
+              '<h4>Additional Notes</h4>' +
+              '<textarea id="quotationNotes" style="width:100%; min-height:80px; padding:8px; border:1px solid #000;" placeholder="Special requirements, delivery instructions, etc."></textarea>' +
+            '</div>' +
+
+            '<div style="display:flex; gap:10px; justify-content:flex-end;">' +
+              '<button type="button" class="page-btn" onclick="fillDummyQuotationForm()">Dummy Fill</button>' +
+              '<button type="button" class="page-btn" onclick="clearQuotationForm()">Clear</button>' +
+              '<button type="button" class="page-btn" onclick="saveQuotation(\'' + tagType + '\')">Save Quotation</button>' +
+              '<button type="button" class="page-btn primary" onclick="generateQuotation(\'' + tagType + '\')">Generate PDF</button>' +
+            '</div>' +
+          '</form>' +
         '</div>' +
 
-        '<div style="margin-bottom:20px;">' +
-          '<h4>Quantity & Pricing</h4>' +
-          '<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:15px;">' +
-            '<div>' +
-              '<label style="display:block; margin-bottom:5px; font-weight:600;">Quantity *</label>' +
-              '<input type="number" id="quotationQuantity" style="width:100%; padding:8px; border:1px solid #000;" placeholder="1000" min="1">' +
+        // Right side: File uploads (30% width)
+        '<div style="flex:0 0 30%; display:flex; flex-direction:column; gap:15px;">' +
+          // Profile Image Upload (upper 30%)
+          '<div style="flex:0 0 30%; border:1px solid #000; padding:10px; background:#fafafa;">' +
+            '<h5 style="margin:0 0 10px 0; font-size:14px;">Profile Image</h5>' +
+            '<div id="profileImageDropZone" style="width:100%; height:120px; border:2px dashed #ccc; border-radius:0; display:flex; align-items:center; justify-content:center; background:#fff; cursor:pointer; position:relative; overflow:hidden;">' +
+              '<div id="profileImagePreview" style="width:100%; height:100%; display:none; background-size:cover; background-repeat:no-repeat; background-position:center; position:absolute; top:0; left:0; z-index:1;"></div>' +
+              '<div id="profileImagePlaceholder" style="text-align:center; color:#666; position:relative; z-index:2;">' +
+                '<div style="font-size:24px; margin-bottom:5px;">📷</div>' +
+                '<div style="font-size:12px;">Drop image here or click to browse</div>' +
+                '<div style="font-size:10px; margin-top:5px;">(Ctrl+V or Ctrl+P to paste)</div>' +
+              '</div>' +
+              '<input type="file" id="profileImageInput" accept="image/*" style="display:none; position:relative; z-index:3;">' +
             '</div>' +
-            '<div>' +
-              '<label style="display:block; margin-bottom:5px; font-weight:600;">Unit Price (HKD)</label>' +
-              '<input type="number" id="quotationUnitPrice" style="width:100%; padding:8px; border:1px solid #000;" placeholder="0.50" step="0.01" min="0">' +
+            '<div style="margin-top:5px; text-align:center; position:relative; z-index:4;">' +
+              '<button type="button" class="btn" id="removeProfileImageBtn" style="display:none; font-size:12px; padding:4px 8px;" onclick="removeProfileImage()">Remove</button>' +
             '</div>' +
-            '<div>' +
-              '<label style="display:block; margin-bottom:5px; font-weight:600;">Total (Auto)</label>' +
-              '<input type="text" id="quotationTotal" style="width:100%; padding:8px; border:1px solid #000; background:#f5f5f5;" readonly>' +
+          '</div>' +
+
+          // Attachments Upload (lower 70%)
+          '<div style="flex:1; border:1px solid #000; padding:10px; background:#fafafa; overflow:hidden; display:flex; flex-direction:column;">' +
+            '<h5 style="margin:0 0 10px 0; font-size:14px;">Attachments</h5>' +
+            '<div id="attachmentsDropZone" style="flex:1; border:2px dashed #ccc; border-radius:0; display:flex; flex-direction:column; background:#fff; cursor:pointer; position:relative; overflow-y:auto;">' +
+              '<div id="attachmentsList" style="flex:1; padding:10px;">' +
+                '<div style="text-align:center; color:#666; font-size:12px;">' +
+                  '<div style="font-size:20px; margin-bottom:5px;">📎</div>' +
+                  '<div>Drop files here or click to browse</div>' +
+                  '<div style="font-size:10px; margin-top:5px;">(Ctrl+V or Ctrl+P to paste)</div>' +
+                  '<div style="font-size:10px; margin-top:2px;">Supports: PDF, DOC, images, text files</div>' +
+                '</div>' +
+              '</div>' +
+              '<input type="file" id="attachmentsInput" multiple style="display:none;">' +
             '</div>' +
           '</div>' +
         '</div>' +
-
-        '<div style="margin-bottom:20px;">' +
-          '<h4>Additional Notes</h4>' +
-          '<textarea id="quotationNotes" style="width:100%; min-height:80px; padding:8px; border:1px solid #000;" placeholder="Special requirements, delivery instructions, etc."></textarea>' +
-        '</div>' +
-
-        '<div style="display:flex; gap:10px; justify-content:flex-end;">' +
-          '<button type="button" class="page-btn" onclick="fillDummyQuotationForm()">Dummy Fill</button>' +
-          '<button type="button" class="page-btn" onclick="clearQuotationForm()">Clear</button>' +
-          '<button type="button" class="page-btn" onclick="saveQuotation(\'' + tagType + '\')">Save Quotation</button>' +
-          '<button type="button" class="page-btn primary" onclick="generateQuotation(\'' + tagType + '\')">Generate PDF</button>' +
-        '</div>' +
-      '</form>';
+      '</div>';
     }
 
     function getProductSpecificFields(tagType) {
@@ -4396,6 +5093,133 @@
       return fields[tagType] || fields['others'];
     }
 
+    function getProductSpecificFieldsForView(tagType, productDetails) {
+      const fields = {
+        'hang-tag': `
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Material</label>
+              <select id="quotationMaterial" style="width:100%; padding:8px; border:1px solid #000;">
+                <option value="">Select Material</option>
+                <option value="paper" ${productDetails.material === 'paper' ? 'selected' : ''}>Paper</option>
+                <option value="cardboard" ${productDetails.material === 'cardboard' ? 'selected' : ''}>Cardboard</option>
+                <option value="plastic" ${productDetails.material === 'plastic' ? 'selected' : ''}>Plastic</option>
+                <option value="fabric" ${productDetails.material === 'fabric' ? 'selected' : ''}>Fabric</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Size</label>
+              <input type="text" id="quotationSize" style="width:100%; padding:8px; border:1px solid #000;" placeholder="2x3 inches" value="${productDetails.size || ''}">
+            </div>
+          </div>
+          <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:5px; font-weight:600;">Printing Method</label>
+            <select id="quotationPrintingMethod" style="width:100%; padding:8px; border:1px solid #000;">
+              <option value="">Select Printing Method</option>
+              <option value="screen-printing" ${productDetails.printingMethod === 'screen-printing' ? 'selected' : ''}>Screen Printing</option>
+              <option value="digital-printing" ${productDetails.printingMethod === 'digital-printing' ? 'selected' : ''}>Digital Printing</option>
+              <option value="offset-printing" ${productDetails.printingMethod === 'offset-printing' ? 'selected' : ''}>Offset Printing</option>
+              <option value="embroidery" ${productDetails.printingMethod === 'embroidery' ? 'selected' : ''}>Embroidery</option>
+            </select>
+          </div>
+        `,
+        'woven-label': `
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Width</label>
+              <input type="text" id="quotationWidth" style="width:100%; padding:8px; border:1px solid #000;" placeholder="1 inch" value="${productDetails.width || ''}">
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Length</label>
+              <input type="text" id="quotationLength" style="width:100%; padding:8px; border:1px solid #000;" placeholder="2 inches" value="${productDetails.length || ''}">
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Color Count</label>
+              <select id="quotationColorCount" style="width:100%; padding:8px; border:1px solid #000;">
+                <option value="1" ${productDetails.colorCount === '1' ? 'selected' : ''}>1 Color</option>
+                <option value="2" ${productDetails.colorCount === '2' ? 'selected' : ''}>2 Colors</option>
+                <option value="3" ${productDetails.colorCount === '3' ? 'selected' : ''}>3 Colors</option>
+                <option value="4" ${productDetails.colorCount === '4' ? 'selected' : ''}>4+ Colors</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Edge Finish</label>
+              <select id="quotationEdgeFinish" style="width:100%; padding:8px; border:1px solid #000;">
+                <option value="cut" ${productDetails.edgeFinish === 'cut' ? 'selected' : ''}>Cut Edge</option>
+                <option value="hemmed" ${productDetails.edgeFinish === 'hemmed' ? 'selected' : ''}>Hemmed Edge</option>
+                <option value="overlocked" ${productDetails.edgeFinish === 'overlocked' ? 'selected' : ''}>Overlocked</option>
+              </select>
+            </div>
+          </div>
+        `,
+        'care-label': `
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Material Type</label>
+              <select id="quotationMaterialType" style="width:100%; padding:8px; border:1px solid #000;">
+                <option value="">Select Material</option>
+                <option value="satin" ${productDetails.materialType === 'satin' ? 'selected' : ''}>Satin Tape</option>
+                <option value="cotton" ${productDetails.materialType === 'cotton' ? 'selected' : ''}>Cotton Tape</option>
+                <option value="woven" ${productDetails.materialType === 'woven' ? 'selected' : ''}>Woven Fabric</option>
+                <option value="paper" ${productDetails.materialType === 'paper' ? 'selected' : ''}>Paper</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Wash Care Symbols</label>
+              <input type="text" id="quotationWashSymbols" style="width:100%; padding:8px; border:1px solid #000;" placeholder="Machine wash, tumble dry, etc." value="${productDetails.washSymbols || ''}">
+            </div>
+          </div>
+        `,
+        'heat-transfer': `
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Transfer Type</label>
+              <select id="quotationTransferType" style="width:100%; padding:8px; border:1px solid #000;">
+                <option value="">Select Type</option>
+                <option value="screen-print" ${productDetails.transferType === 'screen-print' ? 'selected' : ''}>Screen Print Transfer</option>
+                <option value="digital-print" ${productDetails.transferType === 'digital-print' ? 'selected' : ''}>Digital Print Transfer</option>
+                <option value="vinyl-cut" ${productDetails.transferType === 'vinyl-cut' ? 'selected' : ''}>Vinyl Cut Transfer</option>
+                <option value="sublimation" ${productDetails.transferType === 'sublimation' ? 'selected' : ''}>Sublimation Transfer</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Application Method</label>
+              <select id="quotationApplication" style="width:100%; padding:8px; border:1px solid #000;">
+                <option value="heat-press" ${productDetails.application === 'heat-press' ? 'selected' : ''}>Heat Press</option>
+                <option value="iron" ${productDetails.application === 'iron' ? 'selected' : ''}>Household Iron</option>
+                <option value="commercial" ${productDetails.application === 'commercial' ? 'selected' : ''}>Commercial Press</option>
+              </select>
+            </div>
+          </div>
+        `,
+        'others': `
+          <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:5px; font-weight:600;">Product Description *</label>
+            <textarea id="quotationProductDescription" style="width:100%; min-height:60px; padding:8px; border:1px solid #000;" placeholder="Describe the custom product or service...">${productDetails.productDescription || ''}</textarea>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Category</label>
+              <input type="text" id="quotationCategory" style="width:100%; padding:8px; border:1px solid #000;" placeholder="e.g., Packaging, Stickers" value="${productDetails.category || ''}">
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:5px; font-weight:600;">Complexity</label>
+              <select id="quotationComplexity" style="width:100%; padding:8px; border:1px solid #000;">
+                <option value="simple" ${productDetails.complexity === 'simple' ? 'selected' : ''}>Simple</option>
+                <option value="medium" ${productDetails.complexity === 'medium' ? 'selected' : ''}>Medium</option>
+                <option value="complex" ${productDetails.complexity === 'complex' ? 'selected' : ''}>Complex</option>
+                <option value="custom" ${productDetails.complexity === 'custom' ? 'selected' : ''}>Custom</option>
+              </select>
+            </div>
+          </div>
+        `
+      };
+
+      return fields[tagType] || fields['others'];
+    }
+
     // Global functions for quotation form
     window.clearQuotationForm = function() {
       const form = document.getElementById('quotationForm');
@@ -4425,6 +5249,9 @@
 
         // Clear edit mode
         window.editingQuotationId = null;
+
+        // Reset file upload UI
+        resetFileUploadUI();
       }
     };
 
@@ -4471,7 +5298,7 @@
           return;
         }
 
-        // Create quotation object
+        // Create quotation object first (without files)
         const quotation = {
           ...(window.editingQuotationId && { id: window.editingQuotationId }),
           customerName,
@@ -4484,12 +5311,77 @@
           unitPrice: parseFloat(unitPrice) || 0,
           total: parseFloat(total) || 0,
           notes,
+          profileImagePath: null,
+          attachmentPaths: [],
           dateCreated: new Date().toISOString(),
           status: 'draft'
         };
 
-        // Save to database
-        await saveQuotationToStorage(quotation);
+        // Save quotation to database first to get ID
+        const savedQuotation = await saveQuotationToStorage(quotation);
+        const quotationId = savedQuotation.id;
+
+        // Now upload files with the actual quotation ID
+        let profileImagePath = null;
+        let attachmentPaths = [];
+
+        console.log('Uploading files for quotation ID:', quotationId);
+        console.log('Temp profile image file:', window.tempProfileImageFile ? 'EXISTS' : 'NOT SET');
+        console.log('Temp attachment files:', window.tempAttachmentFiles ? window.tempAttachmentFiles.length : 'NOT SET');
+
+        // Handle profile image
+        if (window.tempProfileImageFile) {
+          const profileFormData = new FormData();
+          profileFormData.append('profileImage', window.tempProfileImageFile);
+
+          try {
+            const profileResponse = await fetch(`/api/quotations/${quotationId}/upload-profile-image`, {
+              method: 'POST',
+              body: profileFormData
+            });
+            const profileResult = await profileResponse.json();
+            if (profileResult.success) {
+              profileImagePath = profileResult.profileImagePath;
+            }
+          } catch (error) {
+            console.warn('Failed to upload profile image:', error);
+          }
+        }
+
+        // Handle attachments
+        if (window.tempAttachmentFiles && window.tempAttachmentFiles.length > 0) {
+          const attachmentFormData = new FormData();
+          window.tempAttachmentFiles.forEach(file => {
+            attachmentFormData.append('attachments', file);
+          });
+
+          try {
+            const attachmentResponse = await fetch(`/api/quotations/${quotationId}/upload-attachments`, {
+              method: 'POST',
+              body: attachmentFormData
+            });
+            const attachmentResult = await attachmentResponse.json();
+            if (attachmentResult.success) {
+              attachmentPaths = attachmentResult.attachmentPaths;
+            }
+          } catch (error) {
+            console.warn('Failed to upload attachments:', error);
+          }
+        }
+
+        // Update quotation with file paths if any files were uploaded
+        console.log('Profile image path to save:', profileImagePath);
+        console.log('Attachment paths to save:', attachmentPaths);
+
+        if (profileImagePath || attachmentPaths.length > 0) {
+          const updateData = {
+            ...savedQuotation,
+            profileImagePath,
+            attachmentPaths
+          };
+          console.log('Updating quotation with file data:', updateData);
+          await saveQuotationToStorage(updateData);
+        }
 
         // Clear edit mode
         window.editingQuotationId = null;
@@ -4500,8 +5392,15 @@
           buttons: [{ text: 'OK', action: 'close' }]
         });
 
-        // Clear form
+        // Clear form and temporary files
         clearQuotationForm();
+
+        // Clear temporary files
+        delete window.tempProfileImageFile;
+        delete window.tempAttachmentFiles;
+
+        // Reset file upload UI
+        resetFileUploadUI();
 
       } catch (error) {
         console.error('Error saving quotation:', error);
