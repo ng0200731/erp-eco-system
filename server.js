@@ -18,6 +18,7 @@ import {
   getAllSkills, getSkillsStats, getSkillByName, getSkillById, createSkill, updateSkill, deleteSkill
 } from './db/tasksDb.js';
 import SkillManager from './skills/skillManager.js';
+import { getNormalizedRelativePath } from './utils/pathUtils.js';
 
 // ---------- ENV ----------
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1910,7 +1911,7 @@ if (skillManager) {
       }
 
       // Update quotation with new profile image path
-      const relativePath = path.relative(__dirname, req.file.path);
+      const relativePath = getNormalizedRelativePath(__dirname, req.file.path);
       await updateQuotation(id, { ...quotation, profileImagePath: relativePath });
 
       res.json({
@@ -1939,7 +1940,7 @@ if (skillManager) {
       }
 
       // Get relative paths for uploaded files
-      const newAttachmentPaths = req.files.map(file => path.relative(__dirname, file.path));
+      const newAttachmentPaths = req.files.map(file => getNormalizedRelativePath(__dirname, file.path));
 
       // Combine existing attachments with new ones
       const allAttachmentPaths = [...quotation.attachmentPaths, ...newAttachmentPaths];
@@ -2009,7 +2010,7 @@ if (skillManager) {
         return res.status(400).json({ success: false, error: 'No file uploaded' });
       }
 
-      const relativePath = path.relative(__dirname, req.file.path);
+      const relativePath = getNormalizedRelativePath(__dirname, req.file.path);
       res.json({
         success: true,
         profileImagePath: relativePath,
@@ -2028,7 +2029,7 @@ if (skillManager) {
         return res.status(400).json({ success: false, error: 'No files uploaded' });
       }
 
-      const attachmentPaths = req.files.map(file => path.relative(__dirname, file.path));
+      const attachmentPaths = req.files.map(file => getNormalizedRelativePath(__dirname, file.path));
       res.json({
         success: true,
         attachmentPaths: attachmentPaths,
