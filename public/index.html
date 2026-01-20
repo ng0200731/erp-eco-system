@@ -84,7 +84,6 @@
       padding:14px 16px;
       font-size:14px;
       line-height:1.45;
-      white-space:pre-wrap;
       word-break:break-word;
     }
     .modal-actions{
@@ -4011,28 +4010,81 @@
       const tagName = getProductTypeDisplayName(quotation.productType);
       const formHtml = generateQuotationContent(quotation.productType, tagName);
 
-      // Create modal with the form
+      // Use the same form HTML as quotation creation but in view mode
       const modalContent = `
-        <div style="max-width: 1200px; max-height: 80vh; overflow-y: auto;">
-          <div style="margin-bottom: 15px; padding: 10px; background: #f8f8f8; border: 1px solid #000;">
-            <strong>Quotation Details</strong> - Created: ${new Date(quotation.dateCreated).toLocaleString()}
-            <span style="float: right; font-size: 0.9em; color: #666;">Status: ${quotation.status || 'Draft'}</span>
+        <div style="max-height: 70vh; overflow-y: auto;">
+          <div style="margin-bottom: 20px; padding: 15px; background: #f8f8f8; border: 1px solid #000;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="font-size: 1.1em;">Quotation Details - View Mode</strong>
+                <div style="margin-top: 5px; font-size: 0.9em; color: #666;">
+                  Created: ${new Date(quotation.dateCreated).toLocaleString()}
+                </div>
+                <div style="margin-top: 3px; font-size: 0.8em; color: #999; font-style: italic;">
+                  All fields are read-only in view mode
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-weight: 600; margin-bottom: 5px;">Status: ${quotation.status || 'Draft'}</div>
+                <div style="font-size: 0.9em; color: #666;">ID: ${quotation.id}</div>
+              </div>
+            </div>
           </div>
-          <div id="quotationViewFormContainer">
+
+          <div id="quotationViewFormContainer" style="padding-right: 20px;">
             ${formHtml}
           </div>
+
+          ${quotation.images && quotation.images.length > 0 ? `
+          <div style="margin-bottom: 20px; padding-right: 20px;">
+            <h4 style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #000;">Images</h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+              ${quotation.images.map((image, index) => `
+                <div style="border: 1px solid #000; padding: 5px;">
+                  <img src="${image.url || image}" alt="${image.name || `Image ${index + 1}`}"
+                       style="max-width: 150px; max-height: 150px; cursor: pointer;"
+                       onclick="showImageModal('${image.url || image}', '${image.name || `Image ${index + 1}`}')">
+                  <div style="margin-top: 5px; font-size: 0.8em; color: #666;">${image.name || `Image ${index + 1}`}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
+
+          ${quotation.attachments && quotation.attachments.length > 0 ? `
+          <div style="margin-bottom: 20px; padding-right: 20px;">
+            <h4 style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #000;">Attachments</h4>
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+              ${quotation.attachments.map((attachment, index) => `
+                <div style="border: 1px solid #000; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <strong>${attachment.name || `Attachment ${index + 1}`}</strong>
+                    <span style="margin-left: 10px; font-size: 0.9em; color: #666;">
+                      (${attachment.size ? formatFileSize(attachment.size) : 'Unknown size'})
+                    </span>
+                  </div>
+                  <button class="btn" onclick="downloadAttachment('${attachment.url || attachment}', '${attachment.name || `Attachment ${index + 1}`}')">
+                    Download
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
         </div>
       `;
 
-      // Create a custom modal overlay for the quotation form
+      // Use standard modal CSS classes
       const overlay = document.createElement('div');
       overlay.className = 'modal-overlay';
       overlay.style.zIndex = '11000';
 
       const modal = document.createElement('div');
       modal.className = 'modal';
-      modal.style.maxWidth = '900px';
-      modal.style.width = '90vw';
+      modal.style.maxWidth = '1200px';
+      modal.style.width = '95vw';
+      modal.style.maxHeight = '90vh';
+      modal.style.overflow = 'hidden';
 
       const header = document.createElement('div');
       header.className = 'modal-header';
@@ -4040,6 +4092,7 @@
 
       const body = document.createElement('div');
       body.className = 'modal-body';
+      body.style.padding = '20px';
       body.innerHTML = modalContent;
 
       const actions = document.createElement('div');
@@ -4067,6 +4120,32 @@
         document.body.removeChild(overlay);
         document.body.classList.remove('modal-open');
       };
+
+      // Global helper functions for image and attachment handling
+      window.showImageModal = function(imageUrl, imageName) {
+        const modal = document.getElementById('imageModal');
+        const imageContainer = modal.querySelector('.modal-body div');
+        imageContainer.innerHTML = `<img src="${imageUrl}" alt="${imageName}" style="max-width: 100%; max-height: 80vh;">`;
+        modal.style.display = 'flex';
+        document.body.classList.add('modal-open');
+      };
+
+      window.downloadAttachment = function(attachmentUrl, attachmentName) {
+        const link = document.createElement('a');
+        link.href = attachmentUrl;
+        link.download = attachmentName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+
+      window.formatFileSize = function(bytes) {
+        if (!bytes) return 'Unknown';
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+      };
     }
 
     function populateQuotationViewForm(quotation) {
@@ -4092,6 +4171,8 @@
           element.style.backgroundColor = '#f5f5f5';
           element.style.color = '#666';
           element.style.cursor = 'not-allowed';
+          element.style.opacity = '0.7';
+          element.style.border = '1px solid #ccc';
         });
 
         // Populate customer information
@@ -4141,24 +4222,18 @@
 
         // Populate quantity and pricing
         const quantityField = document.getElementById('quotationQuantity');
-        console.log('quantityField found:', !!quantityField, 'quotation.quantity:', quotation.quantity);
-        if (quantityField && quotation.quantity) {
+        if (quantityField && quotation.quantity !== undefined && quotation.quantity !== null) {
           quantityField.value = quotation.quantity;
-          console.log('Set quantityField value to:', quotation.quantity);
         }
 
         const unitPriceField = document.getElementById('quotationUnitPrice');
-        console.log('unitPriceField found:', !!unitPriceField, 'quotation.unitPrice:', quotation.unitPrice);
-        if (unitPriceField && quotation.unitPrice !== undefined) {
-          unitPriceField.value = quotation.unitPrice.toFixed ? quotation.unitPrice.toFixed(2) : quotation.unitPrice;
-          console.log('Set unitPriceField value to:', quotation.unitPrice);
+        if (unitPriceField && quotation.unitPrice !== undefined && quotation.unitPrice !== null) {
+          unitPriceField.value = typeof quotation.unitPrice === 'number' ? quotation.unitPrice.toFixed(2) : quotation.unitPrice;
         }
 
         const totalField = document.getElementById('quotationTotal');
-        console.log('totalField found:', !!totalField, 'quotation.total:', quotation.total);
-        if (totalField && quotation.total !== undefined) {
-          totalField.value = quotation.total.toFixed ? quotation.total.toFixed(2) : quotation.total;
-          console.log('Set totalField value to:', quotation.total);
+        if (totalField && quotation.total !== undefined && quotation.total !== null) {
+          totalField.value = typeof quotation.total === 'number' ? quotation.total.toFixed(2) : quotation.total;
         }
 
         // Populate notes

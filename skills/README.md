@@ -56,3 +56,4 @@ Skills are integrated into the main web application through:
 - REST API endpoints for skill management
 - Real-time skill status updates
 
+
