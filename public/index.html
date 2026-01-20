@@ -3702,9 +3702,15 @@
     }
 
     async function initializeQuotationViewPanel() {
+      console.log('initializeQuotationViewPanel called');
+      // Load quotations immediately when panel is initialized
+      await displayQuotations();
+
       // Refresh button functionality
       const refreshBtn = document.getElementById('refreshQuotationsBtn');
-      refreshBtn.onclick = async () => await displayQuotations();
+      if (refreshBtn) {
+        refreshBtn.onclick = async () => await displayQuotations();
+      }
 
       // Set up filter event listeners
       const filterInputs = document.querySelectorAll('#quotationViewPanel .filter-input');
@@ -3718,8 +3724,10 @@
     }
 
     async function displayQuotations() {
+      console.log('displayQuotations called');
       const tbody = document.getElementById('quotationsTableBody');
       const quotations = await loadQuotationsFromStorage();
+      console.log('Loaded quotations:', quotations);
 
       if (quotations.length === 0) {
         tbody.innerHTML = `
@@ -3800,10 +3808,18 @@
     }
 
     async function viewQuotationDetails(quotationId) {
+      console.log('Viewing quotation with ID:', quotationId);
       const quotations = await loadQuotationsFromStorage();
+      console.log('All quotations:', quotations);
+
       const quotation = quotations.find(q => q.id === quotationId);
+      console.log('Found quotation:', quotation ? 'YES' : 'NO');
+      console.log('Looking for ID:', quotationId, 'Type:', typeof quotationId);
+      console.log('Available IDs:', quotations.map(q => ({ id: q.id, type: typeof q.id })));
 
       if (!quotation) {
+        console.error('Quotation not found for ID:', quotationId);
+        console.error('Available quotation IDs:', quotations.map(q => q.id));
         showModal({
           title: 'Error',
           body: 'Quotation not found.',
@@ -3864,10 +3880,10 @@
       // Prevent body scroll when modal is open
       document.body.classList.add('modal-open');
 
-      // Populate the form with quotation data
-      setTimeout(() => {
+      // Populate the form with quotation data immediately after DOM insertion
+      requestAnimationFrame(() => {
         populateQuotationViewForm(quotation);
-      }, 100);
+      });
 
       // Global function to close the modal
       window.closeQuotationViewModal = function() {
@@ -3877,83 +3893,90 @@
     }
 
     function populateQuotationViewForm(quotation) {
-      // Disable and dim all input, textarea, and select elements in the form
-      const allFormElements = document.querySelectorAll('#quotationViewFormContainer input, #quotationViewFormContainer textarea, #quotationViewFormContainer select');
-      allFormElements.forEach(element => {
-        element.disabled = true;
-        element.readOnly = true;
-        element.style.backgroundColor = '#f5f5f5';
-        element.style.color = '#666';
-        element.style.cursor = 'not-allowed';
-      });
+      console.log('Populating view form with quotation data:', quotation);
 
-      // Populate customer information
-      const customerNameField = document.getElementById('quotationCustomerName');
-      if (customerNameField) {
-        customerNameField.value = quotation.customerName;
-      }
+      // Wait for DOM to be fully ready, then populate fields BEFORE disabling them
+      setTimeout(() => {
+        console.log('Starting to populate form fields...');
 
-      // Populate contact person dropdown
-      const contactField = document.getElementById('quotationContactPerson');
-      if (contactField) {
-        contactField.innerHTML = `<option value="${quotation.contactPerson}" selected>${quotation.contactPerson}</option>`;
-      }
+        // Get the form container first
+        const formContainer = document.getElementById('quotationViewFormContainer');
+        console.log('Form container found:', formContainer ? 'YES' : 'NO');
 
-      // Populate email and phone
-      const emailField = document.getElementById('quotationEmail');
-      if (emailField) {
-        emailField.value = quotation.email || '';
-      }
+        if (!formContainer) {
+          console.error('quotationViewFormContainer not found!');
+          return;
+        }
 
-      const phoneField = document.getElementById('quotationPhone');
-      if (phoneField) {
-        phoneField.value = quotation.phone || '';
-      }
+        // FIRST: Populate all the values
+        // Populate customer information
+        const customerNameField = formContainer.querySelector('#quotationCustomerName');
+        console.log('Customer name field found:', customerNameField ? 'YES' : 'NO');
+        if (customerNameField) {
+          customerNameField.value = quotation.customerName || '';
+          console.log('Set customer name to:', quotation.customerName);
+        }
 
-      // Populate product-specific fields
-      if (quotation.productDetails) {
-        Object.entries(quotation.productDetails).forEach(([key, value]) => {
-          const fieldId = `quotation${key.charAt(0).toUpperCase() + key.slice(1)}`;
-          const field = document.getElementById(fieldId);
-          if (field) {
-            field.value = value;
-          }
+        // Populate contact person dropdown
+        const contactField = formContainer.querySelector('#quotationContactPerson');
+        if (contactField && quotation.contactPerson) {
+          contactField.innerHTML = `<option value="${quotation.contactPerson}" selected>${quotation.contactPerson}</option>`;
+        }
+
+        // Populate email and phone
+        const emailField = formContainer.querySelector('#quotationEmail');
+        if (emailField) {
+          emailField.value = quotation.email || '';
+        }
+
+        const phoneField = formContainer.querySelector('#quotationPhone');
+        if (phoneField) {
+          phoneField.value = quotation.phone || '';
+        }
+
+        // Populate product-specific fields
+        if (quotation.productDetails) {
+          Object.entries(quotation.productDetails).forEach(([key, value]) => {
+            const fieldId = `quotation${key.charAt(0).toUpperCase() + key.slice(1)}`;
+            const field = formContainer.querySelector(`#${fieldId}`);
+            if (field) {
+              field.value = value;
+            }
+          });
+        }
+
+        // Populate quantity and pricing
+        const quantityField = formContainer.querySelector('#quotationQuantity');
+        if (quantityField && quotation.quantity) {
+          quantityField.value = quotation.quantity;
+        }
+
+        const unitPriceField = formContainer.querySelector('#quotationUnitPrice');
+        if (unitPriceField && quotation.unitPrice) {
+          unitPriceField.value = quotation.unitPrice.toFixed(2);
+        }
+
+        const totalField = formContainer.querySelector('#quotationTotal');
+        if (totalField && quotation.total) {
+          totalField.value = quotation.total.toFixed(2);
+        }
+
+        // Populate notes
+        const notesField = formContainer.querySelector('#quotationNotes');
+        if (notesField) {
+          notesField.value = quotation.notes || '';
+        }
+
+        // THEN: Disable and dim all input, textarea, and select elements in the form
+        const allFormElements = document.querySelectorAll('#quotationViewFormContainer input, #quotationViewFormContainer textarea, #quotationViewFormContainer select');
+        allFormElements.forEach(element => {
+          element.disabled = true;
+          element.readOnly = true;
+          element.style.backgroundColor = '#f5f5f5';
+          element.style.color = '#666';
+          element.style.cursor = 'not-allowed';
         });
-      }
-
-      // Populate quantity and pricing
-      const quantityField = document.getElementById('quotationQuantity');
-      if (quantityField) {
-        quantityField.value = quotation.quantity;
-      }
-
-      const unitPriceField = document.getElementById('quotationUnitPrice');
-      if (unitPriceField) {
-        unitPriceField.value = quotation.unitPrice.toFixed(2);
-      }
-
-      const totalField = document.getElementById('quotationTotal');
-      if (totalField) {
-        totalField.value = quotation.total.toFixed(2);
-      }
-
-      // Populate notes
-      const notesField = document.getElementById('quotationNotes');
-      if (notesField) {
-        notesField.value = quotation.notes || '';
-      }
-
-      // Hide all action buttons in view mode
-      const allButtons = document.querySelectorAll('#quotationViewFormContainer button');
-      allButtons.forEach(button => {
-        button.style.display = 'none';
-      });
-
-      // Hide the action row completely
-      const formActions = document.querySelector('#quotationViewFormContainer .row:last-child');
-      if (formActions) {
-        formActions.style.display = 'none';
-      }
+      }, 200);
     }
 
     async function editQuotationFromView(quotationId) {
@@ -4425,6 +4448,10 @@
         const total = document.getElementById('quotationTotal').value;
         const notes = document.getElementById('quotationNotes').value.trim();
 
+        console.log('Saving quotation with data:', {
+          customerName, contactPerson, email, phone, quantity, unitPrice, total, notes, tagType
+        });
+
         // Get product-specific fields
         let productDetails = {};
         if (tagType === 'hang-tag') {
@@ -4448,7 +4475,7 @@
 
         // Create quotation object
         const quotation = {
-          id: window.editingQuotationId || Date.now(),
+          ...(window.editingQuotationId && { id: window.editingQuotationId }),
           customerName,
           contactPerson,
           email,
@@ -4490,6 +4517,7 @@
 
     async function saveQuotationToStorage(quotation) {
       try {
+        console.log('saveQuotationToStorage called with:', quotation);
         let response;
         let result;
 
@@ -4526,12 +4554,13 @@
           throw new Error(result.error || 'Failed to save quotation');
         }
 
-        // Update quotation ID if it was created
+        // Update quotation ID if it was created (for new quotations that didn't have an ID)
         if (result.quotation && result.quotation.id && !quotation.id) {
           quotation.id = result.quotation.id;
+          console.log('Assigned new quotation ID:', quotation.id);
         }
 
-        console.log('Quotation saved:', result.quotation);
+        console.log('Quotation saved successfully:', result.quotation);
         return result.quotation;
       } catch (error) {
         console.error('Error saving quotation to database:', error);

@@ -46,11 +46,18 @@
     - `POST /api/tasks/:id/status`
   - Added dependencies: `sqlite`, `sqlite3`
 
-- Step B2 (“Create Task” from email) ✅ DONE
+- Step B2 ("Create Task" from email) ✅ DONE
   - Added `Create Task` button on email detail view in `public/index.html`
   - When an email is open, button calls `POST /api/tasks` with:
     - `type: "erp-enquiry"` (for now)
     - `sourceEmailUid`, `sourceSubject`, `customerEmail`
   - Shows monochrome modal on success/failure (no browser popups)
+
+### 2026-01-20 — Quotation viewing fix
+- Fixed quotation viewing modal to properly display saved data ✅ DONE
+  - Issue: After creating quotation, view popup showed empty fields instead of saved data
+  - Root cause: Timing issue with DOM population in `populateQuotationViewForm()`
+  - Fix: Replaced `setTimeout` with `requestAnimationFrame` and added additional `setTimeout` wrapper for DOM readiness
+  - Result: Quotation view modal now properly displays all saved customer, product, and pricing data
 
 
