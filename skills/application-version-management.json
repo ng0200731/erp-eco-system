@@ -53,8 +53,10 @@
     },
     {
       "step": 4,
-      "action": "Commit all changes together",
-      "description": "Commit code changes, version updates, and skill updates in a single commit"
+      "action": "STOP and wait for user to commit",
+      "description": "NEVER automatically run git add/commit/push. User will do git operations manually.",
+      "critical": true,
+      "enforcement": "MANDATORY - Do NOT commit automatically"
     }
   ],
   "dependencies": [],
