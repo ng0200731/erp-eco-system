@@ -36,7 +36,7 @@ export function createEmailRoutes(deps) {
 
   const { IMAP_HOST, IMAP_PORT, MAIL_USER, SMTP_HOST, SMTP_PORT, SMTP_SECURE } = config;
 
-  // Get specific email by UID
+  // Get specific email by UID (supports both INBOX and sent folder via query parameter)
   router.get('/emails/:uid', async (req, res) => {
     try {
       // Get active profile for IMAP configuration
@@ -66,16 +66,46 @@ export function createEmailRoutes(deps) {
 
         await fetchClient.connect();
 
-        // Open INBOX
+        // Determine which folder to open based on query parameter
+        const folder = req.query.folder || 'inbox';
+        let folderNames = [];
+        let folderType = '';
+
+        if (folder === 'sent') {
+          folderNames = ['Sent', 'Sent Items', 'Sent Messages', '[Gmail]/Sent Mail', 'INBOX.Sent'];
+          folderType = 'sent';
+        } else {
+          folderNames = ['INBOX'];
+          folderType = 'inbox';
+        }
+
+        // Try to open the folder
         let mailbox;
-        try {
-          mailbox = await fetchClient.mailboxOpen('INBOX');
-        } catch (mailboxErr) {
-          console.error('Failed to open INBOX:', mailboxErr);
-          return res.status(500).json({
+        let openedFolder = null;
+        for (const folderName of folderNames) {
+          try {
+            mailbox = await fetchClient.mailboxOpen(folderName);
+            openedFolder = folderName;
+            break;
+          } catch (mailboxErr) {
+            if (folderNames.length === 1) {
+              // Only one folder to try (INBOX), so fail immediately
+              console.error(`Failed to open ${folderName}:`, mailboxErr);
+              return res.status(500).json({
+                success: false,
+                error: `Failed to open ${folderName}: ${mailboxErr.message}`,
+                code: mailboxErr.code || 'UNKNOWN'
+              });
+            }
+            // Multiple folders to try, continue to next one
+            continue;
+          }
+        }
+
+        if (!mailbox || !openedFolder) {
+          return res.status(404).json({
             success: false,
-            error: `Failed to open INBOX: ${mailboxErr.message}`,
-            code: mailboxErr.code || 'UNKNOWN'
+            error: `Could not find ${folderType} folder. Tried: ${folderNames.join(', ')}`
           });
         }
 
@@ -83,7 +113,7 @@ export function createEmailRoutes(deps) {
         if (mailbox.exists === 0) {
           return res.status(404).json({
             success: false,
-            error: 'Mailbox is empty',
+            error: `${folderType} mailbox is empty`,
             uid: uid
           });
         }
@@ -96,12 +126,6 @@ export function createEmailRoutes(deps) {
           if (!fetchClient || fetchClient.state < 3) {
             console.error(`Mailbox check failed: client=${!!fetchClient}, state=${fetchClient?.state}`);
             throw new Error('Mailbox is not open. Cannot search.');
-          }
-
-          // Verify mailbox is actually INBOX
-          if (!fetchClient.mailbox || fetchClient.mailbox.path !== 'INBOX') {
-            console.error(`Mailbox path mismatch: expected INBOX, got ${fetchClient.mailbox?.path}`);
-            throw new Error('Mailbox is not INBOX. Cannot search.');
           }
 
           let seqNum = null;

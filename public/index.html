@@ -395,6 +395,32 @@
       color: #666;
       font-style: italic;
     }
+
+    /* Loading spinner overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10002;
+    }
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #fff;
+      border-top: 5px solid #000;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -1772,6 +1798,9 @@
       // the backend can reconnect. We retry once automatically to avoid showing an error popup.
       const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+      // Show loading spinner
+      showLoadingSpinner();
+
       // Show loading state in modal
       document.getElementById('emailModalBody').textContent = 'Loading email...';
 
@@ -1875,12 +1904,14 @@
             return;
           }
         } else if (err1?.__fullError) {
+          hideLoadingSpinner();
           showCopyableError(err1.__isHttpError ? 'Fetch Email Error' : 'Email Error', err1.__fullError);
           console.error('Fetch email error:', err1);
           document.getElementById('emailModal').style.display='none';
           document.body.classList.remove('modal-open');
           return;
         } else {
+          hideLoadingSpinner();
           const fullError = `Error fetching email: ${err1.message}\n\nUID: ${uid}\n\nStack trace:\n${err1.stack || 'N/A'}`;
           showCopyableError('Network Error', fullError);
           console.error('Fetch error:', err1);
@@ -2057,10 +2088,224 @@
       } catch (attachErr) {
         console.error('Failed to attach modal to body:', attachErr);
       }
+
+      // Hide loading spinner and show modal
+      hideLoadingSpinner();
       document.getElementById('emailModal').style.display='flex';
       document.body.classList.add('modal-open');
     }
-    
+
+    // Loading spinner functions
+    function showLoadingSpinner() {
+      // Remove existing spinner if any
+      hideLoadingSpinner();
+
+      const overlay = document.createElement('div');
+      overlay.className = 'loading-overlay';
+      overlay.id = 'loadingSpinner';
+
+      const spinner = document.createElement('div');
+      spinner.className = 'loading-spinner';
+
+      overlay.appendChild(spinner);
+      document.body.appendChild(overlay);
+    }
+
+    function hideLoadingSpinner() {
+      const spinner = document.getElementById('loadingSpinner');
+      if (spinner) {
+        spinner.remove();
+      }
+    }
+
+    // Function to show sent email from IMAP (similar to show() for received emails)
+    async function showSentEmail(uid){
+      // Use the same endpoint as received emails, but with folder=sent parameter
+      const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+      // Show loading spinner
+      showLoadingSpinner();
+
+      // Show loading state in modal
+      document.getElementById('emailModalBody').textContent = 'Loading sent email...';
+
+      async function fetchSentEmailOnce(attempt){
+        // Add timeout to fetch request
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          if (!controller.signal.aborted) {
+            controller.abort();
+          }
+        }, 30000); // 30 second timeout
+
+        try {
+          const res = await fetch('/api/emails/'+uid+'?folder=sent', {
+            signal: controller.signal,
+            cache: 'no-cache'
+          });
+          clearTimeout(timeoutId);
+
+          if (!res.ok) {
+            const errorText = await res.text();
+            let errorData;
+            try {
+              errorData = JSON.parse(errorText);
+            } catch {
+              errorData = { error: errorText || `HTTP ${res.status}` };
+            }
+            const errorMsg = errorData.error || 'Failed to fetch sent email';
+            const errorCode = errorData.code ? ` (Code: ${errorData.code})` : '';
+            const fullError = `Error: ${errorMsg}${errorCode}\n\nUID: ${uid}\nStatus: ${res.status}\n\nFull details:\n${JSON.stringify(errorData, null, 2)}`;
+            const err = new Error(errorMsg);
+            err.__isHttpError = true;
+            err.__fullError = fullError;
+            throw err;
+          }
+
+          const data = await res.json();
+          if (!data.success) {
+            const errorMsg = data.error || 'Failed to load sent email';
+            const errorCode = data.code ? ` (Code: ${data.code})` : '';
+            const fullError = `Error: ${errorMsg}${errorCode}\n\nUID: ${uid}\n\nFull details:\n${JSON.stringify(data, null, 2)}`;
+            const err = new Error(errorMsg);
+            err.__isApiError = true;
+            err.__fullError = fullError;
+            throw err;
+          }
+
+          return data;
+        } catch (fetchErr) {
+          clearTimeout(timeoutId);
+
+          // Normalize "idle timeout" style errors so we can retry once.
+          const isAbort = fetchErr?.name === 'AbortError';
+          const msg = fetchErr?.message || '';
+          const isNetwork = msg.includes('Failed to fetch') || msg.includes('NetworkError') || fetchErr instanceof TypeError;
+          const isRetryable = isAbort || isNetwork;
+
+          if (isRetryable) {
+            const err = new Error(isAbort
+              ? 'Request timeout - server took too long to respond'
+              : 'Network error - connection lost');
+            err.__retryable = true;
+            err.__original = fetchErr;
+            throw err;
+          }
+
+          throw fetchErr;
+        }
+      }
+
+      let data;
+      try {
+        data = await fetchSentEmailOnce(1);
+      } catch (err1) {
+        // Retry once automatically for idle network/timeout issues
+        if (err1?.__retryable) {
+          document.getElementById('emailModalBody').textContent = 'Connection timed out. Reconnecting and retrying...';
+
+          await sleep(500);
+
+          try {
+            data = await fetchSentEmailOnce(2);
+          } catch (err2) {
+            console.warn('Sent email fetch failed after retry:', err2);
+            document.getElementById('emailModalBody').textContent = 'Failed to load sent email. Please try again.';
+            return;
+          }
+        } else if (err1?.__fullError) {
+          hideLoadingSpinner();
+          showCopyableError(err1.__isHttpError ? 'Fetch Sent Email Error' : 'Sent Email Error', err1.__fullError);
+          console.error('Fetch sent email error:', err1);
+          document.getElementById('emailModal').style.display='none';
+          document.body.classList.remove('modal-open');
+          return;
+        } else {
+          hideLoadingSpinner();
+          const fullError = `Error fetching sent email: ${err1.message}\n\nUID: ${uid}\n\nStack trace:\n${err1.stack || 'N/A'}`;
+          showCopyableError('Network Error', fullError);
+          console.error('Fetch error:', err1);
+          document.getElementById('emailModal').style.display='none';
+          document.body.classList.remove('modal-open');
+          return;
+        }
+      }
+
+      // Parse email from source - simplified to just show context/body
+      const source = data.source || '';
+      let subject = '';
+      let from = '';
+      let to = '';
+      let date = '';
+      let bodyContent = '';
+
+      // Extract headers
+      const subjectMatch = source.match(/^Subject:\s*(.+)$/mi);
+      const fromMatch = source.match(/^From:\s*(.+)$/mi);
+      const toMatch = source.match(/^To:\s*(.+)$/mi);
+      const dateMatch = source.match(/^Date:\s*(.+)$/mi);
+
+      if (subjectMatch) subject = subjectMatch[1].trim();
+      if (fromMatch) from = fromMatch[1].trim();
+      if (toMatch) to = toMatch[1].trim();
+      if (dateMatch) date = dateMatch[1].trim();
+
+      // Extract body (simplified - look for blank line then content)
+      const parts = source.split(/\r?\n\r?\n/);
+      if (parts.length > 1) {
+        bodyContent = parts.slice(1).join('\n\n');
+      }
+
+      // Try to parse HTML if present
+      const htmlMatch = source.match(/Content-Type:\s*text\/html[^\n]*\n(?:[^\n]*\n)*?\n([\s\S]*?)(?=\n--|\n\r?\n--|\Z)/i);
+      if (htmlMatch) {
+        bodyContent = htmlMatch[1].trim();
+      }
+
+      // Extract email addresses
+      let emailAddress = null;
+      let toAddress = null;
+      const fromEmailMatch = from.match(/<([^>]+)>/);
+      if (fromEmailMatch) {
+        emailAddress = fromEmailMatch[1];
+      } else if (from.includes('@')) {
+        emailAddress = from;
+      }
+
+      const toEmailMatch = to.match(/<([^>]+)>/);
+      if (toEmailMatch) {
+        toAddress = toEmailMatch[1];
+      } else if (to.includes('@')) {
+        toAddress = to;
+      }
+
+      const currentEmailMeta = {
+        uid,
+        subject: subject || '',
+        from: from || '',
+        email: emailAddress || null,
+        to: toAddress || null,
+        date: date || ''
+      };
+
+      // Show email modal
+      populateEmailModal(subject, from, date, bodyContent, currentEmailMeta);
+      // Ensure modal is attached to document.body
+      try {
+        const modalEl = document.getElementById('emailModal');
+        if (modalEl && modalEl.parentNode !== document.body) {
+          document.body.appendChild(modalEl);
+        }
+      } catch (attachErr) {
+        console.error('Failed to attach modal to body:', attachErr);
+      }
+
+      // Hide loading spinner and show modal
+      hideLoadingSpinner();
+      document.getElementById('emailModal').style.display='flex';
+      document.body.classList.add('modal-open');
+    }
+
     function randInt(min, max) {
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
@@ -2897,11 +3142,7 @@
         const viewCell = row.querySelector('.sent-email-view-cell');
         viewCell.onclick = (event) => {
           console.log('Sent email view cell clicked, UID:', email.uid);
-          // TODO: Implement viewing sent email details
-          showModal({
-            title: subject,
-            body: `From: ${fromEmail}\nTo: ${toEmail}\nDate: ${formattedDate}\n\nClick on an inbox email to view full content.`
-          });
+          showSentEmail(email.uid);
         };
       });
     }
