@@ -34,6 +34,265 @@ export function createEmailRoutes(deps) {
 
   const { IMAP_HOST, IMAP_PORT, MAIL_USER, SMTP_HOST, SMTP_PORT, SMTP_SECURE } = config;
 
+  // Get specific email by UID
+  router.get('/emails/:uid', async (req, res) => {
+    try {
+      // Get active profile for IMAP configuration
+      const profiles = await getProfilesMemory();
+      const activeProfile = profiles.find(p => p.isActive === 1);
+      if (!activeProfile) {
+        return res.status(400).json({
+          success: false,
+          error: 'No active email profile found. Please activate a profile in Settings.'
+        });
+      }
+
+      // Use a fresh connection for each fetch to avoid state issues
+      let fetchClient = null;
+
+      try {
+        const uid = Number(req.params.uid);
+        if (!uid || isNaN(uid)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid email UID. Must be a number.'
+          });
+        }
+
+        // Create a fresh IMAP client for this request using active profile
+        fetchClient = createImapClient(activeProfile);
+
+        await fetchClient.connect();
+
+        // Open INBOX
+        let mailbox;
+        try {
+          mailbox = await fetchClient.mailboxOpen('INBOX');
+        } catch (mailboxErr) {
+          console.error('Failed to open INBOX:', mailboxErr);
+          return res.status(500).json({
+            success: false,
+            error: `Failed to open INBOX: ${mailboxErr.message}`,
+            code: mailboxErr.code || 'UNKNOWN'
+          });
+        }
+
+        // Check if UID is in valid range
+        if (mailbox.exists === 0) {
+          return res.status(404).json({
+            success: false,
+            error: 'Mailbox is empty',
+            uid: uid
+          });
+        }
+
+        let bodyText = '';
+        let found = false;
+
+        try {
+          // Double-check mailbox is still open before searching
+          if (!fetchClient || fetchClient.state < 3) {
+            console.error(`Mailbox check failed: client=${!!fetchClient}, state=${fetchClient?.state}`);
+            throw new Error('Mailbox is not open. Cannot search.');
+          }
+
+          // Verify mailbox is actually INBOX
+          if (!fetchClient.mailbox || fetchClient.mailbox.path !== 'INBOX') {
+            console.error(`Mailbox path mismatch: expected INBOX, got ${fetchClient.mailbox?.path}`);
+            throw new Error('Mailbox is not INBOX. Cannot search.');
+          }
+
+          let seqNum = null;
+          try {
+            const searchStartTime = Date.now();
+            const searchPromise = fetchClient.search({ uid: uid });
+            const searchTimeout = new Promise((_, reject) => {
+              setTimeout(() => {
+                const elapsed = Date.now() - searchStartTime;
+                console.error(`Search timeout after 5 seconds for UID ${uid} (elapsed: ${elapsed}ms, state: ${fetchClient?.state})`);
+                reject(new Error('Search operation timed out after 5 seconds'));
+              }, 5000);
+            });
+
+            const searchResult = await Promise.race([searchPromise, searchTimeout]);
+
+            if (searchResult && searchResult.length > 0) {
+              seqNum = searchResult[0];
+            } else {
+              return res.status(404).json({
+                success: false,
+                error: `Email with UID ${uid} not found in mailbox`,
+                code: 'EMAIL_NOT_FOUND',
+                uid: uid
+              });
+            }
+          } catch (searchErr) {
+            console.error('========== SEARCH ERROR ==========');
+            console.error('UID:', uid);
+            console.error('Error:', searchErr.message);
+            console.error('Full error:', searchErr);
+            console.error('==================================');
+
+            return res.status(500).json({
+              success: false,
+              error: `Failed to search for email: ${searchErr.message}`,
+              code: searchErr.code || 'SEARCH_FAILED',
+              uid: uid,
+              troubleshooting: searchErr.message.includes('timeout') ? [
+                'IMAP server may be slow or unreachable',
+                'Try clicking the email again after a few seconds',
+                'Check server console for detailed timeout logs'
+              ] : [
+                'Email may have been deleted or moved',
+                'Try refreshing the email list',
+                'Check server console for detailed error logs'
+              ]
+            });
+          }
+
+          // Fetch by sequence number (not UID) with timeout
+          const fetchOptions = {
+            source: true,
+            uid: true  // Include UID in response for verification
+          };
+
+          if (!seqNum) {
+            return res.status(500).json({
+              success: false,
+              error: 'Sequence number not found',
+              uid: uid
+            });
+          }
+
+          // Ensure mailbox is still open before fetching
+          if (!fetchClient || fetchClient.state < 3) {
+            throw new Error('Mailbox is not open. Cannot fetch.');
+          }
+
+          const fetchStartTime = Date.now();
+
+          const fetchPromise = (async () => {
+            let messageReceived = false;
+            for await (const msg of fetchClient.fetch(seqNum, fetchOptions)) {
+              messageReceived = true;
+              // Verify this is the correct message
+              if (msg.uid === uid) {
+                bodyText = msg.source ? msg.source.toString() : '';
+                found = true;
+                break;
+              }
+            }
+            if (!messageReceived) {
+              throw new Error('No message received from fetch operation');
+            }
+          })();
+
+          // Add 10 second timeout to fetch operation
+          const fetchTimeout = new Promise((_, reject) => {
+            setTimeout(() => {
+              const elapsed = Date.now() - fetchStartTime;
+              console.error(`Fetch timeout after 10 seconds for UID ${uid}, seqNum ${seqNum} (elapsed: ${elapsed}ms)`);
+              reject(new Error('Fetch operation timed out after 10 seconds'));
+            }, 10000);
+          });
+
+          await Promise.race([fetchPromise, fetchTimeout]);
+        } catch (fetchErr) {
+          console.error('========== FETCH EMAIL ERROR ==========');
+          console.error('UID:', uid);
+          console.error('Error message:', fetchErr.message);
+          console.error('Error code:', fetchErr.code);
+          console.error('Full error object:', fetchErr);
+          console.error('=======================================');
+
+          let errorMsg = fetchErr.message || 'Failed to fetch email';
+          let errorCode = fetchErr.code || fetchErr.responseCode || 'UNKNOWN';
+
+          if (fetchErr.responseCode === 'NO') {
+            errorMsg = `Email not found or cannot be accessed. UID: ${uid}`;
+          } else if (fetchErr.responseCode === 'BAD') {
+            errorMsg = `Invalid command or server error. UID: ${uid}`;
+          } else if (fetchErr.message?.includes('not found') || fetchErr.message?.includes('does not exist')) {
+            errorMsg = `Email with UID ${uid} does not exist in the mailbox`;
+            errorCode = 'EMAIL_NOT_FOUND';
+          } else if (fetchErr.message?.includes('Command failed')) {
+            errorMsg = `IMAP command failed. The email may have been deleted or moved. UID: ${uid}`;
+            if (fetchErr.responseText) {
+              errorMsg += `\nServer response: ${fetchErr.responseText}`;
+            }
+          }
+
+          const troubleshooting = [];
+          if (errorCode === 'EMAIL_NOT_FOUND') {
+            troubleshooting.push('Email may have been deleted or moved');
+            troubleshooting.push('Try refreshing the email list');
+          } else if (fetchErr.message?.includes('timeout')) {
+            troubleshooting.push('IMAP server took too long to respond');
+            troubleshooting.push('Try clicking the email again');
+            troubleshooting.push('Check server console for connection issues');
+          } else {
+            troubleshooting.push('Check server console logs for detailed error');
+            troubleshooting.push('Try refreshing the email list');
+            troubleshooting.push('If persists, restart server with start.bat');
+          }
+
+          return res.status(500).json({
+            success: false,
+            error: errorMsg,
+            code: errorCode,
+            uid: uid,
+            responseCode: fetchErr.responseCode,
+            responseText: fetchErr.responseText,
+            command: fetchErr.command,
+            troubleshooting: troubleshooting
+          });
+        }
+
+        if (!found) {
+          return res.status(404).json({
+            success: false,
+            error: `Email with UID ${uid} not found`
+          });
+        }
+
+        res.json({ success: true, uid, source: bodyText });
+      } catch (err) {
+        console.error('========== FETCH EMAIL ERROR ==========');
+        console.error('Error message:', err.message);
+        console.error('Error code:', err.code);
+        console.error('Full error:', err);
+        console.error('=======================================');
+
+        res.status(500).json({
+          success: false,
+          error: err.message || 'Failed to fetch email',
+          code: err.code || 'UNKNOWN'
+        });
+      } finally {
+        // ALWAYS close and cleanup the fresh connection we created for this request
+        if (fetchClient) {
+          try {
+            if (fetchClient.state >= 3) {
+              await fetchClient.mailboxClose();
+            }
+            if (fetchClient.state >= 2) {
+              await fetchClient.logout();
+            }
+          } catch (closeErr) {
+            console.warn('Error closing fresh IMAP client:', closeErr.message);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error in email detail route:', err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to fetch email',
+        code: err.code || 'UNKNOWN',
+      });
+    }
+  });
+
   // Get emails from IMAP inbox
   router.get('/emails', async (req, res) => {
     try {
