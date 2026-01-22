@@ -1,0 +1,64 @@
+{
+  "name": "application-version-management",
+  "description": "Critical rule: Application version MUST be incremented for EVERY code change",
+  "version": "1.0.0",
+  "status": "completed",
+  "category": "documentation",
+  "tags": ["version", "versioning", "mandatory", "critical-rule"],
+  "changes": [
+    {
+      "component": "Version Display (public/index.html:539)",
+      "description": "Application version is displayed at the bottom of the sidebar in the web app",
+      "impact": "Users can see the current application version at all times"
+    },
+    {
+      "component": "Version Increment Rule",
+      "description": "CRITICAL RULE: For EVERY code change made to the project, the application version number at public/index.html:539 MUST be incremented",
+      "impact": "Ensures version tracking is accurate and users can identify which version they are running"
+    }
+  ],
+  "criticalRules": [
+    {
+      "rule": "Increment application version for EVERY code change",
+      "location": "public/index.html:539",
+      "format": "v1.0.X (semantic versioning: major.minor.patch)",
+      "enforcement": "MANDATORY - Must be done before committing any code changes",
+      "example": "If current version is v1.0.14 and you fix a bug, update to v1.0.15"
+    },
+    {
+      "rule": "Update skill file versions when modifying related code",
+      "location": "skills/*.json",
+      "format": "X.Y.Z (semantic versioning)",
+      "enforcement": "MANDATORY - When code documented in a skill file is modified, that skill's version must be incremented",
+      "example": "If you modify utils/pathUtils.js, update skills/path-normalization.json version"
+    }
+  ],
+  "workflow": [
+    {
+      "step": 1,
+      "action": "Make code changes",
+      "description": "Implement the requested feature, bug fix, or modification"
+    },
+    {
+      "step": 2,
+      "action": "Increment application version",
+      "description": "Update the version number at public/index.html:539 (increment patch version by 1)",
+      "critical": true
+    },
+    {
+      "step": 3,
+      "action": "Update related skill versions",
+      "description": "Search for skill files that document the modified code and increment their versions",
+      "critical": true
+    },
+    {
+      "step": 4,
+      "action": "Commit all changes together",
+      "description": "Commit code changes, version updates, and skill updates in a single commit"
+    }
+  ],
+  "dependencies": [],
+  "created": "2026-01-22",
+  "updated": "2026-01-22",
+  "author": "Development Team"
+}
