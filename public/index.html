@@ -2365,7 +2365,7 @@
           <td style="padding:12px; border:1px solid #000; vertical-align:top;">${formattedDate}</td>
           <td style="padding:12px; border:1px solid #000; vertical-align:top;">${senderEmail}</td>
           <td style="padding:12px; border:1px solid #000; vertical-align:top;">${e.envelope?.subject||'No subject'}</td>
-          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${context}</td>
+          <td class="email-view-cell" style="padding:12px; border:1px solid #000; vertical-align:top;">${context}</td>
           <td style="padding:12px; border:1px solid #000; vertical-align:top;">${attachment}</td>
         `;
 
@@ -2374,8 +2374,11 @@
         // Add event listeners after appending to DOM
         row.onmouseover = () => row.style.background = 'rgba(0, 0, 0, 0.3)';
         row.onmouseout = () => row.style.background = '#fff';
-        row.onclick = (event) => {
-          console.log('Row clicked for email UID:', e.uid, event.target);
+
+        // Only make the "Click to view" cell clickable
+        const viewCell = row.querySelector('.email-view-cell');
+        viewCell.onclick = (event) => {
+          console.log('View cell clicked for email UID:', e.uid);
           show(e.uid);
         };
       });
@@ -2873,7 +2876,7 @@
         const statusText = 'Sent';
 
         // Create content preview - we'll need to fetch the full email to show details
-        const previewText = 'Click to view';
+        const previewText = '<span style="cursor:pointer; font-weight:500;">Click to view</span>';
 
         row.innerHTML = `
           <td style="padding:12px; border:1px solid #000; vertical-align:top;">${formattedDate}</td>
@@ -2881,7 +2884,7 @@
           <td style="padding:12px; border:1px solid #000; vertical-align:top;">${toEmail}</td>
           <td style="padding:12px; border:1px solid #000; vertical-align:top;">${subject}</td>
           <td style="padding:12px; border:1px solid #000; vertical-align:top; ${statusClass} font-weight:bold;">${statusText}</td>
-          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${previewText}</td>
+          <td class="sent-email-view-cell" style="padding:12px; border:1px solid #000; vertical-align:top;">${previewText}</td>
         `;
 
         tableBody.appendChild(row);
@@ -2889,8 +2892,11 @@
         // Add event listeners after appending to DOM
         row.onmouseover = () => row.style.background = 'rgba(0, 0, 0, 0.3)';
         row.onmouseout = () => row.style.background = '#fff';
-        row.onclick = (event) => {
-          console.log('Sent email row clicked, UID:', email.uid);
+
+        // Only make the "Click to view" cell clickable
+        const viewCell = row.querySelector('.sent-email-view-cell');
+        viewCell.onclick = (event) => {
+          console.log('Sent email view cell clicked, UID:', email.uid);
           // TODO: Implement viewing sent email details
           showModal({
             title: subject,
@@ -2938,22 +2944,25 @@
           <td style="padding:12px; border:1px solid #000; vertical-align:top;">${email.to_email}</td>
           <td style="padding:12px; border:1px solid #000; vertical-align:top;">${email.subject || '(No subject)'}</td>
           <td style="padding:12px; border:1px solid #000; vertical-align:top; ${statusClass} font-weight:bold;">${statusText}</td>
-          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${previewText}</td>
+          <td class="sent-email-details-cell" style="padding:12px; border:1px solid #000; vertical-align:top; cursor:pointer; font-weight:500;">${previewText}</td>
         `;
 
-        // Add click handler for viewing details
-        row.onclick = () => {
-          console.log('Sent email row clicked, id=', email.id, 'subject=', email.subject);
+        tableBody.appendChild(row);
+
+        // Add hover effects
+        row.onmouseover = () => row.style.background = 'rgba(0, 0, 0, 0.3)';
+        row.onmouseout = () => row.style.background = '#fff';
+
+        // Only make the preview cell clickable
+        const detailsCell = row.querySelector('.sent-email-details-cell');
+        detailsCell.onclick = () => {
+          console.log('Sent email details cell clicked, id=', email.id, 'subject=', email.subject);
           try {
             showSentEmailDetails(email);
           } catch (e) {
             console.error('Error in showSentEmailDetails:', e);
           }
         };
-        row.onmouseover = () => row.style.background = 'rgba(0, 0, 0, 0.3)';
-        row.onmouseout = () => row.style.background = '#fff';
-
-        tableBody.appendChild(row);
       });
     }
 
