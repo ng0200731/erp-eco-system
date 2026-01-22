@@ -105,38 +105,65 @@ export function createQuotationRoutes(deps) {
   // Upload profile image for quotation
   router.post('/:id/upload-profile-image', upload.single('profileImage'), async (req, res) => {
     try {
+      console.log('=== Profile Image Upload Request ===');
+      console.log('Quotation ID:', req.params.id);
+      console.log('File received:', req.file ? 'YES' : 'NO');
+      if (req.file) {
+        console.log('File details:', {
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size,
+          path: req.file.path
+        });
+      }
+
       const id = Number(req.params.id);
 
       if (!req.file) {
+        console.error('No file uploaded in request');
         return res.status(400).json({ success: false, error: 'No file uploaded' });
       }
 
+      console.log('Fetching quotation with ID:', id);
       const quotation = await getQuotationById(id);
       if (!quotation) {
+        console.error('Quotation not found:', id);
         return res.status(404).json({ success: false, error: 'Quotation not found' });
       }
+      console.log('Quotation found:', quotation.id, quotation.customerName);
 
       // Delete old profile image if exists
       if (quotation.profileImagePath) {
+        console.log('Deleting old profile image:', quotation.profileImagePath);
         try {
           await fs.unlink(path.join(__dirname, '..', quotation.profileImagePath));
+          console.log('Old profile image deleted successfully');
         } catch (error) {
-          console.warn('Failed to delete old profile image:', error);
+          console.warn('Failed to delete old profile image:', error.message);
         }
       }
 
       // Update quotation with new profile image path
+      console.log('Calculating relative path for:', req.file.path);
       const relativePath = getNormalizedRelativePath(path.join(__dirname, '..'), req.file.path);
-      await updateQuotation(id, { ...quotation, profileImagePath: relativePath });
+      console.log('Relative path:', relativePath);
 
+      console.log('Updating quotation with profile image path');
+      await updateQuotation(id, { ...quotation, profileImagePath: relativePath });
+      console.log('Quotation updated successfully');
+
+      console.log('=== Profile Image Upload Success ===');
       res.json({
         success: true,
         profileImagePath: relativePath,
         message: 'Profile image uploaded successfully'
       });
     } catch (error) {
-      console.error('Error uploading profile image:', error);
-      res.status(500).json({ success: false, error: 'Failed to upload profile image' });
+      console.error('=== Profile Image Upload Error ===');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      res.status(500).json({ success: false, error: 'Failed to upload profile image', details: error.message });
     }
   });
 

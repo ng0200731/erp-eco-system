@@ -40,11 +40,26 @@
       "component": "Email Search and Filtering",
       "description": "Implemented real-time search filters for date, sender, subject, context, and attachments in inbox view",
       "impact": "Users can quickly find specific emails using multiple search criteria"
+    },
+    {
+      "component": "server.js - IMAP Connection Health Check",
+      "description": "Added socket health validation to detect stale IMAP connections. Checks imapClient.usable and idling state before reusing connections. Automatically creates new connection if socket is closed after timeout.",
+      "impact": "Prevents 'Socket closed' errors after idle periods. Reliable email reading after any duration of inactivity with automatic reconnection."
+    },
+    {
+      "component": "server.js - Initialization Order Fix",
+      "description": "Moved initial IMAP connection attempt to after getProfilesMemory is defined. Prevents 'function not defined' errors during server startup.",
+      "impact": "Server starts reliably without initialization errors. IMAP connection succeeds on first attempt."
+    },
+    {
+      "component": "public/index.html - Email Modal 80/20 Split Layout",
+      "description": "Restructured email modal with 80% content area (left) and 20% action panel (right). Added expandable Quotation button with sub-options (Hang Tag, Woven Label, Care Label, Transfer, Other) and Image Lib button. Buttons log actions to console without showing placeholder modals.",
+      "impact": "Matches PRD specification for email view workflow. Provides quick access to quotation creation and image library from email context. Foundation for future quotation workflow implementation."
     }
   ],
   "dependencies": [],
   "created": "2026-01-19",
-  "updated": "2026-01-19",
+  "updated": "2026-01-22",
   "author": "Development Team"
 }
 

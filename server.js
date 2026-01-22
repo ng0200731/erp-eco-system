@@ -158,10 +158,23 @@ async function connectImap() {
     // Check if we have a valid connected client
     // ImapFlow state: 0=disconnected, 1=connecting, 2=authenticated, 3=selected, 4=idle
     if (imapClient && imapClient.state >= 2) {
-      // Check if socket is still connected by checking the state
-      // If state is valid, assume connection is good (we'll catch errors during operations)
-      console.log(`Reusing existing IMAP connection (state: ${imapClient.state})`);
-      return; // Reuse existing connection
+      // Validate that the connection is actually alive by checking the socket
+      // After socket timeout, state might still be >= 2 but socket is closed
+      try {
+        // Check if the underlying socket is still connected
+        const isSocketConnected = imapClient.usable && !imapClient.idling;
+
+        if (isSocketConnected) {
+          console.log(`Reusing existing IMAP connection (state: ${imapClient.state})`);
+          return; // Reuse existing connection
+        } else {
+          console.log(`IMAP connection exists but socket appears closed (state: ${imapClient.state}, usable: ${imapClient.usable})`);
+          // Fall through to create new connection
+        }
+      } catch (checkErr) {
+        console.log(`Error checking IMAP connection health: ${checkErr.message} - will reconnect`);
+        // Fall through to create new connection
+      }
     }
 
     console.log(`IMAP client state: ${imapClient?.state || 'null'} - need new connection`);
@@ -217,12 +230,7 @@ async function connectImap() {
   }
 }
 
-// Try initial connection but don't block startup
-connectImap().catch(err => {
-  console.error('Initial IMAP connection failed:', err.message);
-});
-
-// Note: We don't set up event listeners on the initial client since it might be replaced
+// Note: Initial IMAP connection will be attempted after getProfilesMemory is defined
 
 // ---------- SMTP ----------
 // Create SMTP transport - try with connection retry
@@ -343,6 +351,11 @@ app.use('/api/profiles', profileRoutes);
 
 // Helper function for getting profiles (used by other routes)
 const getProfilesMemory = profileRoutes.loadProfiles;
+
+// Try initial IMAP connection now that getProfilesMemory is defined
+connectImap().catch(err => {
+  console.error('Initial IMAP connection failed:', err.message);
+});
 
 // Customer routes
 const customerRoutes = createCustomerRoutes({

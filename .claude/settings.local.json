@@ -10,7 +10,18 @@
       "Bash(git config:*)",
       "Bash(sort:*)",
       "Bash(node --version:*)",
-      "Bash(node --check:*)"
+      "Bash(node --check:*)",
+      "Bash(npm start)",
+      "Bash(timeout 5 npm start)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(Stop-Process -Id 4944 -Force)",
+      "Bash(cmd.exe /c \"taskkill /F /PID 4944\")",
+      "Bash(powershell:*)",
+      "Bash(timeout 3 curl:*)",
+      "Bash(timeout 3 cmd:*)",
+      "Bash(dir:*)"
     ]
   }
 }

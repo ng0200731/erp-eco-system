@@ -107,13 +107,97 @@
     .email-modal{
       width:min(1200px, 95vw);
       height:min(800px, 90vh);
+      min-height: 600px; /* Ensure minimum height */
       background:#fff;
       color:#000;
       border:1px solid #000;
       box-shadow:0 12px 32px rgba(0,0,0,.25);
       display:flex;
-      flex-direction:column;
+      flex-direction:row; /* Changed from column to row for 80/20 split */
       max-height: 90vh; /* Ensure modal doesn't exceed viewport height */
+      overflow: hidden; /* Prevent content from overflowing outside modal */
+      position: relative; /* Ensure proper positioning context */
+    }
+
+    /* Left content area (80%) */
+    .email-modal-content{
+      flex: 0 0 80%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Right action panel (20%) */
+    .email-modal-actions{
+      flex: 0 0 20%;
+      min-width: 0; /* Prevent flex item from overflowing */
+      border-left: 1px solid #000;
+      padding: 20px;
+      overflow-y: auto;
+      overflow-x: hidden; /* Prevent horizontal overflow */
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-sizing: border-box; /* Include padding in width calculation */
+    }
+
+    /* Action buttons */
+    .action-btn{
+      width: 100%;
+      padding: 12px;
+      background: #fff;
+      color: #000;
+      border: 1px solid #000;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: left;
+      transition: all 0.2s;
+      box-sizing: border-box; /* Include padding and border in width */
+    }
+    .action-btn:hover{
+      background: #000;
+      color: #fff;
+    }
+
+    /* Expandable button */
+    .action-btn.expandable::after{
+      content: '▼';
+      float: right;
+      transition: transform 0.2s;
+    }
+    .action-btn.expandable.expanded::after{
+      transform: rotate(180deg);
+    }
+
+    /* Sub-options container */
+    .sub-options{
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 5px;
+      padding-left: 10px;
+    }
+    .sub-options.expanded{
+      display: flex;
+    }
+
+    /* Sub-option buttons */
+    .sub-option-btn{
+      width: 100%;
+      padding: 10px;
+      background: #fff;
+      color: #000;
+      border: 1px solid #000;
+      cursor: pointer;
+      font-size: 13px;
+      text-align: left;
+      transition: all 0.2s;
+      box-sizing: border-box; /* Include padding and border in width */
+    }
+    .sub-option-btn:hover{
+      background: #000;
+      color: #fff;
     }
 
     /* Prevent body scroll when modal is open */
@@ -896,17 +980,48 @@
         <!-- Email Reader Modal (Microsoft Outlook style) -->
         <div id="emailModal" class="email-modal-overlay" style="display:none;">
           <div class="email-modal">
-            <div class="email-modal-header">
-              <h2 id="emailModalSubject" class="email-modal-title">Email Subject</h2>
-              <button id="emailModalClose" class="email-modal-close">×</button>
-          </div>
-            <div class="email-modal-meta">
-              <div id="emailModalFrom" class="email-modal-from">From: sender@example.com</div>
-              <div id="emailModalTo" class="email-modal-from">To: recipient@example.com</div>
-              <div id="emailModalDate" class="email-modal-date">Date: 2024-01-15</div>
+            <!-- Left content area (80%) -->
+            <div class="email-modal-content">
+              <div class="email-modal-header">
+                <h2 id="emailModalSubject" class="email-modal-title">Email Subject</h2>
+                <button id="emailModalClose" class="email-modal-close">×</button>
+              </div>
+              <div class="email-modal-meta">
+                <div id="emailModalFrom" class="email-modal-from">From: sender@example.com</div>
+                <div id="emailModalTo" class="email-modal-from">To: recipient@example.com</div>
+                <div id="emailModalDate" class="email-modal-date">Date: 2024-01-15</div>
+              </div>
+              <div id="emailModalBody" class="email-modal-body">
+                Email content will appear here...
+              </div>
             </div>
-            <div id="emailModalBody" class="email-modal-body">
-              Email content will appear here...
+
+            <!-- Right action panel (20%) -->
+            <div class="email-modal-actions">
+              <button class="action-btn expandable" id="quotationBtn">Quotation</button>
+              <div class="sub-options" id="quotationSubOptions">
+                <button class="sub-option-btn" data-type="hang-tag">Hang Tag</button>
+                <button class="sub-option-btn" data-type="woven-label">Woven Label</button>
+                <button class="sub-option-btn" data-type="care-label">Care Label</button>
+                <button class="sub-option-btn" data-type="transfer">Transfer</button>
+                <button class="sub-option-btn" data-type="other">Other</button>
+              </div>
+              <button class="action-btn" id="imageLibBtn">Image Lib</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Email Quotation Modal -->
+        <div id="emailQuotationModal" class="email-modal-overlay" style="display:none; z-index:10002;">
+          <div class="email-modal" style="width:min(1400px, 95vw); height:min(900px, 90vh);">
+            <div style="display:flex; flex-direction:column; width:100%; height:100%;">
+              <div class="email-modal-header" style="background:#ffeb3b; border-bottom:2px solid #000;">
+                <h2 class="email-modal-title" style="margin:0;">📧 Email Quotation</h2>
+                <button id="emailQuotationModalClose" class="email-modal-close">×</button>
+              </div>
+              <div id="emailQuotationContent" style="flex:1; overflow:auto; padding:20px;">
+                <!-- Quotation form will be loaded here -->
+              </div>
             </div>
           </div>
         </div>
@@ -1122,7 +1237,17 @@
           else if (hint.includes('smtp_port')) el.value = '465';
           else if (hint.includes('port')) el.value = '3001';
           else if (hint.includes('tls') || hint.includes('secure')) el.value = 'true';
-          else if (hint.includes('customer') && hint.includes('name')) el.value = 'ABC Company Ltd';
+          else if (hint.includes('customer') && hint.includes('name')) {
+            // Special handling for customer name - use real customer from database
+            if (window.customerAutocomplete && window.customerAutocomplete.customers && window.customerAutocomplete.customers.length > 0) {
+              // Select a random customer from the database
+              const randomCustomer = randomFrom(window.customerAutocomplete.customers);
+              window.customerAutocomplete.selectCustomer(randomCustomer.id);
+              continue; // Skip setting value manually since selectCustomer handles it
+            } else {
+              el.value = 'ABC Company Ltd';
+            }
+          }
           else if (hint.includes('contact') && hint.includes('person')) el.value = 'John Smith';
           else if (hint.includes('phone')) el.value = '+852 ' + randomInt(90000000, 99999999);
           else if (hint.includes('size')) el.value = randomInt(1, 5) + 'x' + randomInt(1, 8) + ' inches';
@@ -2384,6 +2509,7 @@
       return new Promise((resolve) => {
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
+        overlay.style.zIndex = '20000'; // Higher than all other modals
 
         const modal = document.createElement('div');
         modal.className = 'modal';
@@ -2850,6 +2976,134 @@
     document.getElementById('emailModal').onclick = (e) => {
       if (e.target === document.getElementById('emailModal')) {
         document.getElementById('emailModal').style.display = 'none';
+        document.body.classList.remove('modal-open');
+      }
+    };
+
+    // Quotation button expandable functionality
+    document.getElementById('quotationBtn').onclick = () => {
+      const btn = document.getElementById('quotationBtn');
+      const subOptions = document.getElementById('quotationSubOptions');
+
+      btn.classList.toggle('expanded');
+      subOptions.classList.toggle('expanded');
+    };
+
+    // Quotation sub-option click handlers
+    document.querySelectorAll('.sub-option-btn').forEach(btn => {
+      btn.onclick = () => {
+        const quotationType = btn.getAttribute('data-type');
+        const quotationName = btn.textContent;
+        console.log('Quotation type selected:', quotationType);
+
+        // Open email quotation modal
+        openEmailQuotationModal(quotationType, quotationName);
+      };
+    });
+
+    // Image Lib button click handler
+    document.getElementById('imageLibBtn').onclick = () => {
+      console.log('Image Lib button clicked');
+      // TODO: Implement image library logic
+    };
+
+    // Email Quotation Modal Functions
+    function openEmailQuotationModal(quotationType, quotationName) {
+      const modal = document.getElementById('emailQuotationModal');
+      const content = document.getElementById('emailQuotationContent');
+
+      // Update modal title
+      const titleElement = modal.querySelector('.email-modal-title');
+      titleElement.innerHTML = `📧 Email Quotation - ${quotationName}`;
+
+      // Load quotation form content
+      content.innerHTML = generateQuotationContent(quotationType, quotationName);
+
+      // Show modal
+      modal.style.display = 'flex';
+      document.body.classList.add('modal-open');
+
+      // Initialize form handlers after content is loaded
+      setTimeout(() => {
+        // Initialize customer autocomplete
+        if (document.getElementById('quotationCustomerName')) {
+          window.customerAutocomplete = new CustomerAutocomplete('quotationCustomerName', 'customerAutocompleteDropdown');
+        }
+
+        // Initialize file upload functionality
+        initializeFileUploads(quotationType);
+
+        // Add event listener for contact person selection
+        const contactPersonField = document.getElementById('quotationContactPerson');
+        if (contactPersonField) {
+          contactPersonField.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const emailField = document.getElementById('quotationEmail');
+            const phoneField = document.getElementById('quotationPhone');
+
+            if (selectedOption && selectedOption.value && selectedOption.dataset.memberData) {
+              const memberData = JSON.parse(selectedOption.dataset.memberData);
+
+              // Auto-populate and disable email field
+              if (emailField && memberData.emailPrefix) {
+                emailField.value = `${memberData.emailPrefix}@${window.customerAutocomplete.selectedCustomer.emailDomain}`;
+                emailField.disabled = true;
+                emailField.style.backgroundColor = '#f5f5f5';
+                emailField.style.color = '#666';
+              }
+
+              // Auto-populate and disable phone field
+              if (phoneField && memberData.tel) {
+                phoneField.value = memberData.tel;
+                phoneField.disabled = true;
+                phoneField.style.backgroundColor = '#f5f5f5';
+                phoneField.style.color = '#666';
+              }
+            } else {
+              // No contact person selected - enable fields for manual entry
+              if (emailField) {
+                emailField.disabled = false;
+                emailField.style.backgroundColor = '#fff';
+                emailField.style.color = '#000';
+              }
+              if (phoneField) {
+                phoneField.disabled = false;
+                phoneField.style.backgroundColor = '#fff';
+                phoneField.style.color = '#000';
+              }
+            }
+          });
+        }
+
+        // Set up event listeners for total calculation
+        const quantityField = document.getElementById('quotationQuantity');
+        const unitPriceField = document.getElementById('quotationUnitPrice');
+        const totalField = document.getElementById('quotationTotal');
+
+        if (quantityField && unitPriceField && totalField) {
+          const calculateTotal = () => {
+            const quantity = parseFloat(quantityField.value) || 0;
+            const unitPrice = parseFloat(unitPriceField.value) || 0;
+            const total = quantity * unitPrice;
+            totalField.value = total.toFixed(2);
+          };
+
+          quantityField.addEventListener('input', calculateTotal);
+          unitPriceField.addEventListener('input', calculateTotal);
+        }
+      }, 100);
+    }
+
+    // Close email quotation modal
+    document.getElementById('emailQuotationModalClose').onclick = () => {
+      document.getElementById('emailQuotationModal').style.display = 'none';
+      document.body.classList.remove('modal-open');
+    };
+
+    // Close modal when clicking outside
+    document.getElementById('emailQuotationModal').onclick = (e) => {
+      if (e.target === document.getElementById('emailQuotationModal')) {
+        document.getElementById('emailQuotationModal').style.display = 'none';
         document.body.classList.remove('modal-open');
       }
     };
@@ -4476,6 +4730,10 @@
           profileImagePath: quotation.profileImagePath,
           attachmentPaths: quotation.attachmentPaths
         });
+        console.log('Profile image path exists?', !!quotation.profileImagePath);
+        console.log('Profile image path value:', quotation.profileImagePath);
+        console.log('Attachment paths exist?', !!quotation.attachmentPaths);
+        console.log('Attachment paths value:', quotation.attachmentPaths);
       }
 
       if (!quotation) {
@@ -4952,6 +5210,18 @@
       const profileImagePlaceholder = document.getElementById('profileImagePlaceholder');
       const removeProfileImageBtn = document.getElementById('removeProfileImageBtn');
 
+      // Check if all required elements exist
+      if (!profileImageDropZone || !profileImageInput || !profileImagePreview || !profileImagePlaceholder) {
+        console.error('Profile image upload elements not found. Cannot initialize file uploads.');
+        console.error('Elements found:', {
+          profileImageDropZone: !!profileImageDropZone,
+          profileImageInput: !!profileImageInput,
+          profileImagePreview: !!profileImagePreview,
+          profileImagePlaceholder: !!profileImagePlaceholder
+        });
+        return;
+      }
+
       let currentQuotationId = null;
 
       // Get current quotation ID if editing
@@ -4972,6 +5242,7 @@
       profileImageInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
+          console.log('File selected via input:', file.name, 'Size:', file.size, 'Type:', file.type);
           handleProfileImageFile(file);
         }
       });
@@ -5022,6 +5293,8 @@
 
       // Profile Image: Handle file processing
       async function handleProfileImageFile(file) {
+        console.log('handleProfileImageFile called with:', file.name, 'Type:', file.type, 'Size:', file.size);
+
         if (!file.type.startsWith('image/')) {
           showModal({
             title: 'Invalid File',
@@ -5034,23 +5307,32 @@
         // Show preview immediately
         const reader = new FileReader();
         reader.onload = (e) => {
+          console.log('FileReader loaded, setting preview');
           profileImagePreview.style.backgroundImage = `url(${e.target.result})`;
           profileImagePreview.style.display = 'block';
           profileImagePlaceholder.style.display = 'none';
-          removeProfileImageBtn.style.display = 'inline-block';
+          if (removeProfileImageBtn) {
+            removeProfileImageBtn.style.display = 'inline-block';
+          }
 
           // Also update the drop zone styling to indicate it contains an image
           profileImageDropZone.style.borderColor = '#000';
           profileImageDropZone.style.backgroundColor = '#f9f9f9';
         };
+        reader.onerror = (error) => {
+          console.error('FileReader error:', error);
+        };
         reader.readAsDataURL(file);
 
         // Upload to server if we have a quotation ID
         if (currentQuotationId) {
+          console.log('Uploading to server with quotation ID:', currentQuotationId);
           await uploadProfileImage(file, currentQuotationId);
         } else {
           // Store file temporarily until quotation is saved
+          console.log('Storing file temporarily in window.tempProfileImageFile');
           window.tempProfileImageFile = file;
+          console.log('Stored file:', window.tempProfileImageFile.name, 'Size:', window.tempProfileImageFile.size);
         }
       }
 
@@ -5473,13 +5755,20 @@
           // Profile Image Upload (upper 30%)
           '<div style="flex:0 0 30%; border:1px solid #000; padding:10px; background:#fafafa; margin:20px;">' +
             '<h5 style="margin:0 0 10px 0; font-size:14px;">Profile Image</h5>' +
-            '<div id="profileImageDropZone" style="width:100%; height:120px; border:2px dashed #ccc; border-radius:0; display:flex; align-items:center; justify-content:center; background:#fff; cursor:pointer; position:relative; overflow:hidden;">' +
-              '<div id="profileImagePreview" style="width:100%; height:100%; background-size:cover; background-repeat:no-repeat; background-position:center; position:absolute; top:0; left:0; z-index:1;' + (quotation.profileImagePath ? 'background-image: url(\'/' + quotation.profileImagePath + '\');' : 'display:none;') + '"></div>' +
-              '<div id="profileImagePlaceholder" style="text-align:center; color:#666; position:relative; z-index:2;' + (quotation.profileImagePath ? 'display:none;' : '') + '">' +
-                '<div style="font-size:24px; margin-bottom:5px;">📷</div>' +
-                '<div style="font-size:12px;">No image uploaded</div>' +
-              '</div>' +
-              '<input type="file" id="profileImageInput" accept="image/*" style="display:none; position:relative; z-index:3;" disabled readonly>' +
+            '<div id="profileImageDropZone" style="width:100%; height:120px; border:2px dashed #ccc; border-radius:0; display:flex; align-items:center; justify-content:center; background:#fff; position:relative; overflow:hidden;">' +
+              (quotation.profileImagePath ?
+                '<img src="/' + quotation.profileImagePath + '" style="width:100%; height:100%; object-fit:cover;" alt="Profile Image" onerror="console.error(\'Failed to load image: /' + quotation.profileImagePath + '\'); this.style.display=\'none\'; this.nextElementSibling.style.display=\'block\';">' +
+                '<div style="display:none; text-align:center; color:#666; width:100%;">' +
+                  '<div style="font-size:24px; margin-bottom:5px;">🖼️❌</div>' +
+                  '<div style="font-size:12px;">Image failed to load</div>' +
+                  '<div style="font-size:10px; margin-top:5px;">' + quotation.profileImagePath + '</div>' +
+                '</div>'
+              :
+                '<div style="text-align:center; color:#666;">' +
+                  '<div style="font-size:24px; margin-bottom:5px;">📷</div>' +
+                  '<div style="font-size:12px;">No image uploaded</div>' +
+                '</div>'
+              ) +
             '</div>' +
           '</div>' +
 
@@ -5985,21 +6274,42 @@
 
         // Handle profile image
         if (window.tempProfileImageFile) {
+          console.log('Uploading profile image file:', window.tempProfileImageFile.name, 'Size:', window.tempProfileImageFile.size);
+
           const profileFormData = new FormData();
-          profileFormData.append('profileImage', window.tempProfileImageFile);
+          profileFormData.append('profileImage', window.tempProfileImageFile, window.tempProfileImageFile.name);
+
+          console.log('FormData created, sending to:', `/api/quotations/${quotationId}/upload-profile-image`);
 
           try {
             const profileResponse = await fetch(`/api/quotations/${quotationId}/upload-profile-image`, {
               method: 'POST',
               body: profileFormData
             });
+
+            console.log('Profile upload response status:', profileResponse.status);
+
+            if (!profileResponse.ok) {
+              const errorText = await profileResponse.text();
+              console.error('Profile upload HTTP error:', profileResponse.status, errorText);
+              throw new Error(`HTTP ${profileResponse.status}: ${errorText}`);
+            }
+
             const profileResult = await profileResponse.json();
-            if (profileResult.success) {
+            console.log('Profile upload result:', profileResult);
+
+            if (profileResult.success && profileResult.profileImagePath) {
               profileImagePath = profileResult.profileImagePath;
+              console.log('Profile image uploaded successfully:', profileImagePath);
+            } else {
+              console.error('Profile upload failed:', profileResult.error || 'No path returned');
             }
           } catch (error) {
-            console.warn('Failed to upload profile image:', error);
+            console.error('Failed to upload profile image:', error);
+            console.error('Error details:', error.message, error.stack);
           }
+        } else {
+          console.log('No profile image file to upload');
         }
 
         // Handle attachments
@@ -6034,7 +6344,10 @@
             attachmentPaths
           };
           console.log('Updating quotation with file data:', updateData);
-          await saveQuotationToStorage(updateData);
+          const finalQuotation = await saveQuotationToStorage(updateData);
+          console.log('Final quotation after update:', finalQuotation);
+          console.log('Final profileImagePath:', finalQuotation.profileImagePath);
+          console.log('Final attachmentPaths:', finalQuotation.attachmentPaths);
         }
 
         // Clear edit mode
@@ -6055,6 +6368,9 @@
 
         // Reset file upload UI
         resetFileUploadUI();
+
+        // Refresh the quotations list to show the newly saved quotation
+        await displayQuotations();
 
       } catch (error) {
         console.error('Error saving quotation:', error);

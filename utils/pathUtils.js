@@ -1,6 +1,7 @@
 /**
  * Path utility functions for cross-platform compatibility
  */
+import path from 'path';
 
 /**
  * Normalizes a file path to use forward slashes for URL compatibility
@@ -25,7 +26,6 @@ export function normalizePath(filePath) {
  * @returns {string} - The normalized relative path
  */
 export function getNormalizedRelativePath(from, to) {
-  const path = require('path');
   const relativePath = path.relative(from, to);
   return normalizePath(relativePath);
 }

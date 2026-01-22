@@ -16,10 +16,27 @@ Over time, we will add many task types into this ecosystem. Examples:
 - **ERP Enquiry**: use customer’s seq#/order# to query ERP via API and reply with status.
 - **More**: additional task modules can be added later.
 
-### 3) Reply workflow
+### 3) Email receive and view workflow
+When viewing an email in the receive panel:
+- User clicks "Click to view" on an email row
+- A popup modal appears displaying the email content
+- The popup is split with **80% left screen** (email content) and **20% right screen** (action buttons)
+
+**Right screen action panel (20%)**:
+- Contains a vertical column of action buttons
+- **Button 1: "Quotation"** (expandable)
+  - When clicked, expands to show sub-options:
+    - "Hang Tag"
+    - "Woven Label"
+    - "Care Label"
+    - "Transfer"
+    - "Other"
+- **Button 2: "Image Lib"** (below Quotation button)
+
+### 4) Reply workflow
 When a task is completed, the system should **reply to the customer on top of the original email request** (reply/quote/threading behavior).
 
-### 4) Task lifecycle (tracking)
+### 5) Task lifecycle (tracking)
 Each task has a unique sequence (task id) and a lifecycle:
 - **Email received** → **Internal processing** → **Send outgoing reply** → **Follow up** → **Case close** (open/closed)
 - Must support supervision: view status and open items.
