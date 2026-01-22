@@ -394,7 +394,133 @@ export function createEmailRoutes(deps) {
     }
   });
 
-  // Get sent emails with pagination
+  // Get sent emails from IMAP sent folder
+  router.get('/sent-emails/imap', async (req, res) => {
+    try {
+      const profiles = await getProfilesMemory();
+      const activeProfile = profiles.find(p => p.isActive === 1);
+      if (!activeProfile) {
+        return res.status(400).json({
+          success: false,
+          error: 'No active email profile found. Please activate a profile in Settings.'
+        });
+      }
+
+      // Create fresh IMAP client
+      const imapClient = createImapClient(activeProfile);
+
+      try {
+        await imapClient.connect();
+
+        const limit = Math.min(Number(req.query.limit) || 50, 100);
+        const offset = Math.max(Number(req.query.offset) || 0, 0);
+
+        // Try common sent folder names
+        const sentFolderNames = ['Sent', 'Sent Items', 'Sent Messages', '[Gmail]/Sent Mail', 'INBOX.Sent'];
+        let mailbox = null;
+        let sentFolderName = null;
+
+        for (const folderName of sentFolderNames) {
+          try {
+            mailbox = await imapClient.mailboxOpen(folderName);
+            sentFolderName = folderName;
+            break;
+          } catch (err) {
+            // Try next folder name
+            continue;
+          }
+        }
+
+        if (!mailbox) {
+          return res.status(404).json({
+            success: false,
+            error: 'Could not find sent folder. Tried: ' + sentFolderNames.join(', ')
+          });
+        }
+
+        const totalMessages = mailbox.exists;
+
+        if (totalMessages === 0) {
+          return res.json({
+            success: true,
+            sentEmails: [],
+            pagination: {
+              limit,
+              offset,
+              total: 0,
+              hasMore: false
+            }
+          });
+        }
+
+        const startSeq = Math.max(1, totalMessages - offset - limit + 1);
+        const endSeq = Math.max(1, totalMessages - offset);
+
+        if (startSeq > endSeq) {
+          return res.json({
+            success: true,
+            sentEmails: [],
+            pagination: {
+              limit,
+              offset,
+              total: totalMessages,
+              hasMore: false
+            }
+          });
+        }
+
+        const messages = [];
+        for await (const msg of imapClient.fetch(`${startSeq}:${endSeq}`, {
+          envelope: true,
+          bodyStructure: true,
+          uid: true,
+          flags: true,
+        })) {
+          messages.push({
+            uid: msg.uid,
+            seq: msg.seq,
+            flags: msg.flags,
+            envelope: msg.envelope,
+            bodyStructure: msg.bodyStructure,
+            sentFolder: sentFolderName
+          });
+        }
+
+        messages.reverse();
+
+        await imapClient.logout();
+
+        res.json({
+          success: true,
+          sentEmails: messages,
+          pagination: {
+            limit,
+            offset,
+            total: totalMessages,
+            hasMore: offset + limit < totalMessages
+          }
+        });
+      } catch (err) {
+        if (imapClient) {
+          try {
+            await imapClient.logout();
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
+        throw err;
+      }
+    } catch (err) {
+      console.error('Error fetching IMAP sent emails:', err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to fetch sent emails from IMAP',
+        code: err.code || 'UNKNOWN',
+      });
+    }
+  });
+
+  // Get sent emails with pagination (from database)
   router.get('/sent-emails', async (req, res) => {
     try {
       const limit = Math.min(Number(req.query.limit) || 50, 100);

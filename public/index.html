@@ -2799,7 +2799,7 @@
 
     // Load sent emails from API
     async function loadSentEmails() {
-      console.log('Loading sent emails...');
+      console.log('Loading sent emails from IMAP...');
       const tableBody = document.getElementById('sentEmailsTableBody');
       const loadingDiv = document.getElementById('sentEmailsLoading');
       const emptyDiv = document.getElementById('sentEmailsEmpty');
@@ -2812,9 +2812,9 @@
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-        // Filter by specific sender email
-        console.log('Fetching sent emails from API...');
-        const res = await fetch('/api/sent-emails?limit=100&sender_email=m.yau.01@longriverlabel.com', { signal: controller.signal });
+        // Fetch sent emails from IMAP sent folder
+        console.log('Fetching sent emails from IMAP sent folder...');
+        const res = await fetch('/api/sent-emails/imap?limit=100', { signal: controller.signal });
         console.log('API response status:', res.status);
         clearTimeout(timeoutId);
 
@@ -2826,8 +2826,8 @@
         console.log('API response data:', data);
         if (data.success) {
           currentSentEmails = data.sentEmails || [];
-          console.log('Current sent emails:', currentSentEmails);
-          renderSentEmailsTable(currentSentEmails);
+          console.log('Current sent emails from IMAP:', currentSentEmails);
+          renderSentEmailsTableFromIMAP(currentSentEmails);
         } else {
           throw new Error(data.error || 'Failed to load sent emails');
         }
@@ -2837,6 +2837,67 @@
       } finally {
         loadingDiv.style.display = 'none';
       }
+    }
+
+    // Render sent emails table from IMAP data
+    function renderSentEmailsTableFromIMAP(sentEmails) {
+      console.log('Rendering sent emails table from IMAP with', sentEmails.length, 'emails');
+      const tableBody = document.getElementById('sentEmailsTableBody');
+      const emptyDiv = document.getElementById('sentEmailsEmpty');
+
+      tableBody.innerHTML = '';
+
+      if (sentEmails.length === 0) {
+        console.log('No sent emails to display');
+        emptyDiv.style.display = 'block';
+        return;
+      }
+
+      emptyDiv.style.display = 'none';
+
+      sentEmails.forEach(email => {
+        const row = document.createElement('tr');
+        row.style.border = '1px solid #000';
+
+        // Format date from envelope
+        const sentDate = new Date(email.envelope?.date);
+        const formattedDate = sentDate.toLocaleDateString() + ' ' + sentDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        // Extract sender and recipient from envelope
+        const fromEmail = email.envelope?.from?.[0]?.address || email.envelope?.from?.[0]?.name || 'Unknown';
+        const toEmail = email.envelope?.to?.[0]?.address || email.envelope?.to?.[0]?.name || 'Unknown';
+        const subject = email.envelope?.subject || '(No subject)';
+
+        // Status is always "Sent" for emails in sent folder
+        const statusClass = 'color:#008000;';
+        const statusText = 'Sent';
+
+        // Create content preview - we'll need to fetch the full email to show details
+        const previewText = 'Click to view';
+
+        row.innerHTML = `
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${formattedDate}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${fromEmail}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${toEmail}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${subject}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top; ${statusClass} font-weight:bold;">${statusText}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${previewText}</td>
+        `;
+
+        tableBody.appendChild(row);
+
+        // Add event listeners after appending to DOM
+        row.onmouseover = () => row.style.background = 'rgba(0, 0, 0, 0.3)';
+        row.onmouseout = () => row.style.background = '#fff';
+        row.onclick = (event) => {
+          console.log('Sent email row clicked, UID:', email.uid);
+          // TODO: Implement viewing sent email details
+          showModal({
+            title: subject,
+            body: `From: ${fromEmail}\nTo: ${toEmail}\nDate: ${formattedDate}\n\nClick on an inbox email to view full content.`
+          });
+        };
+      });
     }
 
     // Render sent emails table
