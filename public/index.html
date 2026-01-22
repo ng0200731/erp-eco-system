@@ -586,11 +586,14 @@
                   <div>Members</div>
                   <input type="text" id="customerFilterMembers" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
                 </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Action</div>
+                </th>
               </tr>
             </thead>
             <tbody id="customersTableBody">
               <tr>
-                <td colspan="6" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+                <td colspan="7" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
                   No customers saved yet. Create customers first.
                 </td>
               </tr>
@@ -3517,20 +3520,45 @@
       }
 
       let html = '';
-      filteredCustomers.forEach(customer => {
+      filteredCustomers.forEach((customer, custIndex) => {
         const membersCount = customer.members ? customer.members.length : 0;
         const membersTooltip = customer.members && customer.members.length > 0
           ? customer.members.map(m => `${m.name} (${m.emailPrefix}@${customer.emailDomain})`).join('\n')
           : 'No members';
 
+        // Main customer row
         html += `
-          <tr style="border:1px solid #000;" class="customer-row">
-            <td style="border:1px solid #000; padding:8px;">${customer.companyName}</td>
-            <td style="border:1px solid #000; padding:8px;">${customer.companyType}</td>
-            <td style="border:1px solid #000; padding:8px;">${customer.emailDomain}</td>
-            <td style="border:1px solid #000; padding:8px;">${customer.companyTel || 'N/A'}</td>
-            <td style="border:1px solid #000; padding:8px;">${customer.companyWebsite ? `<a href="${customer.companyWebsite}" target="_blank">${customer.companyWebsite}</a>` : 'N/A'}</td>
-            <td style="border:1px solid #000; padding:8px;" title="${membersTooltip}">${membersCount}</td>
+          <tr style="border:1px solid #000;" class="customer-row" data-cust-index="${custIndex}">
+            <td style="border:1px solid #000; padding:8px;">${escapeHtml(customer.companyName)}</td>
+            <td style="border:1px solid #000; padding:8px;">${escapeHtml(customer.companyType)}</td>
+            <td style="border:1px solid #000; padding:8px;">${escapeHtml(customer.emailDomain)}</td>
+            <td style="border:1px solid #000; padding:8px;">${escapeHtml(customer.companyTel || 'N/A')}</td>
+            <td style="border:1px solid #000; padding:8px;">${customer.companyWebsite ? `<a href="${escapeHtml(customer.companyWebsite)}" target="_blank">${escapeHtml(customer.companyWebsite)}</a>` : 'N/A'}</td>
+            <td style="border:1px solid #000; padding:8px; text-align:center;">
+              <span style="cursor:pointer;" class="customer-members-cell" title="${escapeHtml(membersTooltip)}">${membersCount}</span>
+            </td>
+            <td style="border:1px solid #000; padding:8px; text-align:right;">
+              <button class="btn" style="padding:4px 8px; font-weight:600;" data-cust-index="${custIndex}" onclick="onEditCustomerButtonClick(event)">Edit</button>
+            </td>
+          </tr>
+        `;
+
+        // Hidden members detail row (initially hidden) — include Edit button per member
+        const membersHtml = (customer.members && customer.members.length > 0) ? customer.members.map((m, mi) => {
+          const email = `${escapeHtml(m.emailPrefix)}@${escapeHtml(customer.emailDomain)}`;
+          return `<div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #eee;">` +
+                 `<div style="flex:1;"><strong>${escapeHtml(m.name)}</strong><br><small>${email}</small></div>` +
+                 `<div style="width:140px;">${escapeHtml(m.title || '')}</div>` +
+                 `<div style="width:120px;">${escapeHtml(m.tel || '')}</div>` +
+                 `<div><button class="btn member-inline-edit-btn" data-cust-index="${custIndex}" data-member-index="${mi}" style="padding:4px 8px;">Edit</button></div>` +
+                 `</div>`;
+        }).join('') : '<div style="color:#666; padding:6px 0;">No members</div>';
+
+        html += `
+          <tr class="customer-members-row" style="display:none;">
+            <td colspan="6" style="border:1px solid #000; padding:8px; background:#fff;">
+              <div style="padding:8px 0;">${membersHtml}</div>
+            </td>
           </tr>
         `;
       });
@@ -3548,6 +3576,34 @@
           row.style.color = '';
         });
       });
+
+      // Add click handlers to members count spans to toggle details
+      document.querySelectorAll('.customer-members-cell').forEach((cell) => {
+        cell.addEventListener('click', (e) => {
+          const tr = cell.closest('tr');
+          const detailsRow = tr.nextElementSibling;
+          if (detailsRow && detailsRow.classList.contains('customer-members-row')) {
+            detailsRow.style.display = detailsRow.style.display === 'none' ? 'table-row' : 'none';
+          }
+        });
+      });
+
+      // Bind inline member edit buttons in the expanded member rows
+      document.querySelectorAll('.member-inline-edit-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const custIndex = parseInt(btn.getAttribute('data-cust-index'), 10);
+          const memberIndex = parseInt(btn.getAttribute('data-member-index'), 10);
+          const customers = await loadCustomersFromStorage();
+          const customer = customers[custIndex];
+          if (!customer) return;
+          await showMemberEditForm(customer, memberIndex);
+          // refresh storage/UI
+          await displayCustomers();
+        });
+      });
+
+      // Edit button handlers are wired via inline onclick -> onEditCustomerButtonClick
     }
 
     function applyCustomerFilters(customers) {
@@ -3573,6 +3629,24 @@
           return false; // No members but filter requires members
         }
         return true;
+      });
+    }
+
+    // Helper to escape HTML when rendering user-provided text
+    function escapeHtml(str) {
+      if (!str && str !== 0) return '';
+      return String(str).replace(/[&<>"'`=\/]/g, function (s) {
+        switch (s) {
+          case '&': return '&amp;';
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '\"': return '&quot;';
+          case '\'': return '&#39;';
+          case '/': return '&#47;';
+          case '`': return '&#96;';
+          case '=': return '&#61;';
+          default: return s;
+        }
       });
     }
 
@@ -3619,6 +3693,270 @@
       showModal({
         title: 'Dummy Member Added',
         body: `Member "${fullName}" with email "${username}@${currentCustomerData.emailDomain}" has been added with dummy data.`
+      });
+    }
+
+    // Choice modal: simple HTML content with option buttons
+    function showChoiceModal(title, htmlBody, options = []) {
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = title;
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+        content.innerHTML = htmlBody;
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+
+        options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.className = 'btn';
+          btn.textContent = opt.label;
+          btn.onclick = () => {
+            try { document.body.removeChild(overlay); } catch {}
+            resolve(opt.value);
+          };
+          actions.appendChild(btn);
+        });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.onclick = () => {
+          try { document.body.removeChild(overlay); } catch {}
+          resolve(null);
+        };
+        actions.appendChild(cancelBtn);
+
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+      });
+    }
+
+    // Inline onclick handler for Edit button in customer table
+    window.onEditCustomerButtonClick = async function (event) {
+      const btn = event.currentTarget;
+      const custIndex = parseInt(btn.getAttribute('data-cust-index'), 10);
+      const customers = await loadCustomersFromStorage();
+      const customer = customers[custIndex];
+      if (!customer) return;
+
+      const choice = await showChoiceModal('Edit', '<div style=\"margin-bottom:10px;\">Choose what to edit:</div>', [
+        { label: 'Edit Company', value: 'company' },
+        { label: 'Edit Members', value: 'members' }
+      ]);
+
+      if (choice === 'company') {
+        await showCustomerEditForm(custIndex);
+        await displayCustomers();
+      } else if (choice === 'members') {
+        await showMembersListModal(custIndex);
+        await displayCustomers();
+      }
+    };
+
+    // Modal form to edit company details
+    async function showCustomerEditForm(custIndex) {
+      const customers = await loadCustomersFromStorage();
+      const customer = customers[custIndex];
+      if (!customer) return;
+
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = 'Edit Company';
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+
+        content.innerHTML = `
+          <div style="display:grid; gap:8px;">
+            <label style="font-weight:700;">Company Name</label>
+            <input id="editCompanyName" type="text" value="${escapeHtml(customer.companyName || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Company Type</label>
+            <input id="editCompanyType" type="text" value="${escapeHtml(customer.companyType || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Email Domain</label>
+            <input id="editEmailDomain" type="text" value="${escapeHtml(customer.emailDomain || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Telephone</label>
+            <input id="editCompanyTel" type="text" value="${escapeHtml(customer.companyTel || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Website</label>
+            <input id="editCompanyWebsite" type="text" value="${escapeHtml(customer.companyWebsite || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+          </div>
+        `;
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn';
+        cancelBtn.textContent = 'Cancel';
+        const okBtn = document.createElement('button');
+        okBtn.className = 'btn primary';
+        okBtn.textContent = 'Save';
+
+        cancelBtn.onclick = () => { try { document.body.removeChild(overlay); } catch {} resolve(false); };
+        okBtn.onclick = async () => {
+          customer.companyName = document.getElementById('editCompanyName').value.trim();
+          customer.companyType = document.getElementById('editCompanyType').value.trim();
+          customer.emailDomain = document.getElementById('editEmailDomain').value.trim();
+          customer.companyTel = document.getElementById('editCompanyTel').value.trim();
+          customer.companyWebsite = document.getElementById('editCompanyWebsite').value.trim();
+          try {
+            await saveCustomerToStorage(customer);
+            try { document.body.removeChild(overlay); } catch {}
+            resolve(true);
+          } catch (err) {
+            showModal({ title: 'Error', body: 'Failed to save company: ' + (err.message || err) });
+          }
+        };
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(okBtn);
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+      });
+    }
+
+    // Modal to list members and allow editing individual member
+    async function showMembersListModal(custIndex) {
+      const customers = await loadCustomersFromStorage();
+      const customer = customers[custIndex];
+      if (!customer) return;
+
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = 'Edit Members';
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+
+        const listHtml = (customer.members && customer.members.length > 0) ? customer.members.map((m, idx) => {
+          return `<div style="display:flex; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid #eee;">
+                    <div style="flex:1;"><strong>${escapeHtml(m.name)}</strong><br><small>${escapeHtml(m.emailPrefix)}@${escapeHtml(customer.emailDomain)}</small></div>
+                    <div><button class="btn edit-member-btn" data-member-index="${idx}">Edit</button></div>
+                  </div>`;
+        }).join('') : '<div style="color:#666;">No members</div>';
+
+        content.innerHTML = `<div>${listHtml}</div>`;
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'btn';
+        closeBtn.textContent = 'Close';
+        closeBtn.onclick = () => { try { document.body.removeChild(overlay); } catch {} resolve(false); };
+        actions.appendChild(closeBtn);
+
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // attach handlers to edit buttons
+        content.querySelectorAll('.edit-member-btn').forEach(btn => {
+          btn.onclick = async (e) => {
+            const memberIndex = parseInt(btn.getAttribute('data-member-index'), 10);
+            await showMemberEditForm(customer, memberIndex);
+            // refresh list UI
+            const updatedCustomers = await loadCustomersFromStorage();
+            const updatedCustomer = updatedCustomers[custIndex];
+            customer.members = updatedCustomer.members || [];
+            content.querySelector('div').innerHTML = (customer.members.length > 0) ? customer.members.map((m, idx) => {
+              return `<div style="display:flex; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid #eee;">
+                        <div style="flex:1;"><strong>${escapeHtml(m.name)}</strong><br><small>${escapeHtml(m.emailPrefix)}@${escapeHtml(customer.emailDomain)}</small></div>
+                        <div><button class="btn edit-member-btn" data-member-index="${idx}">Edit</button></div>
+                      </div>`;
+            }).join('') : '<div style="color:#666;">No members</div>';
+
+            // re-bind new buttons
+            content.querySelectorAll('.edit-member-btn').forEach(btn2 => {
+              btn2.onclick = async () => {
+                const mi = parseInt(btn2.getAttribute('data-member-index'), 10);
+                await showMemberEditForm(customer, mi);
+                await saveCustomerToStorage(customer);
+              };
+            });
+          };
+        });
+      });
+    }
+
+    // Modal to edit a single member object (in-place)
+    function showMemberEditForm(customer, memberIndex) {
+      return new Promise((resolve) => {
+        const member = customer.members[memberIndex];
+        if (!member) return resolve(false);
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = 'Edit Member';
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+
+        content.innerHTML = `
+          <div style="display:grid; gap:8px;">
+            <label style="font-weight:700;">Full Name</label>
+            <input id="editMemberName" type="text" value="${escapeHtml(member.name || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Email Prefix</label>
+            <input id="editMemberEmail" type="text" value="${escapeHtml(member.emailPrefix || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Title</label>
+            <input id="editMemberTitle" type="text" value="${escapeHtml(member.title || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Telephone</label>
+            <input id="editMemberTel" type="text" value="${escapeHtml(member.tel || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+          </div>
+        `;
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn';
+        cancelBtn.textContent = 'Cancel';
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'btn primary';
+        saveBtn.textContent = 'Save';
+
+        cancelBtn.onclick = () => { try { document.body.removeChild(overlay); } catch {} resolve(false); };
+        saveBtn.onclick = async () => {
+          member.name = document.getElementById('editMemberName').value.trim();
+          member.emailPrefix = document.getElementById('editMemberEmail').value.trim();
+          member.title = document.getElementById('editMemberTitle').value.trim();
+          member.tel = document.getElementById('editMemberTel').value.trim();
+          try {
+            await saveCustomerToStorage(customer);
+            try { document.body.removeChild(overlay); } catch {}
+            resolve(true);
+          } catch (err) {
+            showModal({ title: 'Error', body: 'Failed to save member: ' + (err.message || err) });
+          }
+        };
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(saveBtn);
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
       });
     }
 
