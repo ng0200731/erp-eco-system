@@ -391,6 +391,7 @@ const emailRoutes = createEmailRoutes({
   setImapClient: (client) => { imapClient = client; },
   getSmtpTransport: () => smtpTransport,
   createSmtpTransport,
+  createImapClient,
   config: {
     IMAP_HOST,
     IMAP_PORT,

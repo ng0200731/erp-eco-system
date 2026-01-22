@@ -15,6 +15,7 @@ const router = express.Router();
  * @param {Function} deps.setImapClient - Set IMAP client function
  * @param {Function} deps.getSmtpTransport - Get SMTP transport function
  * @param {Function} deps.createSmtpTransport - Create SMTP transport function
+ * @param {Function} deps.createImapClient - Create IMAP client function
  * @param {Object} deps.config - Configuration object (IMAP_HOST, IMAP_PORT, MAIL_USER, SMTP_HOST, SMTP_PORT, SMTP_SECURE)
  */
 export function createEmailRoutes(deps) {
@@ -29,6 +30,7 @@ export function createEmailRoutes(deps) {
     setImapClient,
     getSmtpTransport,
     createSmtpTransport,
+    createImapClient,
     config
   } = deps;
 
