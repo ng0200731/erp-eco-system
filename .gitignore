@@ -1,10 +1,14 @@
 node_modules/
 data/*.db
+data/*.db-shm
+data/*.db-wal
 # Environment variables (contains passwords!)
 env
 .env
 .env.local
 .env.*.local
+# Profile configuration (contains passwords!)
+profiles.json
 
 # Node modules
 node_modules/

@@ -130,7 +130,7 @@ function createImapClient(activeProfile = null) {
     },
     logger: true, // Enable debug logs to see what's happening
     tlsOptions: {
-      rejectUnauthorized: false, // Allow self-signed certificates
+      rejectUnauthorized: true, // Validate TLS certificates for security
     },
     // Add connection timeouts to prevent hanging
     connectionTimeout: 10000, // 10 seconds for initial connection
@@ -228,7 +228,7 @@ const smtpConfig = {
     pass: MAIL_PASS, // Password already processed (quotes removed)
   },
   tls: {
-    rejectUnauthorized: false, // Accept all certificates (?��??�?��?�?
+    rejectUnauthorized: true, // Validate TLS certificates for security
     // Let Node.js auto-negotiate TLS version
   },
   connectionTimeout: 30000, // 30 seconds (increased for idle reconnection)
@@ -267,7 +267,7 @@ function createSmtpTransport(activeProfile = null) {
       pass: activeProfile.mailPass,
     },
     tls: {
-      rejectUnauthorized: false,
+      rejectUnauthorized: true, // Validate TLS certificates for security
     },
     connectionTimeout: 30000,
     greetingTimeout: 20000,
