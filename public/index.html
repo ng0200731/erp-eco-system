@@ -2510,6 +2510,11 @@
           document.getElementById('toEmail').value = '';
           document.getElementById('subjectEmail').value = '';
           document.getElementById('bodyEmail').value = '';
+
+          // Refresh sent emails list if we're on the sent emails tab
+          if (typeof loadSentEmails === 'function') {
+            loadSentEmails();
+          }
         } else {
           const errorMsg = data.error || 'Unknown error';
           const errorCode = data.code ? ` (Code: ${data.code})` : '';
