@@ -34,6 +34,105 @@ export function createEmailRoutes(deps) {
 
   const { IMAP_HOST, IMAP_PORT, MAIL_USER, SMTP_HOST, SMTP_PORT, SMTP_SECURE } = config;
 
+  // Get emails from IMAP inbox
+  router.get('/emails', async (req, res) => {
+    try {
+      const profiles = await getProfilesMemory();
+      const activeProfile = profiles.find(p => p.isActive === 1);
+      if (!activeProfile) {
+        return res.status(400).json({
+          success: false,
+          error: 'No active email profile found. Please activate a profile in Settings.'
+        });
+      }
+
+      await connectImap();
+      const imapClient = getImapClient();
+
+      if (!imapClient || imapClient.state < 2) {
+        return res.status(500).json({
+          success: false,
+          error: 'IMAP client not connected'
+        });
+      }
+
+      const limit = Math.min(Number(req.query.limit) || 50, 100);
+      const offset = Math.max(Number(req.query.offset) || 0, 0);
+
+      const lock = await imapClient.getMailboxLock('INBOX');
+      try {
+        const totalMessages = imapClient.mailbox.exists;
+
+        if (totalMessages === 0) {
+          return res.json({
+            success: true,
+            emails: [],
+            pagination: {
+              limit,
+              offset,
+              total: 0,
+              hasMore: false
+            }
+          });
+        }
+
+        const startSeq = Math.max(1, totalMessages - offset - limit + 1);
+        const endSeq = Math.max(1, totalMessages - offset);
+
+        if (startSeq > endSeq) {
+          return res.json({
+            success: true,
+            emails: [],
+            pagination: {
+              limit,
+              offset,
+              total: totalMessages,
+              hasMore: false
+            }
+          });
+        }
+
+        const messages = [];
+        for await (const msg of imapClient.fetch(`${startSeq}:${endSeq}`, {
+          envelope: true,
+          bodyStructure: true,
+          uid: true,
+          flags: true,
+        })) {
+          messages.push({
+            uid: msg.uid,
+            seq: msg.seq,
+            flags: msg.flags,
+            envelope: msg.envelope,
+            bodyStructure: msg.bodyStructure,
+          });
+        }
+
+        messages.reverse();
+
+        res.json({
+          success: true,
+          emails: messages,
+          pagination: {
+            limit,
+            offset,
+            total: totalMessages,
+            hasMore: offset + limit < totalMessages
+          }
+        });
+      } finally {
+        lock.release();
+      }
+    } catch (err) {
+      console.error('Error fetching emails:', err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to fetch emails',
+        code: err.code || 'UNKNOWN',
+      });
+    }
+  });
+
   // Get sent emails with pagination
   router.get('/sent-emails', async (req, res) => {
     try {
