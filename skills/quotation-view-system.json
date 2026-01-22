@@ -1,10 +1,10 @@
 {
   "name": "quotation-view-system",
   "description": "Implements quotation view system with table display and filtering capabilities",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "status": "completed",
   "created": "2025-01-19",
-  "updated": "2026-01-20",
+  "updated": "2025-01-19",
   "tags": ["quotation", "view", "table", "filter", "localStorage"],
   "components": {
     "frontend": {
@@ -50,20 +50,14 @@
       ]
     },
     {
-      "name": "Enhanced Detail Modal",
-      "description": "Quotation view modal using exact same form CSS as creation with dimmed read-only fields",
+      "name": "Detail Modal",
+      "description": "Click-to-view detailed quotation information",
       "sections": [
-        "Identical Form Layout (Customer, Product, Pricing fields)",
-        "Dimmed Read-only Fields (All inputs disabled with visual styling)",
-        "Images and Attachments (Separate sections below form)",
-        "Status and Metadata Header (View mode indicator)"
-      ],
-      "features": [
-        "Exact CSS replication from quotation creation form",
-        "Enhanced dimming effect (opacity, background, cursor)",
-        "Hidden action buttons (Save, Add Image, etc.)",
-        "Proper field population for all quotation data types",
-        "Scrollable modal with consistent styling"
+        "Customer Information",
+        "Product Details",
+        "Pricing Information",
+        "Notes",
+        "Creation Date"
       ]
     }
   ],
@@ -73,25 +67,23 @@
     "DOM manipulation",
     "Event handling"
   ],
-    "data_structure": {
-      "quotation": {
-        "id": "number (timestamp)",
-        "customerName": "string",
-        "contactPerson": "string",
-        "email": "string",
-        "phone": "string",
-        "productType": "string (hang-tag|woven-label|care-label|heat-transfer|others)",
-        "productDetails": "object (material, size, printingMethod, etc.)",
-        "quantity": "number",
-        "unitPrice": "number",
-        "total": "number",
-        "notes": "string",
-        "dateCreated": "ISO string",
-        "status": "string (draft|approved|sent)",
-        "images": "array of objects (optional) - [{name: string, url: string, size?: number}]",
-        "attachments": "array of objects (optional) - [{name: string, url: string, size?: number, type?: string}]"
-      }
-    },
+  "data_structure": {
+    "quotation": {
+      "id": "number (timestamp)",
+      "customerName": "string",
+      "contactPerson": "string",
+      "email": "string",
+      "phone": "string",
+      "productType": "string (hang-tag|woven-label|care-label|heat-transfer|others)",
+      "productDetails": "object (material, size, printingMethod, etc.)",
+      "quantity": "number",
+      "unitPrice": "number",
+      "total": "number",
+      "notes": "string",
+      "dateCreated": "ISO string",
+      "status": "string (draft|approved|sent)"
+    }
+  },
   "ui_components": {
     "quotationViewPanel": "Main container div with table and filters",
     "quotationsTable": "HTML table with filter inputs in headers",
@@ -99,5 +91,4 @@
     "refreshQuotationsBtn": "Button to reload quotation data"
   }
 }
-
 

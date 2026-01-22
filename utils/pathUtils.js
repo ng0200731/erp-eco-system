@@ -40,3 +40,4 @@ export function toUrlPath(filePath) {
   const normalized = normalizePath(filePath);
   return normalized.startsWith('/') ? normalized : '/' + normalized;
 }
+

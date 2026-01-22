@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git submodule:*)",
+      "Bash(cat:*)",
+      "Bash(git config:*)",
+      "Bash(sort:*)",
+      "Bash(node --version:*)",
+      "Bash(node --check:*)"
+    ]
+  }
+}
