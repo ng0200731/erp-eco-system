@@ -711,6 +711,52 @@ export function createEmailRoutes(deps) {
             // Don't fail the request if DB storage fails
           }
 
+          // Append sent email to IMAP sent folder
+          console.log('Appending sent email to IMAP sent folder...');
+          try {
+            const imapClient = createImapClient(activeProfile);
+            await imapClient.connect();
+
+            // Try common sent folder names
+            const sentFolderNames = ['Sent', 'Sent Items', 'Sent Messages', '[Gmail]/Sent Mail', 'INBOX.Sent'];
+            let sentFolderName = null;
+
+            for (const folderName of sentFolderNames) {
+              try {
+                await imapClient.mailboxOpen(folderName);
+                sentFolderName = folderName;
+                break;
+              } catch (err) {
+                continue;
+              }
+            }
+
+            if (sentFolderName) {
+              // Build RFC822 email message
+              const emailMessage = [
+                `From: ${activeProfile.mailUser}`,
+                `To: ${to}`,
+                `Subject: ${subject}`,
+                `Date: ${new Date().toUTCString()}`,
+                `Message-ID: ${info.messageId}`,
+                `Content-Type: text/plain; charset=utf-8`,
+                ``,
+                text || html?.replace(/<[^>]*>/g, '')
+              ].join('\r\n');
+
+              // Append to sent folder
+              await imapClient.append(sentFolderName, emailMessage, ['\\Seen']);
+              console.log('Successfully appended email to IMAP sent folder:', sentFolderName);
+            } else {
+              console.warn('Could not find IMAP sent folder to append email');
+            }
+
+            await imapClient.logout();
+          } catch (imapErr) {
+            console.error('Failed to append email to IMAP sent folder:', imapErr);
+            // Don't fail the request if IMAP append fails
+          }
+
           // Close transport after sending
           transport.close();
 
