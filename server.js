@@ -19,6 +19,8 @@ import {
 } from './db/tasksDb.js';
 import SkillManager from './skills/skillManager.js';
 import { getNormalizedRelativePath } from './utils/pathUtils.js';
+import { createHealthRoutes } from './routes/health.js';
+import { createTaskRoutes } from './routes/tasks.js';
 
 // ---------- ENV ----------
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -295,60 +297,30 @@ try {
   skillManager = null;
 }
 
-// Health check endpoint with connection diagnostics
-app.get('/api/health', async (req, res) => {
-  const health = {
-    success: true,
-    message: 'Server is running',
-    timestamp: new Date().toISOString(),
-    connections: {
-      imap: {
-        connected: false,
-        state: null,
-        stateName: 'unknown'
-      },
-      smtp: {
-        configured: true,
-        host: SMTP_HOST,
-        port: SMTP_PORT
-      }
-    }
-  };
-
-  // Check IMAP connection state
-  if (imapClient) {
-    health.connections.imap.connected = imapClient.state >= 2;
-    health.connections.imap.state = imapClient.state;
-    health.connections.imap.stateName = 
-      imapClient.state === 0 ? 'disconnected' :
-      imapClient.state === 1 ? 'connecting' :
-      imapClient.state === 2 ? 'authenticated' :
-      imapClient.state === 3 ? 'selected' :
-      imapClient.state === 4 ? 'idle' : 'unknown';
-  }
-
-  res.json(health);
+// ---------- MOUNT ROUTES ----------
+// Health and config routes
+const healthRoutes = createHealthRoutes({
+  imapClient,
+  SMTP_HOST,
+  SMTP_PORT,
+  MAIL_USER,
+  MAIL_PASS,
+  IMAP_HOST,
+  IMAP_PORT,
+  IMAP_TLS,
+  SMTP_SECURE
 });
+app.use('/api', healthRoutes);
 
-// Email/IMAP/SMTP config endpoints (read + write env file)
-app.get('/api/config', (req, res) => {
-  // NOTE: Values here reflect what the server started with.
-  res.json({
-    success: true,
-    config: {
-      MAIL_USER,
-      MAIL_PASS,
-      IMAP_HOST,
-      IMAP_PORT,
-      IMAP_TLS,
-      SMTP_HOST,
-      SMTP_PORT,
-      SMTP_SECURE,
-      PORT,
-    },
-    note: 'Changes require server restart (close window and run start.bat again).',
-  });
+// Task routes
+const taskRoutes = createTaskRoutes({
+  createTask,
+  getTaskById,
+  listTasks,
+  updateTaskStatus,
+  TASK_STATUS
 });
+app.use('/api/tasks', taskRoutes);
 
 // Profiles API (simple, in-memory; longriver default from env)
 // Simple file-based profile persistence
@@ -568,97 +540,6 @@ app.post('/api/config', async (req, res) => {
     res.status(500).json({
       success: false,
       error: err.message || 'Failed to save configuration',
-    });
-  }
-});
-
-// ---------- Tasks (SQLite) ----------
-// MVP APIs for task ecosystem (Step B1)
-
-app.get('/api/tasks', async (req, res) => {
-  try {
-    const status = req.query.status ? String(req.query.status) : undefined;
-    const tasks = await listTasks({ status });
-    res.json({ success: true, tasks });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message || 'Failed to list tasks',
-      code: err.code || 'UNKNOWN',
-    });
-  }
-});
-
-app.get('/api/tasks/:id', async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    if (!id || isNaN(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid task id' });
-    }
-    const task = await getTaskById(id);
-    if (!task) {
-      return res.status(404).json({ success: false, error: 'Task not found' });
-    }
-    res.json({ success: true, task });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message || 'Failed to get task',
-      code: err.code || 'UNKNOWN',
-    });
-  }
-});
-
-app.post('/api/tasks', async (req, res) => {
-  try {
-    const {
-      type,
-      status,
-      sourceEmailUid,
-      sourceSubject,
-      customerEmail,
-      notes,
-    } = req.body || {};
-
-    const created = await createTask({
-      type,
-      status: status || TASK_STATUS.NEW,
-      sourceEmailUid: sourceEmailUid ?? null,
-      sourceSubject: sourceSubject ?? null,
-      customerEmail: customerEmail ?? null,
-      notes: notes ?? null,
-    });
-
-    res.json({ success: true, task: created });
-  } catch (err) {
-    res.status(400).json({
-      success: false,
-      error: err.message || 'Failed to create task',
-      code: err.code || 'BAD_REQUEST',
-    });
-  }
-});
-
-app.post('/api/tasks/:id/status', async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    const { status } = req.body || {};
-    if (!id || isNaN(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid task id' });
-    }
-    if (!status || typeof status !== 'string') {
-      return res.status(400).json({ success: false, error: 'Invalid status' });
-    }
-    const updated = await updateTaskStatus(id, status);
-    if (!updated) {
-      return res.status(404).json({ success: false, error: 'Task not found' });
-    }
-    res.json({ success: true, task: updated });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message || 'Failed to update task status',
-      code: err.code || 'UNKNOWN',
     });
   }
 });
