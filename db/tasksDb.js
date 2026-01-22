@@ -103,6 +103,7 @@ async function ensureSchema(db) {
       unitPrice REAL NOT NULL,
       total REAL NOT NULL,
       notes TEXT,
+      type TEXT DEFAULT 'non email',
       profileImagePath TEXT,
       attachmentPaths TEXT,
       dateCreated TEXT NOT NULL,
@@ -159,6 +160,15 @@ async function ensureSchema(db) {
     // Column might already exist, ignore error
     if (!err.message.includes('duplicate column name')) {
       console.warn('Error adding attachmentPaths column:', err);
+    }
+  }
+
+  try {
+    await db.exec(`ALTER TABLE quotations ADD COLUMN type TEXT DEFAULT 'non email';`);
+  } catch (err) {
+    // Column might already exist, ignore error
+    if (!err.message.includes('duplicate column name')) {
+      console.warn('Error adding type column:', err);
     }
   }
 }
@@ -564,8 +574,8 @@ export async function createQuotation(quotationData) {
 
   const result = await db.run(
     `
-      INSERT INTO quotations (customerName, contactPerson, email, phone, productType, productDetails, quantity, unitPrice, total, notes, profileImagePath, attachmentPaths, dateCreated, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO quotations (customerName, contactPerson, email, phone, productType, productDetails, quantity, unitPrice, total, notes, type, profileImagePath, attachmentPaths, dateCreated, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       quotationData.customerName,
@@ -578,6 +588,7 @@ export async function createQuotation(quotationData) {
       quotationData.unitPrice,
       quotationData.total,
       quotationData.notes || null,
+      quotationData.type || 'non email',
       quotationData.profileImagePath || null,
       JSON.stringify(quotationData.attachmentPaths || []),
       quotationData.dateCreated,
@@ -619,7 +630,7 @@ export async function updateQuotation(id, quotationData) {
   await db.run(
     `
       UPDATE quotations
-      SET customerName = ?, contactPerson = ?, email = ?, phone = ?, productType = ?, productDetails = ?, quantity = ?, unitPrice = ?, total = ?, notes = ?, profileImagePath = ?, attachmentPaths = ?, status = ?
+      SET customerName = ?, contactPerson = ?, email = ?, phone = ?, productType = ?, productDetails = ?, quantity = ?, unitPrice = ?, total = ?, notes = ?, type = ?, profileImagePath = ?, attachmentPaths = ?, status = ?
       WHERE id = ?
     `,
     [
@@ -633,6 +644,7 @@ export async function updateQuotation(id, quotationData) {
       quotationData.unitPrice,
       quotationData.total,
       quotationData.notes || null,
+      quotationData.type || 'non email',
       quotationData.profileImagePath || null,
       JSON.stringify(quotationData.attachmentPaths || []),
       quotationData.status || 'draft',

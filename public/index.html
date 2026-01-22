@@ -536,7 +536,7 @@
       <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
       <div style="flex:1;"></div>
       <div style="font-size:0.75em; text-align:center; color:#666; margin-top:10px; padding:5px;">
-        v1.0.17
+        v1.0.22
       </div>
     </div>
     <div id="board">
@@ -757,6 +757,14 @@
                 <th style="border:1px solid #000; padding:8px; text-align:left;">
                   <div>Total (HKD)</div>
                   <input type="text" id="quotationFilterTotal" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Type</div>
+                  <select id="quotationFilterSourceType" class="filter-input" style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                    <option value="">All Types</option>
+                    <option value="email">Email</option>
+                    <option value="non email">Non Email</option>
+                  </select>
                 </th>
                 <th style="border:1px solid #000; padding:8px; text-align:left;">
                   <div>Date Created</div>
@@ -3017,7 +3025,7 @@
       titleElement.innerHTML = `📧 Email Quotation - ${quotationName}`;
 
       // Load quotation form content
-      content.innerHTML = generateQuotationContent(quotationType, quotationName);
+      content.innerHTML = generateQuotationContent(quotationType, quotationName, 'email');
 
       // Show modal
       modal.style.display = 'flex';
@@ -4682,6 +4690,7 @@
           <td style="border:1px solid #000; padding:8px;">${getProductTypeDisplayName(quotation.productType)}</td>
           <td style="border:1px solid #000; padding:8px; text-align:right;">${quotation.quantity.toLocaleString()}</td>
           <td style="border:1px solid #000; padding:8px; text-align:right;">${quotation.total.toFixed(2)}</td>
+          <td style="border:1px solid #000; padding:8px;">${quotation.type || 'non email'}</td>
           <td style="border:1px solid #000; padding:8px;">${new Date(quotation.dateCreated).toLocaleDateString()}</td>
         </tr>
       `).join('');
@@ -5122,7 +5131,7 @@
       subBoardTitle.textContent = `${tagName} Quotation`;
 
       // Generate content based on tag type
-      const content = generateQuotationContent(tagType, tagName);
+      const content = generateQuotationContent(tagType, tagName, 'non email');
       subBoardContent.innerHTML = content;
 
       // Initialize autocomplete for customer field and file upload functionality
@@ -5799,7 +5808,12 @@
       '</div>';
     }
 
-    function generateQuotationContent(tagType, tagName) {
+    function generateQuotationContent(tagType, tagName, source = 'non email') {
+      console.log('=== generateQuotationContent called ===');
+      console.log('tagType:', tagType);
+      console.log('tagName:', tagName);
+      console.log('source:', source);
+
       // Base form structure with split layout (left: form, right: file uploads)
       return '<div style="display:flex; height:600px;">' +
         // Left side: Form (70% width)
@@ -5865,7 +5879,7 @@
             '<div style="display:flex; gap:10px; justify-content:flex-end;">' +
               '<button type="button" class="page-btn" onclick="fillDummyQuotationForm()">Dummy Fill</button>' +
               '<button type="button" class="page-btn" onclick="clearQuotationForm()">Clear</button>' +
-              '<button type="button" class="page-btn" onclick="saveQuotation(\'' + tagType + '\')">Save Quotation</button>' +
+              '<button type="button" class="page-btn" onclick="console.log(\'Button clicked, calling saveQuotation with:\', \'' + tagType + '\', \'' + source + '\'); saveQuotation(\'' + tagType + '\', \'' + source + '\')">Save Quotation</button>' +
               '<button type="button" class="page-btn primary" onclick="generateQuotation(\'' + tagType + '\')">Generate PDF</button>' +
             '</div>' +
           '</form>' +
@@ -6205,7 +6219,12 @@
       }
     };
 
-    window.saveQuotation = async function(tagType) {
+    window.saveQuotation = async function(tagType, source = 'non email') {
+      console.log('=== saveQuotation called ===');
+      console.log('tagType:', tagType);
+      console.log('source:', source);
+      console.log('source type:', typeof source);
+
       try {
         const customerName = document.getElementById('quotationCustomerName').value.trim();
         const contactPerson = document.getElementById('quotationContactPerson').value;
@@ -6217,7 +6236,7 @@
         const notes = document.getElementById('quotationNotes').value.trim();
 
         console.log('Saving quotation with data:', {
-          customerName, contactPerson, email, phone, quantity, unitPrice, total, notes, tagType
+          customerName, contactPerson, email, phone, quantity, unitPrice, total, notes, tagType, source
         });
 
         // Get product-specific fields
@@ -6254,11 +6273,16 @@
           unitPrice: parseFloat(unitPrice) || 0,
           total: parseFloat(total) || 0,
           notes,
+          type: source,
           profileImagePath: null,
           attachmentPaths: [],
           dateCreated: new Date().toISOString(),
           status: 'draft'
         };
+
+        console.log('=== QUOTATION OBJECT CREATED ===');
+        console.log('quotation.type:', quotation.type);
+        console.log('Full quotation object:', JSON.stringify(quotation, null, 2));
 
         // Save quotation to database first to get ID
         const savedQuotation = await saveQuotationToStorage(quotation);

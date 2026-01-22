@@ -1,7 +1,7 @@
 {
   "name": "quotation-view-system",
   "description": "Implements quotation view system with table display and filtering capabilities",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": "completed",
   "category": "frontend",
   "tags": ["quotation", "view", "table", "filter", "localStorage"],
@@ -46,6 +46,11 @@
       "version": "1.1.0",
       "date": "2026-01-22",
       "description": "Fixed attachment display in view modal by moving getFileIconFromPath to global scope. Added automatic list refresh after save."
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-01-22",
+      "description": "Added 'Type' column to quotation view table to distinguish between 'email' (created from Email → Click to view → Quotation) and 'non email' (created from Quotation → Create) quotations. Updated saveQuotation function to accept source parameter. Modified generateQuotationContent to accept source parameter and pass it through to saveQuotation button. Updated both openEmailQuotationModal and showQuotationSubBoard to pass correct source values. CRITICAL FIX: Added 'type' column to database schema (db/tasksDb.js:106), added migration for existing databases, and updated INSERT/UPDATE queries to persist the type field."
     }
   ]
 }
