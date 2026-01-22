@@ -2345,16 +2345,16 @@
         row.style.border = '1px solid #000';
 
         // Format date
-        const date = new Date(e.date);
+        const date = new Date(e.envelope?.date);
         const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
         // Extract sender email from from field
         let senderEmail = '';
-        const fromMatch = (e.from || '').match(/<([^>]+)>/);
+        const fromMatch = (e.envelope?.from?.[0]?.address || '').match(/<([^>]+)>/);
         if (fromMatch) {
           senderEmail = fromMatch[1];
         } else {
-          senderEmail = e.from || '';
+          senderEmail = e.envelope?.from?.[0]?.address || e.envelope?.from?.[0]?.name || '';
         }
 
         // For now, we'll use placeholder data for context and attachments since they're not available in the current email data structure
@@ -2364,7 +2364,7 @@
         row.innerHTML = `
           <td style="padding:12px; border:1px solid #000; vertical-align:top;">${formattedDate}</td>
           <td style="padding:12px; border:1px solid #000; vertical-align:top;">${senderEmail}</td>
-          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${e.subject||'No subject'}</td>
+          <td style="padding:12px; border:1px solid #000; vertical-align:top;">${e.envelope?.subject||'No subject'}</td>
           <td style="padding:12px; border:1px solid #000; vertical-align:top;">${context}</td>
           <td style="padding:12px; border:1px solid #000; vertical-align:top;">${attachment}</td>
         `;
@@ -2393,9 +2393,9 @@
       const attachmentSearch = document.getElementById('attachmentSearch').value.toLowerCase();
 
       currentFilteredEmails = currentEmails.filter(email => {
-        const date = new Date(email.date).toLocaleDateString().toLowerCase();
-        const sender = (email.from || '').toLowerCase();
-        const subject = (email.subject || '').toLowerCase();
+        const date = new Date(email.envelope?.date).toLocaleDateString().toLowerCase();
+        const sender = (email.envelope?.from?.[0]?.address || email.envelope?.from?.[0]?.name || '').toLowerCase();
+        const subject = (email.envelope?.subject || '').toLowerCase();
         const context = '(click to view)'; // Placeholder for now
         const attachment = 'n/a'; // Placeholder for now
 
