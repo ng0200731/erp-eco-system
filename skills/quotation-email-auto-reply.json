@@ -1,0 +1,129 @@
+{
+  "name": "quotation-email-auto-reply",
+  "description": "Automatically sends quotation emails as replies to original incoming emails when quotations are created from the email flow",
+  "version": "1.0.0",
+  "status": "completed",
+  "category": "backend-frontend",
+  "tags": ["quotation", "email", "auto-reply", "smtp", "imap", "threading"],
+  "changes": [
+    {
+      "component": "Database Schema (db/tasksDb.js:94-114)",
+      "description": "Added source email fields to quotations table: sourceEmailUid (INTEGER), sourceEmailSubject (TEXT), sourceEmailMessageId (TEXT)",
+      "impact": "Quotations now store reference to the original email they were created from, enabling email threading"
+    },
+    {
+      "component": "Database Migration (db/tasksDb.js:178-200)",
+      "description": "Added ALTER TABLE migrations to add sourceEmailUid, sourceEmailSubject, and sourceEmailMessageId columns to existing databases",
+      "impact": "Existing databases are automatically upgraded to support email threading"
+    },
+    {
+      "component": "Database Queries (db/tasksDb.js:604-605, 663)",
+      "description": "Updated INSERT and UPDATE queries to include source email fields (sourceEmailUid, sourceEmailSubject, sourceEmailMessageId)",
+      "impact": "Source email information is persisted when creating or updating quotations"
+    },
+    {
+      "component": "Email Message-ID Extraction (public/index.html:2204-2218)",
+      "description": "Added extraction of Message-ID header from email source and stored in currentEmailMeta object",
+      "impact": "Message-ID is captured for email threading support"
+    },
+    {
+      "component": "Email Metadata Passing (public/index.html:3027-3032, 3016)",
+      "description": "Modified openEmailQuotationModal to accept and store emailMeta parameter in window.currentQuotationEmailMeta",
+      "impact": "Email metadata is available when creating quotations from emails"
+    },
+    {
+      "component": "Quotation Object Enhancement (public/index.html:6288-6290)",
+      "description": "Updated saveQuotation to include sourceEmailUid, sourceEmailSubject, and sourceEmailMessageId fields when source is 'email'",
+      "impact": "Quotations created from emails store complete source email information"
+    },
+    {
+      "component": "Email Send Endpoint Enhancement (routes/emails.js:680, 704-718)",
+      "description": "Added support for inReplyTo and references headers in email send endpoint",
+      "impact": "Emails can now be sent as proper threaded replies with In-Reply-To and References headers"
+    },
+    {
+      "component": "Auto-Send Trigger (public/index.html:6413-6430)",
+      "description": "Added automatic email sending after quotation is saved when source is 'email'",
+      "impact": "Quotation emails are automatically sent as replies to original emails without manual intervention"
+    },
+    {
+      "component": "Send Quotation Email Function (public/index.html:6527-6572)",
+      "description": "Implemented sendQuotationEmail function that generates HTML email and sends it via SMTP with proper threading headers",
+      "impact": "Quotation emails are sent as threaded replies with In-Reply-To and References headers"
+    },
+    {
+      "component": "HTML Email Template (public/index.html:6574-6667)",
+      "description": "Created generateQuotationEmailHtml function that generates professional HTML email with quotation details including customer info, product details, pricing, and notes",
+      "impact": "Quotation emails are formatted professionally with clear structure and branding"
+    }
+  ],
+  "workflow": [
+    {
+      "step": 1,
+      "action": "User receives email inquiry",
+      "description": "Customer sends email inquiry about products"
+    },
+    {
+      "step": 2,
+      "action": "User views email and clicks Quotation button",
+      "description": "User opens email in Email panel and clicks Quotation → [Product Type]"
+    },
+    {
+      "step": 3,
+      "action": "System captures email metadata",
+      "description": "System extracts and stores email UID, subject, Message-ID, and sender email address"
+    },
+    {
+      "step": 4,
+      "action": "User fills quotation form",
+      "description": "User enters customer details, product specifications, pricing, and notes"
+    },
+    {
+      "step": 5,
+      "action": "User saves quotation",
+      "description": "User clicks 'Save Quotation' button"
+    },
+    {
+      "step": 6,
+      "action": "System saves quotation with source email info",
+      "description": "Quotation is saved to database with sourceEmailUid, sourceEmailSubject, and sourceEmailMessageId fields"
+    },
+    {
+      "step": 7,
+      "action": "System automatically sends quotation email",
+      "description": "System generates HTML email with quotation details and sends it as a reply to the original email with proper threading headers (In-Reply-To and References)"
+    },
+    {
+      "step": 8,
+      "action": "Customer receives quotation email",
+      "description": "Customer receives quotation email as a threaded reply to their original inquiry"
+    }
+  ],
+  "technicalDetails": {
+    "emailThreading": {
+      "description": "Emails are sent with In-Reply-To and References headers to maintain email thread continuity",
+      "headers": {
+        "inReplyTo": "Message-ID of the original email",
+        "references": "Message-ID of the original email"
+      }
+    },
+    "emailFormat": {
+      "subject": "Re: [Original Subject] - Quotation",
+      "contentType": "text/html",
+      "styling": "Professional HTML template with black borders, clear sections, and responsive design"
+    },
+    "errorHandling": {
+      "description": "If email sending fails, quotation is still saved successfully and user is notified with a warning message",
+      "fallback": "User can manually send quotation email later if auto-send fails"
+    }
+  },
+  "dependencies": [
+    "Email system (SMTP/IMAP)",
+    "Active email profile configured",
+    "Nodemailer for SMTP sending",
+    "Email threading support in email client"
+  ],
+  "created": "2026-01-23",
+  "updated": "2026-01-23",
+  "author": "Development Team"
+}

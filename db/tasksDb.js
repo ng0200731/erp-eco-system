@@ -104,6 +104,9 @@ async function ensureSchema(db) {
       total REAL NOT NULL,
       notes TEXT,
       type TEXT DEFAULT 'non email',
+      sourceEmailUid INTEGER,
+      sourceEmailSubject TEXT,
+      sourceEmailMessageId TEXT,
       profileImagePath TEXT,
       attachmentPaths TEXT,
       dateCreated TEXT NOT NULL,
@@ -169,6 +172,30 @@ async function ensureSchema(db) {
     // Column might already exist, ignore error
     if (!err.message.includes('duplicate column name')) {
       console.warn('Error adding type column:', err);
+    }
+  }
+
+  try {
+    await db.exec(`ALTER TABLE quotations ADD COLUMN sourceEmailUid INTEGER;`);
+  } catch (err) {
+    if (!err.message.includes('duplicate column name')) {
+      console.warn('Error adding sourceEmailUid column:', err);
+    }
+  }
+
+  try {
+    await db.exec(`ALTER TABLE quotations ADD COLUMN sourceEmailSubject TEXT;`);
+  } catch (err) {
+    if (!err.message.includes('duplicate column name')) {
+      console.warn('Error adding sourceEmailSubject column:', err);
+    }
+  }
+
+  try {
+    await db.exec(`ALTER TABLE quotations ADD COLUMN sourceEmailMessageId TEXT;`);
+  } catch (err) {
+    if (!err.message.includes('duplicate column name')) {
+      console.warn('Error adding sourceEmailMessageId column:', err);
     }
   }
 }
@@ -574,8 +601,8 @@ export async function createQuotation(quotationData) {
 
   const result = await db.run(
     `
-      INSERT INTO quotations (customerName, contactPerson, email, phone, productType, productDetails, quantity, unitPrice, total, notes, type, profileImagePath, attachmentPaths, dateCreated, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO quotations (customerName, contactPerson, email, phone, productType, productDetails, quantity, unitPrice, total, notes, type, sourceEmailUid, sourceEmailSubject, sourceEmailMessageId, profileImagePath, attachmentPaths, dateCreated, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       quotationData.customerName,
@@ -589,6 +616,9 @@ export async function createQuotation(quotationData) {
       quotationData.total,
       quotationData.notes || null,
       quotationData.type || 'non email',
+      quotationData.sourceEmailUid || null,
+      quotationData.sourceEmailSubject || null,
+      quotationData.sourceEmailMessageId || null,
       quotationData.profileImagePath || null,
       JSON.stringify(quotationData.attachmentPaths || []),
       quotationData.dateCreated,
@@ -630,7 +660,7 @@ export async function updateQuotation(id, quotationData) {
   await db.run(
     `
       UPDATE quotations
-      SET customerName = ?, contactPerson = ?, email = ?, phone = ?, productType = ?, productDetails = ?, quantity = ?, unitPrice = ?, total = ?, notes = ?, type = ?, profileImagePath = ?, attachmentPaths = ?, status = ?
+      SET customerName = ?, contactPerson = ?, email = ?, phone = ?, productType = ?, productDetails = ?, quantity = ?, unitPrice = ?, total = ?, notes = ?, type = ?, sourceEmailUid = ?, sourceEmailSubject = ?, sourceEmailMessageId = ?, profileImagePath = ?, attachmentPaths = ?, status = ?
       WHERE id = ?
     `,
     [
@@ -645,6 +675,9 @@ export async function updateQuotation(id, quotationData) {
       quotationData.total,
       quotationData.notes || null,
       quotationData.type || 'non email',
+      quotationData.sourceEmailUid || null,
+      quotationData.sourceEmailSubject || null,
+      quotationData.sourceEmailMessageId || null,
       quotationData.profileImagePath || null,
       JSON.stringify(quotationData.attachmentPaths || []),
       quotationData.status || 'draft',

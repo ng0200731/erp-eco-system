@@ -22,7 +22,8 @@
       "Bash(timeout 3 curl:*)",
       "Bash(timeout 3 cmd:*)",
       "Bash(dir:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(find:*)"
     ]
   }
 }

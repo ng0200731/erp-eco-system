@@ -536,7 +536,7 @@
       <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
       <div style="flex:1;"></div>
       <div style="font-size:0.75em; text-align:center; color:#666; margin-top:10px; padding:5px;">
-        v1.0.22
+        v1.0.23
       </div>
     </div>
     <div id="board">
@@ -2201,13 +2201,21 @@
           toAddress = toMatch[1].trim();
         }
 
+        // Extract Message-ID header for email threading
+        let messageId = null;
+        const messageIdMatch = source.match(/^Message-ID:\s*(.+)$/mi);
+        if (messageIdMatch) {
+          messageId = messageIdMatch[1].trim();
+        }
+
         currentEmailMeta = {
           uid,
           subject: subject || '',
           from: from || '',
           email: emailAddress || null,
           to: toAddress || null,
-          date: date || ''
+          date: date || '',
+          messageId: messageId || null
         };
         
       // Show email modal
@@ -3004,8 +3012,8 @@
         const quotationName = btn.textContent;
         console.log('Quotation type selected:', quotationType);
 
-        // Open email quotation modal
-        openEmailQuotationModal(quotationType, quotationName);
+        // Open email quotation modal with current email metadata
+        openEmailQuotationModal(quotationType, quotationName, currentEmailMeta);
       };
     });
 
@@ -3016,9 +3024,12 @@
     };
 
     // Email Quotation Modal Functions
-    function openEmailQuotationModal(quotationType, quotationName) {
+    function openEmailQuotationModal(quotationType, quotationName, emailMeta = null) {
       const modal = document.getElementById('emailQuotationModal');
       const content = document.getElementById('emailQuotationContent');
+
+      // Store email metadata for later use when saving quotation
+      window.currentQuotationEmailMeta = emailMeta;
 
       // Update modal title
       const titleElement = modal.querySelector('.email-modal-title');
@@ -6274,6 +6285,9 @@
           total: parseFloat(total) || 0,
           notes,
           type: source,
+          sourceEmailUid: (source === 'email' && window.currentQuotationEmailMeta) ? window.currentQuotationEmailMeta.uid : null,
+          sourceEmailSubject: (source === 'email' && window.currentQuotationEmailMeta) ? window.currentQuotationEmailMeta.subject : null,
+          sourceEmailMessageId: (source === 'email' && window.currentQuotationEmailMeta) ? window.currentQuotationEmailMeta.messageId : null,
           profileImagePath: null,
           attachmentPaths: [],
           dateCreated: new Date().toISOString(),
@@ -6396,6 +6410,25 @@
         // Refresh the quotations list to show the newly saved quotation
         await displayQuotations();
 
+        // If this is an email quotation (type='email'), automatically send quotation email
+        if (source === 'email' && window.currentQuotationEmailMeta && savedQuotation) {
+          console.log('=== AUTO-SENDING QUOTATION EMAIL ===');
+          console.log('Email metadata:', window.currentQuotationEmailMeta);
+          console.log('Saved quotation:', savedQuotation);
+
+          try {
+            await sendQuotationEmail(savedQuotation, window.currentQuotationEmailMeta);
+          } catch (emailError) {
+            console.error('Failed to send quotation email:', emailError);
+            // Don't fail the whole operation if email sending fails
+            showModal({
+              title: 'Warning',
+              body: 'Quotation saved successfully, but failed to send email. You can send it manually later.',
+              buttons: [{ text: 'OK', action: 'close' }]
+            });
+          }
+        }
+
       } catch (error) {
         console.error('Error saving quotation:', error);
         showModal({
@@ -6489,6 +6522,148 @@
         console.error('Error deleting quotation from database:', error);
         throw error;
       }
+    }
+
+    // Send quotation email as reply to original email
+    async function sendQuotationEmail(quotation, emailMeta) {
+      console.log('=== SENDING QUOTATION EMAIL ===');
+      console.log('Quotation:', quotation);
+      console.log('Email metadata:', emailMeta);
+
+      // Generate HTML email content
+      const emailHtml = generateQuotationEmailHtml(quotation);
+
+      // Prepare email subject with "Re:" prefix and "- Quotation" suffix
+      const emailSubject = `Re: ${emailMeta.subject} - Quotation`;
+
+      // Prepare email data
+      const emailData = {
+        to: emailMeta.email,
+        subject: emailSubject,
+        html: emailHtml,
+        inReplyTo: emailMeta.messageId,
+        references: emailMeta.messageId
+      };
+
+      console.log('Sending email with data:', emailData);
+
+      // Send email via API
+      const response = await fetch('/api/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailData)
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send email');
+      }
+
+      console.log('Email sent successfully:', result);
+
+      showModal({
+        title: 'Success',
+        body: 'Quotation saved and email sent successfully!',
+        buttons: [{ text: 'OK', action: 'close' }]
+      });
+
+      return result;
+    }
+
+    // Generate HTML email content for quotation
+    function generateQuotationEmailHtml(quotation) {
+      const productTypeNames = {
+        'hang-tag': 'Hang Tag',
+        'woven-label': 'Woven Label',
+        'care-label': 'Care Label',
+        'transfer': 'Transfer',
+        'other': 'Other'
+      };
+
+      const productTypeName = productTypeNames[quotation.productType] || quotation.productType;
+
+      let html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .quotation-container { max-width: 800px; margin: 0 auto; padding: 20px; border: 2px solid #000; }
+    .quotation-header { background: #000; color: #fff; padding: 15px; text-align: center; }
+    .quotation-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+    .quotation-section h3 { margin-top: 0; border-bottom: 2px solid #000; padding-bottom: 10px; }
+    .quotation-row { display: flex; margin: 10px 0; }
+    .quotation-label { font-weight: bold; width: 150px; }
+    .quotation-value { flex: 1; }
+    .quotation-total { font-size: 1.2em; font-weight: bold; color: #000; text-align: right; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="quotation-container">
+    <div class="quotation-header">
+      <h2>QUOTATION</h2>
+      <p>${productTypeName}</p>
+    </div>
+
+    <div class="quotation-section">
+      <h3>Customer Information</h3>
+      <div class="quotation-row">
+        <div class="quotation-label">Customer Name:</div>
+        <div class="quotation-value">${quotation.customerName || 'N/A'}</div>
+      </div>
+      <div class="quotation-row">
+        <div class="quotation-label">Contact Person:</div>
+        <div class="quotation-value">${quotation.contactPerson || 'N/A'}</div>
+      </div>
+      <div class="quotation-row">
+        <div class="quotation-label">Email:</div>
+        <div class="quotation-value">${quotation.email || 'N/A'}</div>
+      </div>
+      <div class="quotation-row">
+        <div class="quotation-label">Phone:</div>
+        <div class="quotation-value">${quotation.phone || 'N/A'}</div>
+      </div>
+    </div>
+
+    <div class="quotation-section">
+      <h3>Product Details</h3>
+      <div class="quotation-row">
+        <div class="quotation-label">Product Type:</div>
+        <div class="quotation-value">${productTypeName}</div>
+      </div>
+      <div class="quotation-row">
+        <div class="quotation-label">Quantity:</div>
+        <div class="quotation-value">${quotation.quantity.toLocaleString()}</div>
+      </div>
+      <div class="quotation-row">
+        <div class="quotation-label">Unit Price:</div>
+        <div class="quotation-value">HKD ${quotation.unitPrice.toFixed(2)}</div>
+      </div>
+    </div>
+
+    ${quotation.notes ? `
+    <div class="quotation-section">
+      <h3>Additional Notes</h3>
+      <p>${quotation.notes.replace(/\n/g, '<br>')}</p>
+    </div>
+    ` : ''}
+
+    <div class="quotation-total">
+      Total: HKD ${quotation.total.toFixed(2)}
+    </div>
+
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 0.9em; color: #666;">
+      <p>Thank you for your inquiry. Please review the quotation above and let us know if you have any questions.</p>
+      <p>Date: ${new Date(quotation.dateCreated).toLocaleDateString()}</p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+      return html;
     }
 
     window.generateQuotation = function(tagType) {

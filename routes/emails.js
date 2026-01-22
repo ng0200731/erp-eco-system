@@ -677,7 +677,7 @@ export function createEmailRoutes(deps) {
         });
       }
 
-      const { to, subject, text, html } = req.body || {};
+      const { to, subject, text, html, inReplyTo, references } = req.body || {};
       if (!to || !subject || (!text && !html)) {
         return res.status(400).json({ success: false, error: 'to, subject, and text|html are required' });
       }
@@ -701,13 +701,23 @@ export function createEmailRoutes(deps) {
           transport = createSmtpTransport(activeProfile);
 
           // Try to send with increased timeout (no timeout limit - let it try)
-          const sendPromise = transport.sendMail({
+          const mailOptions = {
             from: `"ERP System" <${activeProfile.mailUser}>`,
             to,
             subject,
             text: text || html?.replace(/<[^>]*>/g, ''), // Strip HTML if only html provided
             html: html || text?.replace(/\n/g, '<br>') // Convert newlines to <br> if only text provided
-          });
+          };
+
+          // Add In-Reply-To and References headers if provided
+          if (inReplyTo) {
+            mailOptions.inReplyTo = inReplyTo;
+          }
+          if (references) {
+            mailOptions.references = references;
+          }
+
+          const sendPromise = transport.sendMail(mailOptions);
 
           // Add 60 second timeout (increased from default)
           const timeoutPromise = new Promise((_, reject) => {
