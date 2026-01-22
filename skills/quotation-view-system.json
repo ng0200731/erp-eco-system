@@ -1,7 +1,7 @@
 {
   "name": "quotation-view-system",
   "description": "Implements quotation view system with table display and filtering capabilities",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "status": "completed",
   "category": "frontend",
   "tags": ["quotation", "view", "table", "filter", "localStorage"],
@@ -39,7 +39,14 @@
   ],
   "dependencies": [],
   "created": "2026-01-19",
-  "updated": "2026-01-19",
-  "author": "Development Team"
+  "updated": "2026-01-22",
+  "author": "Development Team",
+  "relatedChanges": [
+    {
+      "version": "1.1.0",
+      "date": "2026-01-22",
+      "description": "Fixed attachment display in view modal by moving getFileIconFromPath to global scope. Added automatic list refresh after save."
+    }
+  ]
 }
 

@@ -1,0 +1,82 @@
+{
+  "name": "quotation-file-upload-fixes",
+  "description": "Fixes for profile image and attachment upload functionality in quotation system",
+  "version": "1.0.0",
+  "status": "completed",
+  "category": "backend-frontend",
+  "tags": ["quotation", "file-upload", "profile-image", "attachments", "bug-fix"],
+  "changes": [
+    {
+      "component": "Path Utilities (utils/pathUtils.js)",
+      "description": "Fixed 'require is not defined' error by converting from CommonJS require('path') to ES module import path from 'path'",
+      "impact": "Profile image uploads now work without 500 errors. The getNormalizedRelativePath function can properly convert file paths to URL-safe relative paths.",
+      "technicalDetails": "Changed line 28 from `const path = require('path');` to `import path from 'path';` at the top of the file. This resolves the ES module compatibility issue."
+    },
+    {
+      "component": "Quotation List Refresh (public/index.html:6373)",
+      "description": "Added automatic quotation list refresh after saving a quotation",
+      "impact": "Newly created or updated quotations now appear immediately in the quotation list without requiring manual page refresh",
+      "technicalDetails": "Added `await displayQuotations();` after the resetFileUploadUI() call in the saveQuotation function to automatically reload the quotation list."
+    },
+    {
+      "component": "File Icon Helper Function (public/index.html:4610-4618)",
+      "description": "Moved getFileIconFromPath function from local scope to global scope",
+      "impact": "Quotations with attachments can now be viewed without JavaScript errors. The modal displays correctly with attachment icons.",
+      "technicalDetails": "The function was originally defined inside viewQuotationDetails() but was being called from generateQuotationContentForView(), causing a scope error. Moved it to global scope before initializeQuotationViewPanel()."
+    },
+    {
+      "component": "Profile Image Upload Backend (routes/quotations.js:106-168)",
+      "description": "Enhanced error logging and file path normalization for profile image uploads",
+      "impact": "Better debugging capabilities with detailed console logs showing file details, quotation lookup, and path calculations",
+      "technicalDetails": "Added comprehensive logging at each step: file reception, quotation lookup, old file deletion, path normalization, and database update. Includes error type, message, and stack trace on failures."
+    },
+    {
+      "component": "Attachment Display in View Modal (public/index.html:5780-5794)",
+      "description": "Fixed attachment rendering in quotation view modal with proper file icons and download links",
+      "impact": "Users can now view, preview, and download attachments from quotation details modal",
+      "technicalDetails": "Uses getFileIconFromPath() to display appropriate icons (📄 for PDFs, 📝 for docs, 🖼️ for images). Includes onclick handlers for preview and download links."
+    }
+  ],
+  "bugsFixes": [
+    {
+      "bug": "Profile image upload returns 500 error with 'require is not defined'",
+      "rootCause": "utils/pathUtils.js was using CommonJS require() in an ES module context",
+      "solution": "Converted to ES module import statement",
+      "files": ["utils/pathUtils.js"]
+    },
+    {
+      "bug": "Quotation list shows 'No quotations saved yet' after saving a new quotation",
+      "rootCause": "The quotation list was not being refreshed after successful save operation",
+      "solution": "Added displayQuotations() call after save completes",
+      "files": ["public/index.html"]
+    },
+    {
+      "bug": "Clicking quotation row with attachments shows no modal/feedback",
+      "rootCause": "getFileIconFromPath function was in wrong scope, causing JavaScript error when generating modal HTML",
+      "solution": "Moved function to global scope so it's accessible from generateQuotationContentForView()",
+      "files": ["public/index.html"]
+    }
+  ],
+  "testingChecklist": [
+    "Upload profile image to new quotation - should succeed without 500 error",
+    "Upload attachments (PDF, DOC, images) to quotation - should succeed",
+    "Save quotation with profile image and attachments - should appear in list immediately",
+    "Click quotation row with attachments - modal should appear with file list",
+    "Click attachment filename in modal - should show preview or download prompt",
+    "Click download icon for attachment - should download file",
+    "View quotation without attachments - modal should show 'No attachments uploaded'",
+    "Restart server and verify uploads persist correctly"
+  ],
+  "dependencies": [
+    "multer (file upload middleware)",
+    "path (Node.js built-in module)",
+    "fs/promises (Node.js built-in module)"
+  ],
+  "relatedSkills": [
+    "quotation-view-system",
+    "path-normalization"
+  ],
+  "created": "2026-01-22",
+  "updated": "2026-01-22",
+  "author": "Development Team"
+}

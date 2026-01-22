@@ -4607,6 +4607,16 @@
       await displayCustomers();
     }
 
+    // Helper function to get file icon from path (global scope for use in view modal)
+    function getFileIconFromPath(filePath) {
+      const fileName = filePath.toLowerCase();
+      if (fileName.includes('.pdf')) return '📄';
+      if (fileName.includes('.doc') || fileName.includes('.docx')) return '📝';
+      if (fileName.includes('.txt')) return '📄';
+      if (fileName.includes('.jpg') || fileName.includes('.jpeg') || fileName.includes('.png') || fileName.includes('.gif')) return '🖼️';
+      return '📄';
+    }
+
     async function initializeQuotationViewPanel() {
       console.log('initializeQuotationViewPanel called');
       // Load quotations immediately when panel is initialized
@@ -4808,16 +4818,6 @@
         document.body.removeChild(overlay);
         document.body.classList.remove('modal-open');
       };
-
-      // Helper function to get file icon from path
-      function getFileIconFromPath(filePath) {
-        const fileName = filePath.toLowerCase();
-        if (fileName.includes('.pdf')) return '📄';
-        if (fileName.includes('.doc') || fileName.includes('.docx')) return '📝';
-        if (fileName.includes('.txt')) return '📄';
-        if (fileName.includes('.jpg') || fileName.includes('.jpeg') || fileName.includes('.png') || fileName.includes('.gif')) return '🖼️';
-        return '📄';
-      }
 
       // Global function to preview attachment
       window.previewAttachment = function(attachmentPath) {
