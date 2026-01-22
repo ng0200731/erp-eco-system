@@ -253,6 +253,235 @@ export function createEmailRoutes(deps) {
     }
   });
 
+  // Send email via SMTP
+  router.post('/email/send', async (req, res) => {
+    try {
+      // Get active profile for SMTP configuration
+      const profiles = await getProfilesMemory();
+      const activeProfile = profiles.find(p => p.isActive === 1);
+      if (!activeProfile) {
+        return res.status(400).json({
+          success: false,
+          error: 'No active email profile found. Please activate a profile in Settings.'
+        });
+      }
+
+      const { to, subject, text, html } = req.body || {};
+      if (!to || !subject || (!text && !html)) {
+        return res.status(400).json({ success: false, error: 'to, subject, and text|html are required' });
+      }
+
+      let transport = null;
+      const maxRetries = 2; // Try up to 2 times (initial + 1 retry)
+      let lastError = null;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          // Clean up previous transport if retrying
+          if (transport) {
+            try {
+              transport.close();
+            } catch (e) {
+              // Ignore cleanup errors
+            }
+          }
+
+          // Create fresh transport for this attempt using active profile
+          transport = createSmtpTransport(activeProfile);
+
+          // Try to send with increased timeout (no timeout limit - let it try)
+          const sendPromise = transport.sendMail({
+            from: `"ERP System" <${activeProfile.mailUser}>`,
+            to,
+            subject,
+            text: text || html?.replace(/<[^>]*>/g, ''), // Strip HTML if only html provided
+            html: html || text?.replace(/\n/g, '<br>') // Convert newlines to <br> if only text provided
+          });
+
+          // Add 60 second timeout (increased from default)
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('SMTP send operation timed out after 60 seconds')), 60000);
+          });
+
+          const info = await Promise.race([sendPromise, timeoutPromise]);
+
+          // Store the sent email in the database
+          console.log('Storing sent email in database:', { to, subject, messageId: info.messageId });
+          try {
+            const storedEmail = await createSentEmail({
+              to_email: to,
+              subject: subject,
+              body_text: text || html?.replace(/<[^>]*>/g, ''),
+              body_html: html || text?.replace(/\n/g, '<br>'),
+              message_id: info.messageId,
+              smtp_response: info.response,
+              status: 'sent',
+              sender_email: activeProfile.mailUser
+            });
+            console.log('Successfully stored sent email:', storedEmail.id);
+          } catch (dbErr) {
+            console.error('Failed to store sent email in database:', dbErr);
+            // Don't fail the request if DB storage fails
+          }
+
+          // Close transport after sending
+          transport.close();
+
+          return res.json({ success: true, messageId: info.messageId, response: info.response });
+
+        } catch (err) {
+          lastError = err;
+          console.error(`========== SEND EMAIL ERROR (Attempt ${attempt}/${maxRetries}) ==========`);
+          console.error('Error message:', err.message);
+          console.error('Error code:', err.code);
+          console.error('Error response:', err.response);
+          console.error('Error responseCode:', err.responseCode);
+          console.error('Full error:', err);
+          console.error('======================================');
+
+          // Clean up transport on error
+          if (transport) {
+            try {
+              transport.close();
+            } catch (e) {
+              // Ignore cleanup errors
+            }
+            transport = null;
+          }
+
+          // If it's a connection/timeout error and we have retries left, retry
+          const isRetryableError =
+            err.code === 'ECONNECTION' ||
+            err.code === 'ETIMEDOUT' ||
+            err.code === 'ESOCKET' ||
+            err.message?.includes('timeout') ||
+            err.message?.includes('Failed to fetch') ||
+            err.message?.includes('Network error');
+
+          if (isRetryableError && attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+            continue; // Retry
+          } else {
+            // Not retryable or no retries left, break and return error
+            break;
+          }
+        }
+      }
+
+      // All retries exhausted or non-retryable error
+      // Store the failed email attempt in the database
+      try {
+        await createSentEmail({
+          to_email: to,
+          subject: subject,
+          body_text: text || html?.replace(/<[^>]*>/g, ''),
+          body_html: html || text?.replace(/\n/g, '<br>'),
+          message_id: null,
+          smtp_response: null,
+          status: 'failed',
+          error_message: lastError.message,
+          sender_email: activeProfile.mailUser
+        });
+      } catch (dbErr) {
+        console.error('Failed to store failed email in database:', dbErr);
+        // Don't fail the request if DB storage fails
+      }
+
+      let errorMsg = lastError.message || 'Failed to send email';
+      if (lastError.code === 'EAUTH') {
+        errorMsg = 'SMTP authentication failed. Check your email and password.';
+      } else if (lastError.code === 'ECONNECTION') {
+        errorMsg = `Cannot connect to SMTP server ${SMTP_HOST}:${SMTP_PORT}. Check network/firewall. Connection may have timed out after idle period.`;
+      } else if (lastError.code === 'ETIMEDOUT' || lastError.message?.includes('timeout')) {
+        errorMsg = 'SMTP connection timeout. Server may be down or unreachable. This may happen after idle period.';
+      } else if (lastError.message?.includes('Failed to fetch') || lastError.message?.includes('Network error')) {
+        errorMsg = 'Network error - connection lost. This may happen after idle period. Please try again.';
+      }
+
+      const troubleshooting = [];
+      if (lastError.code === 'EAUTH') {
+        troubleshooting.push('Check MAIL_USER and MAIL_PASS in env file');
+        troubleshooting.push('Verify email account credentials are correct');
+      } else if (lastError.code === 'ECONNECTION' || lastError.code === 'ETIMEDOUT' || lastError.code === 'ESOCKET') {
+        troubleshooting.push('Check network connectivity to ' + SMTP_HOST + ':' + SMTP_PORT);
+        troubleshooting.push('Verify SMTP_HOST, SMTP_PORT, SMTP_SECURE in env file');
+        troubleshooting.push('Check Windows Firewall settings');
+        troubleshooting.push('Try restarting server with start.bat');
+      } else {
+        troubleshooting.push('Check server console logs for detailed error');
+        troubleshooting.push('Try sending again after a few seconds');
+      }
+
+      const errorResponse = {
+        success: false,
+        error: errorMsg,
+        code: lastError.code || 'UNKNOWN',
+        host: SMTP_HOST,
+        port: Number(SMTP_PORT),
+        secure: SMTP_SECURE === 'true',
+        originalError: lastError.message,
+        retriesAttempted: maxRetries,
+        troubleshooting: troubleshooting
+      };
+
+      res.status(500).json(errorResponse);
+    } catch (err) {
+      console.error('Error in email send route:', err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to send email',
+        code: err.code || 'UNKNOWN',
+      });
+    }
+  });
+
+  // Test SMTP connection endpoint
+  router.get('/smtp/test', async (req, res) => {
+    try {
+      // Get active profile for SMTP configuration
+      const profiles = await getProfilesMemory();
+      const activeProfile = profiles.find(p => p.isActive === 1);
+      if (!activeProfile) {
+        return res.status(400).json({
+          success: false,
+          error: 'No active email profile found. Please activate a profile in Settings.'
+        });
+      }
+
+      // Use active profile settings
+      const smtpHost = activeProfile.smtpHost;
+      const smtpPort = Number(activeProfile.smtpPort);
+      const smtpSecure = activeProfile.smtpSecure === 'true';
+
+      // Create fresh transport using active profile
+      const transport = createSmtpTransport(activeProfile);
+
+      // Verify connection
+      await transport.verify();
+
+      // Close transport after verification
+      transport.close();
+
+      res.json({
+        success: true,
+        message: 'SMTP connection successful',
+        config: {
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpSecure,
+          user: activeProfile.mailUser
+        }
+      });
+    } catch (err) {
+      console.error('SMTP test error:', err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'SMTP connection failed',
+        code: err.code || 'UNKNOWN'
+      });
+    }
+  });
+
   // Export helper function for use in other routes
   router.getProfilesMemory = getProfilesMemory;
 
