@@ -37,3 +37,7 @@ dist/
 build/
 *.tmp
 
+# Uploaded files (runtime generated)
+uploads/
+nul
+

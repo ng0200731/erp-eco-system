@@ -1,7 +1,7 @@
 {
   "name": "path-normalization",
   "description": "Normalizes file paths to use forward slashes for cross-platform URL compatibility",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "status": "completed",
   "category": "backend",
   "tags": ["path", "cross-platform", "url", "normalization", "windows"],
@@ -34,6 +34,13 @@
   ],
   "dependencies": [],
   "created": "2026-01-20",
-  "updated": "2026-01-20",
-  "author": "Development Team"
+  "updated": "2026-01-22",
+  "author": "Development Team",
+  "relatedChanges": [
+    {
+      "version": "1.1.0",
+      "date": "2026-01-22",
+      "description": "Fixed ES module compatibility issue in utils/pathUtils.js by converting require('path') to import path from 'path'"
+    }
+  ]
 }
