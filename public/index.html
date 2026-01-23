@@ -1143,6 +1143,30 @@
       return textarea.value;
     }
 
+    // Decode MIME encoded-word (RFC 2047) - e.g., =?utf-8?B?V2Vp?= to "Wei"
+    function decodeMimeEncodedWord(str) {
+      if (!str) return str;
+      return str.replace(/=\?([^?]+)\?([BQbq])\?([^?]+)\?=/g, (match, charset, encoding, encodedText) => {
+        try {
+          if (encoding.toUpperCase() === 'B') {
+            // Base64 encoding
+            const decoded = atob(encodedText);
+            return decodeURIComponent(escape(decoded));
+          } else if (encoding.toUpperCase() === 'Q') {
+            // Quoted-Printable encoding
+            const decoded = encodedText
+              .replace(/_/g, ' ')
+              .replace(/=([0-9A-F]{2})/gi, (m, hex) => String.fromCharCode(parseInt(hex, 16)));
+            return decodeURIComponent(escape(decoded));
+          }
+        } catch (e) {
+          console.warn('Failed to decode MIME encoded-word:', match, e);
+          return match;
+        }
+        return match;
+      });
+    }
+
     // -------- SETTINGS (board) --------
     const cfgMailUser = document.getElementById('cfgMailUser');
     const cfgMailPass = document.getElementById('cfgMailPass');
@@ -2087,9 +2111,10 @@
         const subjectMatch = source.match(/^Subject:\s*(.+)$/mi);
         const fromMatch = source.match(/^From:\s*(.+)$/mi);
         const dateMatch = source.match(/^Date:\s*(.+)$/mi);
-        
-        if (subjectMatch) subject = subjectMatch[1].trim();
-        if (fromMatch) from = fromMatch[1].trim();
+
+        // Decode MIME encoded-words in headers
+        if (subjectMatch) subject = decodeMimeEncodedWord(subjectMatch[1].trim());
+        if (fromMatch) from = decodeMimeEncodedWord(fromMatch[1].trim());
         if (dateMatch) date = dateMatch[1].trim();
         
         // Extract just the actual email content (skip headers and boundaries)
@@ -2246,6 +2271,40 @@
           bodyContent = decodeQuotedPrintable(bodyContent);
         }
 
+        // Fallback: Check if body content looks like base64 (for emails without proper MIME headers or detection)
+        if (bodyContent && bodyContent.length > 50) {
+          // Remove MIME boundary markers and whitespace
+          let cleanedBody = bodyContent.split(/------=_NextPart/)[0].split(/--=_NextPart/)[0];
+          cleanedBody = cleanedBody.replace(/\s/g, '');
+
+          // Remove any trailing non-base64 characters
+          cleanedBody = cleanedBody.replace(/[^A-Za-z0-9+/=]+$/, '');
+
+          // Check if it looks like base64 (at least 80% base64 characters)
+          const base64Chars = cleanedBody.replace(/[^A-Za-z0-9+/=]/g, '');
+          const isLikelyBase64 = cleanedBody.length > 50 && (base64Chars.length / cleanedBody.length) > 0.8;
+
+          if (isLikelyBase64) {
+            // Clean to only valid base64 characters
+            cleanedBody = base64Chars;
+
+            // Add proper padding if needed
+            const paddingNeeded = (4 - (cleanedBody.length % 4)) % 4;
+            cleanedBody = cleanedBody + '='.repeat(paddingNeeded);
+
+            try {
+              const decoded = atob(cleanedBody);
+              if (decoded && decoded.length > 0) {
+                bodyContent = decoded;
+                console.log('Successfully decoded base64 body content (fallback detection)');
+              }
+            } catch (e) {
+              console.warn('Body looks like base64 but failed to decode:', e);
+              // Keep original content if decoding fails
+            }
+          }
+        }
+
         // Decode HTML entities (e.g., &lt; to <, &gt; to >, &amp; to &)
         bodyContent = decodeHtmlEntities(bodyContent);
 
@@ -2270,7 +2329,7 @@
         let toAddress = null;
         const toMatch = source.match(/^To:\s*(.+)$/mi);
         if (toMatch) {
-          toAddress = toMatch[1].trim();
+          toAddress = decodeMimeEncodedWord(toMatch[1].trim());
         }
 
         // Extract Message-ID header for email threading
