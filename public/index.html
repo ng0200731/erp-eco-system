@@ -1891,14 +1891,14 @@
         // Add timeout to fetch request
         const timeoutId = setTimeout(() => {
           if (!controller.signal.aborted) {
-            
+
             controller.abort();
           }
-        }, 30000); // 30 second timeout
-        
+        }, 45000); // 45 second timeout (increased from 30)
+
         let res;
         try {
-          res = await fetch('/api/emails?limit=50', { 
+          res = await fetch('/api/emails?limit=20', { 
             signal: controller.signal,
             cache: 'no-cache' // Prevent caching
           });
