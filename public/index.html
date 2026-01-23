@@ -6606,8 +6606,28 @@
       console.log('Quotation:', quotation);
       console.log('Email metadata:', emailMeta);
 
+      // Fetch the original email content
+      let originalEmailHtml = '';
+      if (emailMeta && emailMeta.uid) {
+        try {
+          const response = await fetch(`/api/emails/${emailMeta.uid}`);
+          const data = await response.json();
+          if (data.success && data.source) {
+            // Extract the original email body
+            const source = data.source;
+            const headerEndMatch = source.match(/\n\n|\r\n\r\n/);
+            if (headerEndMatch) {
+              const bodyPart = source.substring(headerEndMatch.index + headerEndMatch[0].length);
+              originalEmailHtml = bodyPart;
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to fetch original email for threading:', err);
+        }
+      }
+
       // Generate HTML email content
-      const emailHtml = generateQuotationEmailHtml(quotation);
+      const emailHtml = generateQuotationEmailHtml(quotation, emailMeta, originalEmailHtml);
 
       // Prepare email subject with "Re:" prefix and "- Quotation" suffix
       const emailSubject = `Re: ${emailMeta.subject} - Quotation`;
@@ -6648,7 +6668,7 @@
     }
 
     // Generate HTML email content for quotation
-    function generateQuotationEmailHtml(quotation) {
+    function generateQuotationEmailHtml(quotation, emailMeta, originalEmailHtml) {
       const productTypeNames = {
         'hang-tag': 'Hang Tag',
         'woven-label': 'Woven Label',
@@ -6735,6 +6755,23 @@
       <p>Date: ${new Date(quotation.dateCreated).toLocaleDateString()}</p>
     </div>
   </div>
+
+  ${originalEmailHtml ? `
+  <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #ccc;">
+    <div style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+      <strong>---------- Original Message ----------</strong><br>
+      ${emailMeta ? `
+      <strong>From:</strong> ${emailMeta.from || 'Unknown'}<br>
+      <strong>Date:</strong> ${emailMeta.date || 'Unknown'}<br>
+      <strong>Subject:</strong> ${emailMeta.subject || '(No subject)'}
+      ` : ''}
+    </div>
+    <div style="color: #333; border-left: 3px solid #ccc; padding-left: 15px; margin-left: 10px;">
+      ${originalEmailHtml}
+    </div>
+  </div>
+  ` : ''}
+
 </body>
 </html>
 `;
