@@ -64,7 +64,42 @@ export function createEmailRoutes(deps) {
         // Create a fresh IMAP client for this request using active profile
         fetchClient = createImapClient(activeProfile);
 
-        await fetchClient.connect();
+        // Retry connection up to 3 times for VPN/network issues
+        let connected = false;
+        let lastConnectError = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            await fetchClient.connect();
+            connected = true;
+            break;
+          } catch (connectErr) {
+            lastConnectError = connectErr;
+            console.error(`IMAP connection attempt ${attempt}/3 failed:`, connectErr.message);
+
+            // If it's a connection error and we have retries left, wait and retry
+            const isRetryableError =
+              connectErr.code === 'ECONNRESET' ||
+              connectErr.code === 'ETIMEDOUT' ||
+              connectErr.code === 'ECONNREFUSED' ||
+              connectErr.message?.includes('timeout') ||
+              connectErr.message?.includes('TLS connection') ||
+              connectErr.message?.includes('socket disconnected') ||
+              connectErr.message?.includes('network socket');
+
+            if (isRetryableError && attempt < 3) {
+              console.log(`Retrying connection in ${2000 * attempt}ms...`);
+              await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Exponential backoff
+              // Create a new client for retry
+              fetchClient = createImapClient(activeProfile);
+              continue;
+            }
+            throw connectErr;
+          }
+        }
+
+        if (!connected) {
+          throw lastConnectError || new Error('Failed to connect to IMAP server');
+        }
 
         // Determine which folder to open based on query parameter
         const folder = req.query.folder || 'inbox';
@@ -213,13 +248,13 @@ export function createEmailRoutes(deps) {
             }
           })();
 
-          // Add 10 second timeout to fetch operation
+          // Add 30 second timeout to fetch operation (increased for VPN connections)
           const fetchTimeout = new Promise((_, reject) => {
             setTimeout(() => {
               const elapsed = Date.now() - fetchStartTime;
-              console.error(`Fetch timeout after 10 seconds for UID ${uid}, seqNum ${seqNum} (elapsed: ${elapsed}ms)`);
-              reject(new Error('Fetch operation timed out after 10 seconds'));
-            }, 10000);
+              console.error(`Fetch timeout after 30 seconds for UID ${uid}, seqNum ${seqNum} (elapsed: ${elapsed}ms)`);
+              reject(new Error('Fetch operation timed out after 30 seconds'));
+            }, 30000);
           });
 
           await Promise.race([fetchPromise, fetchTimeout]);
@@ -234,7 +269,9 @@ export function createEmailRoutes(deps) {
           let errorMsg = fetchErr.message || 'Failed to fetch email';
           let errorCode = fetchErr.code || fetchErr.responseCode || 'UNKNOWN';
 
-          if (fetchErr.responseCode === 'NO') {
+          if (fetchErr.code === 'ECONNRESET') {
+            errorMsg = `Connection reset by server. This often happens with VPN connections. UID: ${uid}`;
+          } else if (fetchErr.responseCode === 'NO') {
             errorMsg = `Email not found or cannot be accessed. UID: ${uid}`;
           } else if (fetchErr.responseCode === 'BAD') {
             errorMsg = `Invalid command or server error. UID: ${uid}`;
@@ -249,7 +286,11 @@ export function createEmailRoutes(deps) {
           }
 
           const troubleshooting = [];
-          if (errorCode === 'EMAIL_NOT_FOUND') {
+          if (errorCode === 'ECONNRESET') {
+            troubleshooting.push('VPN or network connection was interrupted');
+            troubleshooting.push('Click the email again to retry');
+            troubleshooting.push('If using VPN, try reconnecting or switching servers');
+          } else if (errorCode === 'EMAIL_NOT_FOUND') {
             troubleshooting.push('Email may have been deleted or moved');
             troubleshooting.push('Try refreshing the email list');
           } else if (fetchErr.message?.includes('timeout')) {
@@ -289,10 +330,26 @@ export function createEmailRoutes(deps) {
         console.error('Full error:', err);
         console.error('=======================================');
 
+        let errorMsg = err.message || 'Failed to fetch email';
+        if (err.code === 'ECONNRESET') {
+          errorMsg = 'Connection reset by server. This often happens with VPN connections. Please try again.';
+        } else if (err.code === 'ETIMEDOUT') {
+          errorMsg = 'Connection timed out. Please check your network connection and try again.';
+        } else if (err.message?.includes('TLS connection') || err.message?.includes('socket disconnected')) {
+          errorMsg = 'TLS handshake failed. This often happens with VPN connections. Please try again.';
+        }
+
         res.status(500).json({
           success: false,
-          error: err.message || 'Failed to fetch email',
-          code: err.code || 'UNKNOWN'
+          error: errorMsg,
+          code: err.code || 'UNKNOWN',
+          troubleshooting: (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' ||
+                           err.message?.includes('TLS') || err.message?.includes('socket')) ? [
+            'VPN or network connection may be unstable',
+            'Click the email again to retry (automatic retry will happen)',
+            'If using VPN, try reconnecting or switching servers',
+            'Check if your firewall is blocking the connection'
+          ] : []
         });
       } finally {
         // ALWAYS close and cleanup the fresh connection we created for this request
@@ -706,7 +763,8 @@ export function createEmailRoutes(deps) {
             to,
             subject,
             text: text || html?.replace(/<[^>]*>/g, ''), // Strip HTML if only html provided
-            html: html || text?.replace(/\n/g, '<br>') // Convert newlines to <br> if only text provided
+            html: html || text?.replace(/\n/g, '<br>'), // Convert newlines to <br> if only text provided
+            encoding: 'utf-8'
           };
 
           // Add In-Reply-To and References headers if provided
@@ -767,15 +825,20 @@ export function createEmailRoutes(deps) {
 
             if (sentFolderName) {
               // Build RFC822 email message
+              const contentType = html ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8';
+              const emailBody = html || text;
+
               const emailMessage = [
                 `From: ${activeProfile.mailUser}`,
                 `To: ${to}`,
                 `Subject: ${subject}`,
                 `Date: ${new Date().toUTCString()}`,
                 `Message-ID: ${info.messageId}`,
-                `Content-Type: text/plain; charset=utf-8`,
+                `MIME-Version: 1.0`,
+                `Content-Type: ${contentType}`,
+                `Content-Transfer-Encoding: 8bit`,
                 ``,
-                text || html?.replace(/<[^>]*>/g, '')
+                emailBody
               ].join('\r\n');
 
               // Append to sent folder

@@ -123,6 +123,14 @@ function createImapClient(activeProfile = null) {
         user: MAIL_USER,
         pass: MAIL_PASS,
       },
+      // Add timeouts for VPN connections
+      connectionTimeout: 60000, // 60 seconds for initial connection (VPN-friendly)
+      greetingTimeout: 30000,   // 30 seconds for server greeting
+      socketTimeout: 60000,     // 60 seconds for socket operations
+      tlsOptions: {
+        rejectUnauthorized: true,
+        minVersion: 'TLSv1.2',  // Ensure modern TLS
+      },
     });
   }
 
@@ -138,10 +146,12 @@ function createImapClient(activeProfile = null) {
     logger: true, // Enable debug logs to see what's happening
     tlsOptions: {
       rejectUnauthorized: true, // Validate TLS certificates for security
+      minVersion: 'TLSv1.2',  // Ensure modern TLS
     },
-    // Add connection timeouts to prevent hanging
-    connectionTimeout: 10000, // 10 seconds for initial connection
-    greetingTimeout: 5000,    // 5 seconds for server greeting
+    // Add connection timeouts to prevent hanging (increased for VPN)
+    connectionTimeout: 60000, // 60 seconds for initial connection (VPN-friendly)
+    greetingTimeout: 30000,   // 30 seconds for server greeting
+    socketTimeout: 60000,     // 60 seconds for socket operations
   });
 }
 

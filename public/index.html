@@ -1121,6 +1121,28 @@
     let currentEmailMeta = null; // Track currently shown email (for task creation)
     let currentEmailModalMeta = null; // Track email in modal (for task creation)
 
+    // Decode Quoted-Printable encoded content
+    function decodeQuotedPrintable(str) {
+      if (!str) return str;
+
+      // Replace =XX with the corresponding character
+      return str
+        .replace(/=\r?\n/g, '') // Remove soft line breaks
+        .replace(/=([0-9A-F]{2})/gi, (match, hex) => {
+          return String.fromCharCode(parseInt(hex, 16));
+        })
+        .replace(/=20/g, ' ') // Replace =20 with space
+        .replace(/=3D/g, '='); // Replace =3D with =
+    }
+
+    // Decode HTML entities (e.g., &lt; to <, &gt; to >, &amp; to &)
+    function decodeHtmlEntities(str) {
+      if (!str) return str;
+      const textarea = document.createElement('textarea');
+      textarea.innerHTML = str;
+      return textarea.value;
+    }
+
     // -------- SETTINGS (board) --------
     const cfgMailUser = document.getElementById('cfgMailUser');
     const cfgMailPass = document.getElementById('cfgMailPass');
@@ -2080,27 +2102,53 @@
           const lines = bodyPart.split('\n');
           let contentStart = -1;
 
+          // Look for HTML content first (prefer HTML over plain text)
+          let htmlContentStart = -1;
+          let plainContentStart = -1;
+
           for (let i = 0; i < lines.length; i++) {
-            if (lines[i].includes('Content-Type:') && lines[i+1] && lines[i+1].includes('Content-Transfer-Encoding:')) {
-              // Found a content section, the actual content starts 2 lines after the encoding line
-              contentStart = i + 2;
-              break;
+            if (lines[i].includes('Content-Type:')) {
+              const isHtml = lines[i].toLowerCase().includes('text/html');
+              const isPlain = lines[i].toLowerCase().includes('text/plain');
+
+              // Find where content starts (after Content-Transfer-Encoding or after blank line)
+              let startLine = i + 1;
+              while (startLine < lines.length && (lines[startLine].includes('Content-Transfer-Encoding:') || lines[startLine].includes('charset=') || lines[startLine].trim() === '')) {
+                startLine++;
+              }
+
+              if (isHtml && htmlContentStart === -1) {
+                htmlContentStart = startLine;
+              } else if (isPlain && plainContentStart === -1) {
+                plainContentStart = startLine;
+              }
             }
           }
+
+          // Prefer HTML content over plain text
+          contentStart = htmlContentStart !== -1 ? htmlContentStart : plainContentStart;
 
           if (contentStart >= 0 && contentStart < lines.length) {
             // Collect content until we hit a boundary
             const contentLines = [];
             for (let i = contentStart; i < lines.length; i++) {
-              if (lines[i].startsWith('----_')) {
+              if (lines[i].startsWith('----_') || lines[i].startsWith('--=_')) {
                 break; // Stop at boundary
               }
               contentLines.push(lines[i]);
             }
             let rawContent = contentLines.join('\n').trim();
 
-            // Check if content is base64 encoded (look for base64 in the Content-Transfer-Encoding header)
+            // Check Content-Type to determine if it's HTML (look backwards from contentStart)
             let isHtmlContent = false;
+            for (let i = contentStart - 1; i >= 0 && i >= contentStart - 5; i--) {
+              if (lines[i].toLowerCase().includes('text/html')) {
+                isHtmlContent = true;
+                break;
+              }
+            }
+
+            // Check if content is base64 encoded (look for base64 in the Content-Transfer-Encoding header)
             if (lines[contentStart - 1] && lines[contentStart - 1].toLowerCase().includes('base64')) {
               try {
                 // Remove any whitespace and validate base64 format
@@ -2108,16 +2156,19 @@
 
                 // Check if it looks like valid base64 (only contains valid base64 characters)
                 if (/^[A-Za-z0-9+/]*={0,2}$/.test(cleanBase64)) {
-                  const decodedContent = atob(cleanBase64);
+                  let decodedContent = atob(cleanBase64);
 
-                  // Check if decoded content is HTML
-                  if (decodedContent.includes('<') && decodedContent.includes('>')) {
+                  // Decode Quoted-Printable if present
+                  if (decodedContent.includes('=20') || decodedContent.includes('=\n')) {
+                    decodedContent = decodeQuotedPrintable(decodedContent);
+                  }
+
+                  // Update isHtmlContent if not already set and content looks like HTML
+                  if (!isHtmlContent && decodedContent.includes('<') && decodedContent.includes('>')) {
                     isHtmlContent = true;
-                    bodyContent = decodedContent;
-            } else {
-                    bodyContent = decodedContent;
-            }
-          } else {
+                  }
+                  bodyContent = decodedContent;
+                } else {
                   console.warn('Content appears to be base64 but contains invalid characters, keeping original');
                   bodyContent = rawContent;
                 }
@@ -2125,15 +2176,26 @@
                 console.warn('Failed to decode base64 content:', e);
                 // Keep original content if decoding fails
                 bodyContent = rawContent;
-          }
-        } else {
+              }
+            } else {
+              // Not base64, might be Quoted-Printable or plain text
               bodyContent = rawContent;
+
+              // Decode Quoted-Printable if present
+              if (rawContent.includes('=20') || rawContent.includes('=3D') || /=\r?\n/.test(rawContent)) {
+                bodyContent = decodeQuotedPrintable(rawContent);
+              }
+
+              // Update isHtmlContent if not already set and content looks like HTML
+              if (!isHtmlContent && bodyContent.includes('<') && bodyContent.includes('>')) {
+                isHtmlContent = true;
+              }
             }
 
-            // Handle HTML content display
+            // Handle HTML content display - but don't return early, let it continue
             if (isHtmlContent) {
               document.getElementById('emailModalBody').innerHTML = bodyContent;
-              return; // Skip normal text display
+              // Don't return - continue to show the modal
             }
           } else {
             // Try to extract any readable content from mixed/corrupted emails
@@ -2179,7 +2241,17 @@
         }
 
         // Display just the actual message content
-        document.getElementById('emailModalBody').textContent = bodyContent || 'No content available';
+        // Decode Quoted-Printable if present
+        if (bodyContent && (bodyContent.includes('=20') || bodyContent.includes('=\n') || bodyContent.includes('=3D'))) {
+          bodyContent = decodeQuotedPrintable(bodyContent);
+        }
+
+        // Decode HTML entities (e.g., &lt; to <, &gt; to >, &amp; to &)
+        bodyContent = decodeHtmlEntities(bodyContent);
+
+        // Always render as HTML using innerHTML
+        const modalBodyEl = document.getElementById('emailModalBody');
+        modalBodyEl.innerHTML = bodyContent || 'No content available';
 
         // Display email metadata in modal
         document.getElementById('emailModalSubject').textContent = subject || '(No subject)';
@@ -2699,13 +2771,17 @@
       // Display the already processed body content
       const modalBody = document.getElementById('emailModalBody');
       if (body && typeof body === 'string') {
-        // Check if it's HTML content that was already processed
-        if (body.includes('<') && body.includes('>') && (body.includes('<div') || body.includes('<p>'))) {
-          modalBody.innerHTML = body;
-        } else {
-          // Plain text content
-          modalBody.textContent = body;
+        // Decode Quoted-Printable if present
+        let decodedBody = body;
+        if (body.includes('=20') || body.includes('=\n') || body.includes('=3D')) {
+          decodedBody = decodeQuotedPrintable(body);
         }
+
+        // Decode HTML entities (e.g., &lt; to <, &gt; to >, &amp; to &)
+        decodedBody = decodeHtmlEntities(decodedBody);
+
+        // Always render as HTML
+        modalBody.innerHTML = decodedBody;
       } else {
         modalBody.textContent = 'No content available';
       }

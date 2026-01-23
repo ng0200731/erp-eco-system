@@ -23,7 +23,8 @@
       "Bash(timeout 3 cmd:*)",
       "Bash(dir:*)",
       "Bash(git push:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(node -e:*)"
     ]
   }
 }
