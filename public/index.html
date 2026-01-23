@@ -3465,7 +3465,7 @@
 
     // Load sent emails from API
     async function loadSentEmails() {
-      console.log('Loading sent emails from IMAP...');
+      console.log('Loading sent emails from database...');
       const tableBody = document.getElementById('sentEmailsTableBody');
       const loadingDiv = document.getElementById('sentEmailsLoading');
       const emptyDiv = document.getElementById('sentEmailsEmpty');
@@ -3478,9 +3478,9 @@
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-        // Fetch sent emails from IMAP sent folder
-        console.log('Fetching sent emails from IMAP sent folder...');
-        const res = await fetch('/api/sent-emails/imap?limit=100', { signal: controller.signal });
+        // Fetch sent emails from database (includes full body content)
+        console.log('Fetching sent emails from database...');
+        const res = await fetch('/api/sent-emails?limit=100', { signal: controller.signal });
         console.log('API response status:', res.status);
         clearTimeout(timeoutId);
 
@@ -3492,8 +3492,8 @@
         console.log('API response data:', data);
         if (data.success) {
           currentSentEmails = data.sentEmails || [];
-          console.log('Current sent emails from IMAP:', currentSentEmails);
-          renderSentEmailsTableFromIMAP(currentSentEmails);
+          console.log('Current sent emails from database:', currentSentEmails);
+          renderSentEmailsTable(currentSentEmails);
         } else {
           throw new Error(data.error || 'Failed to load sent emails');
         }
@@ -3659,9 +3659,15 @@
       const from = email.sender_email || 'Unknown';
       const date = email.sent_at ? new Date(email.sent_at).toLocaleString() : 'Unknown';
       console.log('showSentEmailDetails called for id=', email.id, 'subject=', subject);
+      console.log('Full email object:', email);
 
       // Prefer HTML body if it looks like HTML, otherwise use plain text
       let bodyContent = email.body_html || email.body_text || '';
+      console.log('bodyContent length:', bodyContent.length);
+      console.log('bodyContent preview:', bodyContent.substring(0, 200));
+      console.log('email.body_html:', email.body_html ? 'exists (length: ' + email.body_html.length + ')' : 'null/undefined');
+      console.log('email.body_text:', email.body_text ? 'exists (length: ' + email.body_text.length + ')' : 'null/undefined');
+
       if (bodyContent && !(bodyContent.includes('<') && bodyContent.includes('>'))) {
         // keep as plain text
       }

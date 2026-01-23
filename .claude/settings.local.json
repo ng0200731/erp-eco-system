@@ -24,7 +24,9 @@
       "Bash(dir:*)",
       "Bash(git push:*)",
       "Bash(find:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(git pull:*)",
+      "Bash(curl:*)"
     ]
   }
 }
