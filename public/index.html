@@ -2560,8 +2560,8 @@
         date: date || ''
       };
 
-      // Show email modal
-      populateEmailModal(subject, from, date, bodyContent, currentEmailMeta);
+      // Show email modal (pass isSentEmail=true to hide Quotation and Image Lib buttons)
+      populateEmailModal(subject, from, date, bodyContent, currentEmailMeta, true);
       // Ensure modal is attached to document.body
       try {
         const modalEl = document.getElementById('emailModal');
@@ -2816,7 +2816,7 @@
 
     
     // Function to populate and show email modal
-    function populateEmailModal(subject, from, date, body, emailMeta) {
+    function populateEmailModal(subject, from, date, body, emailMeta, isSentEmail = false) {
       document.getElementById('emailModalSubject').textContent = subject || '(No subject)';
       document.getElementById('emailModalFrom').textContent = `From: ${from || 'Unknown'}`;
       // Set To field if available
@@ -2843,6 +2843,16 @@
         modalBody.innerHTML = decodedBody;
       } else {
         modalBody.textContent = 'No content available';
+      }
+
+      // Hide Quotation and Image Lib buttons for sent emails, show for received emails
+      const quotationBtn = document.getElementById('quotationBtn');
+      const imageLibBtn = document.getElementById('imageLibBtn');
+      if (quotationBtn) {
+        quotationBtn.style.display = isSentEmail ? 'none' : 'block';
+      }
+      if (imageLibBtn) {
+        imageLibBtn.style.display = isSentEmail ? 'none' : 'block';
       }
 
       // Store current email meta for task creation
@@ -3669,7 +3679,8 @@
       };
 
       // Populate and show the standard email modal so behavior matches received-email popup
-      populateEmailModal(subject, from, date, bodyContent, emailMeta);
+      // Pass isSentEmail=true to hide Quotation and Image Lib buttons for sent emails
+      populateEmailModal(subject, from, date, bodyContent, emailMeta, true);
       // Ensure modal is attached to document.body so it's visible even when the emails panel is hidden
       try {
         const modalEl = document.getElementById('emailModal');
