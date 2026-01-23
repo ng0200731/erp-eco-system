@@ -26,7 +26,11 @@
       "Bash(find:*)",
       "Bash(node -e:*)",
       "Bash(git pull:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git branch:*)",
+      "Bash(timeout 35 curl:*)",
+      "Bash(tasklist:*)"
     ]
   }
 }
