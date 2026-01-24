@@ -155,6 +155,7 @@ export function createEmailRoutes(deps) {
 
         let bodyText = '';
         let found = false;
+        let envelopeData = null;
 
         try {
           // Double-check mailbox is still open before searching
@@ -233,7 +234,6 @@ export function createEmailRoutes(deps) {
 
           const fetchStartTime = Date.now();
 
-          let envelopeData = null;
           const fetchPromise = (async () => {
             let messageReceived = false;
             for await (const msg of fetchClient.fetch(seqNum, fetchOptions)) {
