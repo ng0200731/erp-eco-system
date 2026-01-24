@@ -7,8 +7,19 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📧</text></svg>">
   <style>
     /* STRICT monochrome: only black (#000) and white (#fff) */
-    body {font-family: Arial, sans-serif; margin: 0; padding: 0; background:#fff; color:#000;}
-    h1 {margin:0 0 16px 0;}
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      letter-spacing: -0.01em;
+      margin: 0;
+      padding: 0;
+      background:#fff;
+      color:#000;
+    }
+    h1 {
+      margin:0 0 16px 0;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
 
     /* Layout: 20% menu (left) + 80% board (right) */
     #layout{
@@ -16,10 +27,10 @@
       min-height:100vh;
     }
     #sidebar{
-      flex:0 0 5%;
-      min-width:60px;
+      flex:0 0 64px;
+      min-width:64px;
       border-right:1px solid #000;
-      padding:20px;
+      padding:16px 12px;
       box-sizing:border-box;
       transition:flex-basis 0.2s ease;
       display:flex;
@@ -31,31 +42,37 @@
       overflow-y: auto;
     }
     #sidebar:hover{
-      flex-basis:11%;
+      flex-basis:180px;
     }
     #board{
       flex:1;
-      padding:20px;
+      padding:32px;
       box-sizing:border-box;
     }
 
-    #emails {max-width:800px; margin:0; background:#fff; border:1px solid #000; padding:20px;}
+    #emails {max-width:800px; margin:0; background:#fff; border:1px solid #000; padding:24px;}
     ul {list-style:none; padding:0; margin:0;}
-    li {padding:12px; border-bottom:1px solid #000; cursor:pointer;}
-    li:hover {background:#000; color:#fff;}
-    .sub {font-weight:bold;}
-    .meta {font-size:.9em;}
+    li {padding:16px; border-bottom:1px solid #e0e0e0; cursor:pointer; transition: all 0.15s ease;}
+    li:hover {background:#000; color:#fff; transform: translateX(4px);}
+    .sub {font-weight:600; font-size:15px; margin-bottom:4px;}
+    .meta {font-size:13px; opacity:0.6;}
     pre {background:#fff; padding:15px; border:1px solid #000;}
 
     /* Inputs (monochrome) */
     input, textarea{
       width:100%;
-      padding:8px;
-      border:1px solid #000;
+      padding:12px;
+      border:1.5px solid #000;
       background:#fff;
       color:#000;
       box-sizing:border-box;
       font-family:inherit;
+      transition: all 0.2s;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #000;
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.1);
     }
     textarea{ min-height:150px; resize:vertical; }
 
@@ -110,8 +127,8 @@
       min-height: 600px; /* Ensure minimum height */
       background:#fff;
       color:#000;
-      border:1px solid #000;
-      box-shadow:0 12px 32px rgba(0,0,0,.25);
+      border:2px solid #000;
+      box-shadow:0 20px 60px rgba(0,0,0,.15);
       display:flex;
       flex-direction:row; /* Changed from column to row for 80/20 split */
       max-height: 90vh; /* Ensure modal doesn't exceed viewport height */
@@ -132,32 +149,35 @@
       flex: 0 0 20%;
       min-width: 0; /* Prevent flex item from overflowing */
       border-left: 1px solid #000;
-      padding: 20px;
+      padding: 24px 20px;
       overflow-y: auto;
       overflow-x: hidden; /* Prevent horizontal overflow */
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
       box-sizing: border-box; /* Include padding in width calculation */
     }
 
     /* Action buttons */
     .action-btn{
       width: 100%;
-      padding: 12px;
+      padding: 14px 16px;
       background: #fff;
       color: #000;
-      border: 1px solid #000;
+      border: 1.5px solid #000;
       cursor: pointer;
       font-size: 14px;
       font-weight: 500;
       text-align: left;
-      transition: all 0.2s;
+      transition: all 0.12s ease;
       box-sizing: border-box; /* Include padding and border in width */
     }
     .action-btn:hover{
       background: #000;
       color: #fff;
+    }
+    .action-btn:active{
+      transform: translateY(0);
     }
 
     /* Expandable button */
@@ -207,15 +227,15 @@
       width: 100%;
     }
     .email-modal-header{
-      padding:16px 20px;
+      padding:20px 24px;
       border-bottom:1px solid #000;
-      background:#f8f8f8;
+      background:#fafafa;
       display:flex;
       justify-content:space-between;
       align-items:center;
     }
     .email-modal-title{
-      font-weight:700;
+      font-weight:600;
       font-size:16px;
       margin:0;
       flex:1;
@@ -248,9 +268,9 @@
     }
     .email-modal-body{
       flex:1;
-      padding:20px;
+      padding:32px;
       overflow-y:auto;
-      font-family:Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       line-height:1.5;
       word-wrap:break-word;
     }
@@ -265,29 +285,33 @@
     }
     .btn{
       appearance:none;
-      border:1px solid #000;
+      border:1.5px solid #000;
       background:#fff;
       color:#000;
-      padding:8px 12px;
+      padding:10px 16px;
       cursor:pointer;
       font-weight:600;
+      transition: all 0.12s ease;
     }
-    .btn:hover{ background:#000; color:#fff; }
+    .btn:hover{ background:#000; color:#fff; transform: translateY(-1px); }
+    .btn:active{ transform: translateY(0); }
     .btn.primary{ background:#000; color:#fff; }
     .btn.primary:hover{ background:#fff; color:#000; }
 
     /* Page buttons */
     .topbar{ margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap; }
     .page-btn{
-      border:1px solid #000;
+      border:1.5px solid #000;
       background:#fff;
       color:#000;
       padding:10px 16px;
       cursor:pointer;
       font-weight:700;
       text-align:center;
+      transition: all 0.12s ease;
     }
-    .page-btn:hover{ background:#000; color:#fff; }
+    .page-btn:hover{ background:#000; color:#fff; transform: translateY(-1px); }
+    .page-btn:active{ transform: translateY(0); }
     /* Sidebar buttons: make square and center the letter precisely */
     #sidebar .page-btn {
       width:44px;
@@ -2882,8 +2906,19 @@
         // Decode HTML entities (e.g., &lt; to <, &gt; to >, &amp; to &)
         decodedBody = decodeHtmlEntities(decodedBody);
 
-        // Always render as HTML
-        modalBody.innerHTML = decodedBody;
+        // Check if content is HTML or plain text
+        const isHtml = /<[a-z][\s\S]*>/i.test(decodedBody);
+
+        if (isHtml) {
+          // Render as HTML
+          modalBody.innerHTML = decodedBody;
+        } else {
+          // Display as plain text with preserved formatting
+          modalBody.style.whiteSpace = 'pre-wrap';
+          modalBody.style.wordWrap = 'break-word';
+          modalBody.style.fontFamily = 'inherit';
+          modalBody.textContent = decodedBody;
+        }
       } else {
         modalBody.textContent = 'No content available';
       }
@@ -3710,6 +3745,58 @@
       console.log('bodyContent preview:', bodyContent.substring(0, 200));
       console.log('email.body_html:', email.body_html ? 'exists (length: ' + email.body_html.length + ')' : 'null/undefined');
       console.log('email.body_text:', email.body_text ? 'exists (length: ' + email.body_text.length + ')' : 'null/undefined');
+
+      // For already-sent emails with embedded MIME, we can't fix them retroactively
+      // The fix in sendQuotationEmail (lines 6825-6862) will prevent this for future emails
+
+      // Check if bodyContent is a raw MIME message and parse it
+      // Only parse as MIME if it's NOT already HTML (check for DOCTYPE or opening HTML tags at the start)
+      const isAlreadyHtml = /^\s*<!DOCTYPE|^\s*<html/i.test(bodyContent);
+
+      if (!isAlreadyHtml && bodyContent && (bodyContent.includes('Content-Type:') || bodyContent.includes('Content-Transfer-Encoding:') || bodyContent.includes('This is a multi-part message'))) {
+        console.log('Detected raw MIME message, parsing...');
+
+        try {
+          // Use regex to extract base64 content directly
+          // Pattern matches: Content-Type: text/html or text/plain, followed by base64 encoding, followed by base64 content
+          // This handles both line breaks and spaces between elements
+          const htmlMatch = bodyContent.match(/Content-Type:\s*text\/html[^\r\n]*[\s\r\n]+Content-Transfer-Encoding:\s*base64[\s\r\n]+([A-Za-z0-9+\/=\s]+?)(?=\s*------=_NextPart|$)/i);
+          const plainMatch = bodyContent.match(/Content-Type:\s*text\/plain[^\r\n]*[\s\r\n]+Content-Transfer-Encoding:\s*base64[\s\r\n]+([A-Za-z0-9+\/=\s]+?)(?=\s*------=_NextPart|$)/i);
+
+          let htmlContent = '';
+          let plainContent = '';
+
+          // Decode HTML content if found
+          if (htmlMatch && htmlMatch[1]) {
+            try {
+              const cleanBase64 = htmlMatch[1].replace(/\s+/g, '');
+              htmlContent = atob(cleanBase64);
+              console.log('Decoded HTML content:', htmlContent.substring(0, 100));
+            } catch (e) {
+              console.warn('Failed to decode HTML base64:', e);
+            }
+          }
+
+          // Decode plain text content if found
+          if (plainMatch && plainMatch[1]) {
+            try {
+              const cleanBase64 = plainMatch[1].replace(/\s+/g, '');
+              plainContent = atob(cleanBase64);
+              console.log('Decoded plain text content:', plainContent.substring(0, 100));
+            } catch (e) {
+              console.warn('Failed to decode plain text base64:', e);
+            }
+          }
+
+          // Use decoded content if available (prefer HTML over plain text)
+          if (htmlContent || plainContent) {
+            bodyContent = htmlContent || plainContent;
+            console.log('Successfully parsed MIME content, length:', bodyContent.length);
+          }
+        } catch (e) {
+          console.error('Error parsing MIME message:', e);
+        }
+      }
 
       if (bodyContent && !(bodyContent.includes('<') && bodyContent.includes('>'))) {
         // keep as plain text
@@ -6736,7 +6823,72 @@
             const source = data.source;
             const headerEndMatch = source.match(/\n\n|\r\n\r\n/);
             if (headerEndMatch) {
-              const bodyPart = source.substring(headerEndMatch.index + headerEndMatch[0].length);
+              let bodyPart = source.substring(headerEndMatch.index + headerEndMatch[0].length);
+
+              // Decode MIME content if present
+              if (bodyPart.includes('Content-Type:') || bodyPart.includes('Content-Transfer-Encoding:')) {
+                console.log('Found MIME content in original email, attempting to decode...');
+                try {
+                  // Split by MIME boundary to get individual parts
+                  const boundaryMatch = bodyPart.match(/------=_NextPart_[A-F0-9_]+/);
+
+                  if (boundaryMatch) {
+                    const boundary = boundaryMatch[0];
+                    const parts = bodyPart.split(boundary);
+
+                    let htmlContent = '';
+                    let plainContent = '';
+
+                    // Process each MIME part
+                    for (const part of parts) {
+                      if (!part.trim() || part.trim() === '--') continue;
+
+                      const isHtml = part.includes('Content-Type: text/html');
+                      const isPlain = part.includes('Content-Type: text/plain');
+                      const isBase64 = part.includes('Content-Transfer-Encoding: base64');
+
+                      if ((isHtml || isPlain) && isBase64) {
+                        // Extract ONLY valid base64 characters (A-Z, a-z, 0-9, +, /, =, and whitespace)
+                        const base64Match = part.match(/Content-Transfer-Encoding:\s*base64\s+([A-Za-z0-9+\/=\s]+)/i);
+
+                        if (base64Match && base64Match[1]) {
+                          try {
+                            // Remove ALL whitespace
+                            const base64String = base64Match[1].replace(/\s+/g, '');
+
+                            if (base64String.length > 0) {
+                              const decoded = atob(base64String);
+
+                              if (isHtml) {
+                                htmlContent = decoded;
+                                console.log('Successfully decoded HTML content:', decoded.substring(0, 100));
+                              } else if (isPlain) {
+                                plainContent = decoded;
+                                console.log('Successfully decoded plain text content:', decoded.substring(0, 100));
+                              }
+                            }
+                          } catch (e) {
+                            console.warn('Failed to decode base64:', e);
+                          }
+                        }
+                      }
+                    }
+
+                    // Use decoded content if available (prefer HTML over plain text)
+                    if (htmlContent || plainContent) {
+                      bodyPart = htmlContent || plainContent;
+                      console.log('Using decoded content for original email');
+                    } else {
+                      console.log('No MIME content was successfully decoded, using raw body');
+                    }
+                  } else {
+                    console.log('No MIME boundary found, using raw body');
+                  }
+                } catch (e) {
+                  console.warn('Failed to parse MIME content:', e);
+                }
+              }
+
               originalEmailHtml = bodyPart;
             }
           }
