@@ -1973,6 +1973,12 @@
     }
     
     async function show(uid){
+      console.log('🔴 SHOW FUNCTION CALLED - UID:', uid);
+
+      // Find the email in the cached list to get envelope data
+      const cachedEmail = currentEmails.find(e => e.uid === uid);
+      console.log('🟢 Found cached email:', cachedEmail);
+
       // NOTE: after long idle, the browser may throw "TypeError: Failed to fetch" even though
       // the backend can reconnect. We retry once automatically to avoid showing an error popup.
       const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -2099,23 +2105,60 @@
           return;
         }
       }
-        
+
         // Parse email from source - simplified to just show context/body
         const source = data.source || '';
+        // Use cached envelope data from email list instead of API response (which returns null)
+        const envelope = cachedEmail?.envelope || data.envelope || null;
         let subject = '';
         let from = '';
         let date = '';
         let bodyContent = '';
-        
-        // Extract headers
-        const subjectMatch = source.match(/^Subject:\s*(.+)$/mi);
-        const fromMatch = source.match(/^From:\s*(.+)$/mi);
-        const dateMatch = source.match(/^Date:\s*(.+)$/mi);
 
-        // Decode MIME encoded-words in headers
-        if (subjectMatch) subject = decodeMimeEncodedWord(subjectMatch[1].trim());
-        if (fromMatch) from = decodeMimeEncodedWord(fromMatch[1].trim());
-        if (dateMatch) date = dateMatch[1].trim();
+        // DEBUG: Log the received data
+        console.log('🔵 DEBUG show() function - UID:', uid);
+        console.log('🔵 Using cached envelope:', !!cachedEmail?.envelope);
+        console.log('🔵 Envelope data:', envelope);
+
+        // Extract subject, from, and date with robust fallback logic
+        // Try envelope first (preferred), then fall back to regex parsing
+
+        // Extract subject
+        if (envelope && envelope.subject) {
+          subject = envelope.subject;
+        } else {
+          const subjectMatch = source.match(/^Subject:\s*(.+)$/mi);
+          if (subjectMatch) subject = decodeMimeEncodedWord(subjectMatch[1].trim());
+        }
+
+        // Extract from
+        if (envelope && envelope.from && Array.isArray(envelope.from) && envelope.from.length > 0) {
+          const fromObj = envelope.from[0];
+          if (fromObj.address) {
+            from = fromObj.name ? `${fromObj.name} <${fromObj.address}>` : fromObj.address;
+          } else if (fromObj.name) {
+            from = fromObj.name;
+          }
+        }
+        if (!from) {
+          const fromMatch = source.match(/^From:\s*(.+)$/mi);
+          if (fromMatch) from = decodeMimeEncodedWord(fromMatch[1].trim());
+        }
+
+        // Extract date
+        if (envelope && envelope.date) {
+          try {
+            date = new Date(envelope.date).toLocaleString();
+          } catch (e) {
+            console.warn('Failed to parse envelope date:', e);
+          }
+        }
+        if (!date) {
+          const dateMatch = source.match(/^Date:\s*(.+)$/mi);
+          if (dateMatch) date = dateMatch[1].trim();
+        }
+
+        console.log('🔵 Extracted - subject:', subject, 'from:', from, 'date:', date);
         
         // Extract just the actual email content (skip headers and boundaries)
         const headerEndMatch = source.match(/\n\n|\r\n\r\n/);

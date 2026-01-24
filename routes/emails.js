@@ -214,7 +214,8 @@ export function createEmailRoutes(deps) {
           // Fetch by sequence number (not UID) with timeout
           const fetchOptions = {
             source: true,
-            uid: true  // Include UID in response for verification
+            uid: true,  // Include UID in response for verification
+            envelope: true  // Include envelope data for structured headers
           };
 
           if (!seqNum) {
@@ -232,6 +233,7 @@ export function createEmailRoutes(deps) {
 
           const fetchStartTime = Date.now();
 
+          let envelopeData = null;
           const fetchPromise = (async () => {
             let messageReceived = false;
             for await (const msg of fetchClient.fetch(seqNum, fetchOptions)) {
@@ -239,6 +241,7 @@ export function createEmailRoutes(deps) {
               // Verify this is the correct message
               if (msg.uid === uid) {
                 bodyText = msg.source ? msg.source.toString() : '';
+                envelopeData = msg.envelope;  // Store envelope data
                 found = true;
                 break;
               }
@@ -322,7 +325,14 @@ export function createEmailRoutes(deps) {
           });
         }
 
-        res.json({ success: true, uid, source: bodyText });
+        // DEBUG: Log what we're returning
+        console.log('🔴 BACKEND RETURNING ENVELOPE DATA:');
+        console.log('UID:', uid);
+        console.log('Envelope:', JSON.stringify(envelopeData, null, 2));
+        console.log('Has envelope.from?', !!envelopeData?.from);
+        console.log('envelope.from:', envelopeData?.from);
+
+        res.json({ success: true, uid, source: bodyText, envelope: envelopeData });
       } catch (err) {
         console.error('========== FETCH EMAIL ERROR ==========');
         console.error('Error message:', err.message);
