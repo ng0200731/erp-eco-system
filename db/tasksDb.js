@@ -62,6 +62,7 @@ async function ensureSchema(db) {
       status TEXT NOT NULL DEFAULT 'sent',
       error_message TEXT,
       sent_at TEXT NOT NULL,
+      sender_email TEXT,
       profile_id INTEGER,
       created_at TEXT NOT NULL,
       FOREIGN KEY (profile_id) REFERENCES profiles(id)
@@ -196,6 +197,14 @@ async function ensureSchema(db) {
   } catch (err) {
     if (!err.message.includes('duplicate column name')) {
       console.warn('Error adding sourceEmailMessageId column:', err);
+    }
+  }
+
+  try {
+    await db.exec(`ALTER TABLE sent_emails ADD COLUMN sender_email TEXT;`);
+  } catch (err) {
+    if (!err.message.includes('duplicate column name')) {
+      console.warn('Error adding sender_email column:', err);
     }
   }
 }
@@ -381,6 +390,7 @@ export async function createSentEmail({
   smtp_response,
   status = 'sent',
   error_message = null,
+  sender_email = null,
   profile_id = null,
 }) {
   if (!to_email || !subject) {
@@ -392,10 +402,10 @@ export async function createSentEmail({
 
   const result = await db.run(
     `
-      INSERT INTO sent_emails (to_email, subject, body_text, body_html, message_id, smtp_response, status, error_message, sent_at, profile_id, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO sent_emails (to_email, subject, body_text, body_html, message_id, smtp_response, status, error_message, sent_at, sender_email, profile_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
-    [to_email, subject, body_text, body_html, message_id, smtp_response, status, error_message, now, profile_id, now]
+    [to_email, subject, body_text, body_html, message_id, smtp_response, status, error_message, now, sender_email, profile_id, now]
   );
 
   return await db.get(`SELECT * FROM sent_emails WHERE id = ?`, [result.lastID]);
@@ -403,7 +413,7 @@ export async function createSentEmail({
 
 export async function listSentEmails({ limit = 50, offset = 0, profile_id, sender_email } = {}) {
   const db = await getTasksDb();
-  let query = `SELECT se.*, p.name as profile_name, p.mailUser as sender_email FROM sent_emails se LEFT JOIN profiles p ON se.profile_id = p.id`;
+  let query = `SELECT se.*, p.name as profile_name FROM sent_emails se LEFT JOIN profiles p ON se.profile_id = p.id`;
   let params = [];
 
   let whereClause = [];
@@ -413,7 +423,7 @@ export async function listSentEmails({ limit = 50, offset = 0, profile_id, sende
   }
 
   if (sender_email) {
-    whereClause.push(`p.mailUser = ?`);
+    whereClause.push(`se.sender_email = ?`);
     params.push(sender_email);
   }
 
@@ -430,7 +440,7 @@ export async function listSentEmails({ limit = 50, offset = 0, profile_id, sende
 export async function getSentEmailById(id) {
   const db = await getTasksDb();
   return await db.get(
-    `SELECT se.*, p.name as profile_name, p.mailUser as sender_email FROM sent_emails se LEFT JOIN profiles p ON se.profile_id = p.id WHERE se.id = ?`,
+    `SELECT se.*, p.name as profile_name FROM sent_emails se LEFT JOIN profiles p ON se.profile_id = p.id WHERE se.id = ?`,
     [id]
   );
 }
@@ -447,7 +457,7 @@ export async function getSentEmailsCount({ profile_id, sender_email } = {}) {
   }
 
   if (sender_email) {
-    whereClause.push(`p.mailUser = ?`);
+    whereClause.push(`se.sender_email = ?`);
     params.push(sender_email);
   }
 
