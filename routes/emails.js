@@ -1022,6 +1022,52 @@ export function createEmailRoutes(deps) {
     }
   });
 
+  // Search customer by email address
+  router.post('/email/search-customer', async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email address is required'
+        });
+      }
+
+      // Import findCustomerByEmail from deps
+      const { findCustomerByEmail } = deps;
+
+      if (!findCustomerByEmail) {
+        return res.status(500).json({
+          success: false,
+          error: 'findCustomerByEmail function not available'
+        });
+      }
+
+      const result = await findCustomerByEmail(email);
+
+      if (result) {
+        res.json({
+          success: true,
+          customer: result.customer,
+          member: result.member,
+          allMembers: result.allMembers
+        });
+      } else {
+        res.json({
+          success: false,
+          message: 'Customer not found in database'
+        });
+      }
+    } catch (err) {
+      console.error('Customer search error:', err);
+      res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to search customer'
+      });
+    }
+  });
+
   // Export helper function for use in other routes
   router.getProfilesMemory = getProfilesMemory;
 

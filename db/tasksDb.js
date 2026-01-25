@@ -594,6 +594,47 @@ export async function deleteCustomerMember(id) {
   return true;
 }
 
+// Find customer and member by email address
+export async function findCustomerByEmail(email) {
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    return null;
+  }
+
+  const db = await getTasksDb();
+  const emailParts = email.split('@');
+  const emailPrefix = emailParts[0];
+  const emailDomain = emailParts[1];
+
+  // Search by domain
+  const customer = await db.get(
+    `SELECT * FROM customers WHERE emailDomain = ?`,
+    [emailDomain]
+  );
+
+  if (customer) {
+    // Search for specific member by email prefix
+    const member = await db.get(
+      `SELECT * FROM customer_members
+       WHERE customerId = ? AND emailPrefix = ?`,
+      [customer.id, emailPrefix]
+    );
+
+    // Get all members for this customer
+    const allMembers = await db.all(
+      `SELECT * FROM customer_members WHERE customerId = ? ORDER BY name`,
+      [customer.id]
+    );
+
+    return {
+      customer,
+      member: member || null,
+      allMembers
+    };
+  }
+
+  return null;
+}
+
 // ========== QUOTATION FUNCTIONS ==========
 
 export async function createQuotation(quotationData) {

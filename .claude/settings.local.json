@@ -35,7 +35,8 @@
       "Bash(where git:*)",
       "Bash(setx CLAUDE_CODE_GIT_BASH_PATH \"D:\\\\Program Files\\\\Git\\\\bin\\\\bash.exe\")",
       "Bash(set CLAUDE_CODE_GIT_BASH_PATH=D:Program FilesGitbinbash.exe)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(sqlite3:*)"
     ]
   }
 }

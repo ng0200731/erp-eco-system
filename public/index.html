@@ -1022,6 +1022,11 @@
                 <div id="emailModalFrom" class="email-modal-from">From: sender@example.com</div>
                 <div id="emailModalTo" class="email-modal-from">To: recipient@example.com</div>
                 <div id="emailModalDate" class="email-modal-date">Date: 2024-01-15</div>
+                <!-- Customer Information Display -->
+                <div id="emailCustomerInfo" style="margin-top:10px; padding:10px; border:1px solid #000; background:#f0f0f0; display:none;">
+                  <div style="font-weight:bold; margin-bottom:5px;">📋 Customer Information</div>
+                  <div id="customerInfoContent" style="font-size:14px;"></div>
+                </div>
               </div>
               <div id="emailModalBody" class="email-modal-body">
                 Email content will appear here...
@@ -1144,6 +1149,7 @@
     let currentLoadController = null; // Track current load request
     let currentEmailMeta = null; // Track currently shown email (for task creation)
     let currentEmailModalMeta = null; // Track email in modal (for task creation)
+    let currentCustomerData = null; // Track customer data for current email
 
     // Decode Quoted-Printable encoded content
     function decodeQuotedPrintable(str) {
@@ -1165,6 +1171,96 @@
       const textarea = document.createElement('textarea');
       textarea.innerHTML = str;
       return textarea.value;
+    }
+
+    // Search for customer by email address
+    async function searchCustomerByEmail(email) {
+      if (!email) return null;
+
+      try {
+        const response = await fetch('/api/email/search-customer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          return {
+            customer: data.customer,
+            member: data.member,
+            allMembers: data.allMembers
+          };
+        }
+        return null;
+      } catch (err) {
+        console.error('Failed to search customer:', err);
+        return null;
+      }
+    }
+
+    // Display customer information in email modal
+    function displayCustomerInfo(customerData) {
+      const customerInfoEl = document.getElementById('emailCustomerInfo');
+      const customerInfoContent = document.getElementById('customerInfoContent');
+
+      if (!customerInfoEl || !customerInfoContent) return;
+
+      let html = '';
+
+      // Display company information
+      if (customerData.customer) {
+        const c = customerData.customer;
+        html += `<div style="margin-bottom:8px;"><strong>Company:</strong> ${c.companyName}</div>`;
+        html += `<div style="margin-bottom:8px;"><strong>Type:</strong> ${c.companyType}</div>`;
+        if (c.companyAddress) {
+          html += `<div style="margin-bottom:8px;"><strong>Address:</strong> ${c.companyAddress}</div>`;
+        }
+        if (c.companyTel) {
+          html += `<div style="margin-bottom:8px;"><strong>Tel:</strong> ${c.companyTel}</div>`;
+        }
+        if (c.companyWebsite) {
+          html += `<div style="margin-bottom:8px;"><strong>Website:</strong> ${c.companyWebsite}</div>`;
+        }
+      }
+
+      // Display member information
+      if (customerData.member) {
+        const m = customerData.member;
+        html += `<div style="margin-top:10px; padding-top:8px; border-top:1px solid #ccc;">`;
+        html += `<div style="margin-bottom:8px;"><strong>Contact:</strong> ${m.name}</div>`;
+        if (m.title) {
+          html += `<div style="margin-bottom:8px;"><strong>Title:</strong> ${m.title}</div>`;
+        }
+        if (m.tel) {
+          html += `<div style="margin-bottom:8px;"><strong>Tel:</strong> ${m.tel}</div>`;
+        }
+        if (m.emailPrefix) {
+          html += `<div style="margin-bottom:8px;"><strong>Email:</strong> ${m.emailPrefix}@${customerData.customer.emailDomain}</div>`;
+        }
+        html += `</div>`;
+      } else if (customerData.allMembers && customerData.allMembers.length > 0) {
+        // Show all members if specific member not found
+        html += `<div style="margin-top:10px; padding-top:8px; border-top:1px solid #ccc;">`;
+        html += `<div style="margin-bottom:8px;"><strong>All Members:</strong></div>`;
+        customerData.allMembers.forEach(m => {
+          html += `<div style="margin-left:10px; margin-bottom:4px;">• ${m.name}`;
+          if (m.title) html += ` (${m.title})`;
+          html += `</div>`;
+        });
+        html += `</div>`;
+      }
+
+      customerInfoContent.innerHTML = html;
+      customerInfoEl.style.display = 'block';
+    }
+
+    // Hide customer information in email modal
+    function hideCustomerInfo() {
+      const customerInfoEl = document.getElementById('emailCustomerInfo');
+      if (customerInfoEl) {
+        customerInfoEl.style.display = 'none';
+      }
     }
 
     // Decode MIME encoded-word (RFC 2047) - e.g., =?utf-8?B?V2Vp?= to "Wei"
@@ -2415,7 +2511,25 @@
           date: date || '',
           messageId: messageId || null
         };
-        
+
+        // Search for customer by email address
+        if (emailAddress) {
+          console.log('Searching for customer with email:', emailAddress);
+          const customerData = await searchCustomerByEmail(emailAddress);
+          if (customerData) {
+            console.log('Customer found:', customerData);
+            currentCustomerData = customerData;
+            displayCustomerInfo(customerData);
+          } else {
+            console.log('No customer found for email:', emailAddress);
+            currentCustomerData = null;
+            hideCustomerInfo();
+          }
+        } else {
+          currentCustomerData = null;
+          hideCustomerInfo();
+        }
+
       // Show email modal
       populateEmailModal(subject, from, date, bodyContent, currentEmailMeta);
       // Ensure modal is attached to document.body so it's visible even when the emails panel is hidden
@@ -3272,6 +3386,75 @@
           window.customerAutocomplete = new CustomerAutocomplete('quotationCustomerName', 'customerAutocompleteDropdown');
         }
 
+        // Pre-populate customer data if available
+        if (currentCustomerData && currentCustomerData.customer) {
+          const customerNameField = document.getElementById('quotationCustomerName');
+          const contactPersonField = document.getElementById('quotationContactPerson');
+          const emailField = document.getElementById('quotationEmail');
+          const phoneField = document.getElementById('quotationPhone');
+
+          // Set customer name
+          if (customerNameField) {
+            customerNameField.value = currentCustomerData.customer.companyName;
+
+            // Set up the customer object with members for autocomplete
+            if (window.customerAutocomplete) {
+              const customerWithMembers = {
+                ...currentCustomerData.customer,
+                members: currentCustomerData.allMembers || []
+              };
+              window.customerAutocomplete.selectedCustomer = customerWithMembers;
+
+              // Manually populate contact person dropdown
+              if (contactPersonField) {
+                contactPersonField.innerHTML = '<option value="">Select Contact Person</option>';
+
+                if (currentCustomerData.allMembers && currentCustomerData.allMembers.length > 0) {
+                  currentCustomerData.allMembers.forEach(member => {
+                    if (member.name) {
+                      const option = document.createElement('option');
+                      option.value = member.name;
+                      option.textContent = `${member.name}${member.title ? ` (${member.title})` : ''}`;
+                      option.dataset.memberData = JSON.stringify(member);
+                      contactPersonField.appendChild(option);
+                    }
+                  });
+                }
+              }
+            }
+          }
+
+          // Pre-select the specific member if found
+          if (contactPersonField && currentCustomerData.member) {
+            // Wait a bit for the dropdown to be populated
+            setTimeout(() => {
+              const options = contactPersonField.options;
+              for (let i = 0; i < options.length; i++) {
+                if (options[i].value === currentCustomerData.member.name) {
+                  contactPersonField.selectedIndex = i;
+                  // Trigger change event to populate email and phone
+                  contactPersonField.dispatchEvent(new Event('change'));
+                  break;
+                }
+              }
+            }, 100);
+          } else if (emailField && emailMeta && emailMeta.email) {
+            // If no specific member found, use email from emailMeta
+            emailField.value = emailMeta.email;
+          }
+
+          // Set phone if member has it and no contact person selected
+          if (phoneField && currentCustomerData.member && currentCustomerData.member.tel && !contactPersonField.value) {
+            phoneField.value = currentCustomerData.member.tel;
+          }
+        } else if (emailMeta && emailMeta.email) {
+          // Fallback: if no customer data but we have email metadata, use that
+          const emailField = document.getElementById('quotationEmail');
+          if (emailField) {
+            emailField.value = emailMeta.email;
+          }
+        }
+
         // Initialize file upload functionality
         initializeFileUploads(quotationType);
 
@@ -3886,7 +4069,7 @@
 
     // ========== CUSTOMER PANEL FUNCTIONALITY ==========
 
-    let currentCustomerData = null;
+    // currentCustomerData is declared earlier in the file (line ~1152)
     let membersData = [];
     let savedCustomers = []; // Store all saved customers
 

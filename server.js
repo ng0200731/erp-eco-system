@@ -11,7 +11,7 @@ import {
   createTask, getTaskById, listTasks, TASK_STATUS, updateTaskStatus,
   createSentEmail, listSentEmails, getSentEmailById, getSentEmailsCount,
   // Customer functions
-  getAllCustomers, getCustomerById, createCustomer, updateCustomer, deleteCustomer, createCustomerMember,
+  getAllCustomers, getCustomerById, createCustomer, updateCustomer, deleteCustomer, createCustomerMember, findCustomerByEmail,
   // Quotation functions
   getAllQuotations, getQuotationById, createQuotation, updateQuotation, deleteQuotation,
   // Skills functions
@@ -415,6 +415,7 @@ const emailRoutes = createEmailRoutes({
   getSmtpTransport: () => smtpTransport,
   createSmtpTransport,
   createImapClient,
+  findCustomerByEmail,
   config: {
     IMAP_HOST,
     IMAP_PORT,
