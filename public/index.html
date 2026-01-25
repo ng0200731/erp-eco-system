@@ -791,6 +791,17 @@
                   </select>
                 </th>
                 <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Status</div>
+                  <select id="quotationFilterStatus" class="filter-input" style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                    <option value="">All Status</option>
+                    <option value="draft">Draft</option>
+                    <option value="pending">Pending</option>
+                    <option value="send to customer">Send to Customer</option>
+                    <option value="confirm price">Confirm Price</option>
+                    <option value="sampling">Sampling</option>
+                  </select>
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
                   <div>Date Created</div>
                   <input type="text" id="quotationFilterDate" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
                 </th>
@@ -5239,7 +5250,7 @@
       if (quotations.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="8" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+            <td colspan="10" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
               No quotations saved yet. Create quotations first.
             </td>
           </tr>
@@ -5253,7 +5264,7 @@
       if (filteredQuotations.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="8" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+            <td colspan="10" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
               No quotations match the current filters.
             </td>
           </tr>
@@ -5263,6 +5274,18 @@
 
       // Sort by date created (newest first)
       filteredQuotations.sort((a, b) => new Date(b.dateCreated) - new Date(a.dateCreated));
+
+      // Helper function to format date as yyyymmdd, hh:mm:ss
+      function formatDate(dateString) {
+        const date = new Date(dateString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}${month}${day}, ${hours}:${minutes}:${seconds}`;
+      }
 
       tbody.innerHTML = filteredQuotations.map(quotation => `
         <tr style="cursor:pointer;" onclick="viewQuotationDetails(${quotation.id})">
@@ -5274,7 +5297,8 @@
           <td style="border:1px solid #000; padding:8px; text-align:right;">${quotation.quantity.toLocaleString()}</td>
           <td style="border:1px solid #000; padding:8px; text-align:right;">${quotation.total.toFixed(2)}</td>
           <td style="border:1px solid #000; padding:8px;">${quotation.type || 'non email'}</td>
-          <td style="border:1px solid #000; padding:8px;">${new Date(quotation.dateCreated).toLocaleDateString()}</td>
+          <td style="border:1px solid #000; padding:8px;">${quotation.status || 'draft'}</td>
+          <td style="border:1px solid #000; padding:8px;">${formatDate(quotation.dateCreated)}</td>
         </tr>
       `).join('');
     }
@@ -5288,6 +5312,7 @@
         type: document.getElementById('quotationFilterType').value,
         quantity: document.getElementById('quotationFilterQuantity').value.toLowerCase().trim(),
         total: document.getElementById('quotationFilterTotal').value.toLowerCase().trim(),
+        status: document.getElementById('quotationFilterStatus').value,
         date: document.getElementById('quotationFilterDate').value.toLowerCase().trim()
       };
 
@@ -5299,6 +5324,7 @@
         if (filters.type && quotation.productType !== filters.type) return false;
         if (filters.quantity && !quotation.quantity.toString().includes(filters.quantity)) return false;
         if (filters.total && !quotation.total.toString().includes(filters.total)) return false;
+        if (filters.status && quotation.status !== filters.status) return false;
         if (filters.date && !new Date(quotation.dateCreated).toLocaleDateString().toLowerCase().includes(filters.date)) return false;
         return true;
       });
@@ -6469,7 +6495,7 @@
               '<button type="button" class="page-btn" onclick="fillDummyQuotationData(true)">Dummy 2</button>' +
               '<button type="button" class="page-btn" onclick="fillDummyQuotationForm()">Dummy Fill</button>' +
               '<button type="button" class="page-btn" onclick="clearQuotationForm()">Clear</button>' +
-              '<button type="button" class="page-btn" onclick="console.log(\'Button clicked, calling saveQuotation with:\', \'' + tagType + '\', \'' + source + '\'); saveQuotation(\'' + tagType + '\', \'' + source + '\')">Save Quotation</button>' +
+              '<button type="button" class="page-btn" onclick="saveQuotationWithConfirmation(\'' + tagType + '\', \'' + source + '\')">SAVE</button>' +
               '<button type="button" class="page-btn primary" onclick="generateQuotation(\'' + tagType + '\')">Generate PDF</button>' +
             '</div>' +
           '</form>' +
@@ -6836,7 +6862,66 @@
       }
     };
 
-    window.saveQuotation = async function(tagType, source = 'non email') {
+    window.saveQuotationWithConfirmation = async function(tagType, source = 'non email') {
+      console.log('=== saveQuotationWithConfirmation called ===');
+      console.log('tagType:', tagType);
+      console.log('source:', source);
+
+      // Show confirmation modal (returns true for Yes, false for No)
+      const sendToCustomer = await showModal({
+        title: 'Save Quotation',
+        body: 'Saved to quotation, do you want to send to customer directly?',
+        okText: 'Yes',
+        cancelText: 'No'
+      });
+
+      if (sendToCustomer) {
+        // User clicked "Yes" - Save with status "send to customer" and send email
+        try {
+          const savedQuotation = await saveQuotation(tagType, source, 'send to customer');
+
+          // If this is an email quotation, send the email
+          if (source === 'email' && window.currentQuotationEmailMeta && savedQuotation) {
+            console.log('=== AUTO-SENDING QUOTATION EMAIL ===');
+            console.log('Email metadata:', window.currentQuotationEmailMeta);
+            console.log('Saved quotation:', savedQuotation);
+
+            try {
+              await sendQuotationEmail(savedQuotation, window.currentQuotationEmailMeta);
+              showModal({
+                title: 'Success',
+                body: 'Quotation saved and email sent to customer successfully!'
+              });
+            } catch (emailError) {
+              console.error('Failed to send quotation email:', emailError);
+              showModal({
+                title: 'Warning',
+                body: 'Quotation saved successfully, but failed to send email. You can send it manually later.'
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error saving quotation:', error);
+          showModal({
+            title: 'Error',
+            body: 'Failed to save quotation. Please try again.'
+          });
+        }
+      } else {
+        // User clicked "No" - Save with status "pending"
+        try {
+          await saveQuotation(tagType, source, 'pending');
+        } catch (error) {
+          console.error('Error saving quotation:', error);
+          showModal({
+            title: 'Error',
+            body: 'Failed to save quotation. Please try again.'
+          });
+        }
+      }
+    };
+
+    window.saveQuotation = async function(tagType, source = 'non email', status = 'draft') {
       console.log('=== saveQuotation called ===');
       console.log('tagType:', tagType);
       console.log('source:', source);
@@ -6897,7 +6982,7 @@
           profileImagePath: null,
           attachmentPaths: [],
           dateCreated: new Date().toISOString(),
-          status: 'draft'
+          status: status
         };
 
         console.log('=== QUOTATION OBJECT CREATED ===');
@@ -6981,6 +7066,7 @@
         console.log('Profile image path to save:', profileImagePath);
         console.log('Attachment paths to save:', attachmentPaths);
 
+        let finalQuotation = savedQuotation;
         if (profileImagePath || attachmentPaths.length > 0) {
           const updateData = {
             ...savedQuotation,
@@ -6988,7 +7074,7 @@
             attachmentPaths
           };
           console.log('Updating quotation with file data:', updateData);
-          const finalQuotation = await saveQuotationToStorage(updateData);
+          finalQuotation = await saveQuotationToStorage(updateData);
           console.log('Final quotation after update:', finalQuotation);
           console.log('Final profileImagePath:', finalQuotation.profileImagePath);
           console.log('Final attachmentPaths:', finalQuotation.attachmentPaths);
@@ -6997,11 +7083,14 @@
         // Clear edit mode
         window.editingQuotationId = null;
 
-        showModal({
-          title: 'Success',
-          body: window.editingQuotationId ? 'Quotation updated successfully!' : 'Quotation saved successfully!',
-          buttons: [{ text: 'OK', action: 'close' }]
-        });
+        // Only show success modal if status is 'draft' or 'pending' (not when sending to customer)
+        if (status === 'draft' || status === 'pending') {
+          showModal({
+            title: 'Success',
+            body: `Quotation saved successfully with status: ${status}`,
+            buttons: [{ text: 'OK', action: 'close' }]
+          });
+        }
 
         // Clear form and temporary files
         clearQuotationForm();
@@ -7016,24 +7105,8 @@
         // Refresh the quotations list to show the newly saved quotation
         await displayQuotations();
 
-        // If this is an email quotation (type='email'), automatically send quotation email
-        if (source === 'email' && window.currentQuotationEmailMeta && savedQuotation) {
-          console.log('=== AUTO-SENDING QUOTATION EMAIL ===');
-          console.log('Email metadata:', window.currentQuotationEmailMeta);
-          console.log('Saved quotation:', savedQuotation);
-
-          try {
-            await sendQuotationEmail(savedQuotation, window.currentQuotationEmailMeta);
-          } catch (emailError) {
-            console.error('Failed to send quotation email:', emailError);
-            // Don't fail the whole operation if email sending fails
-            showModal({
-              title: 'Warning',
-              body: 'Quotation saved successfully, but failed to send email. You can send it manually later.',
-              buttons: [{ text: 'OK', action: 'close' }]
-            });
-          }
-        }
+        // Return the final quotation for use by saveQuotationWithConfirmation
+        return finalQuotation;
 
       } catch (error) {
         console.error('Error saving quotation:', error);
@@ -7042,6 +7115,7 @@
           body: 'Failed to save quotation. Please try again.',
           buttons: [{ text: 'OK', action: 'close' }]
         });
+        throw error; // Re-throw so saveQuotationWithConfirmation can handle it
       }
     };
 
