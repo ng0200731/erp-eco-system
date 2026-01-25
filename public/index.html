@@ -1206,50 +1206,61 @@
 
       if (!customerInfoEl || !customerInfoContent) return;
 
-      let html = '';
+      let memberHtml = '';
+      let customerHtml = '';
 
-      // Display company information
-      if (customerData.customer) {
-        const c = customerData.customer;
-        html += `<div style="margin-bottom:8px;"><strong>Company:</strong> ${c.companyName}</div>`;
-        html += `<div style="margin-bottom:8px;"><strong>Type:</strong> ${c.companyType}</div>`;
-        if (c.companyAddress) {
-          html += `<div style="margin-bottom:8px;"><strong>Address:</strong> ${c.companyAddress}</div>`;
-        }
-        if (c.companyTel) {
-          html += `<div style="margin-bottom:8px;"><strong>Tel:</strong> ${c.companyTel}</div>`;
-        }
-        if (c.companyWebsite) {
-          html += `<div style="margin-bottom:8px;"><strong>Website:</strong> ${c.companyWebsite}</div>`;
-        }
-      }
-
-      // Display member information
+      // Build member information (left side)
       if (customerData.member) {
         const m = customerData.member;
-        html += `<div style="margin-top:10px; padding-top:8px; border-top:1px solid #ccc;">`;
-        html += `<div style="margin-bottom:8px;"><strong>Contact:</strong> ${m.name}</div>`;
+        memberHtml += `<div style="margin-bottom:8px;"><strong>Contact:</strong> ${m.name}</div>`;
         if (m.title) {
-          html += `<div style="margin-bottom:8px;"><strong>Title:</strong> ${m.title}</div>`;
+          memberHtml += `<div style="margin-bottom:8px;"><strong>Title:</strong> ${m.title}</div>`;
         }
         if (m.tel) {
-          html += `<div style="margin-bottom:8px;"><strong>Tel:</strong> ${m.tel}</div>`;
+          memberHtml += `<div style="margin-bottom:8px;"><strong>Tel:</strong> ${m.tel}</div>`;
         }
         if (m.emailPrefix) {
-          html += `<div style="margin-bottom:8px;"><strong>Email:</strong> ${m.emailPrefix}@${customerData.customer.emailDomain}</div>`;
+          memberHtml += `<div style="margin-bottom:8px;"><strong>Email:</strong> ${m.emailPrefix}@${customerData.customer.emailDomain}</div>`;
         }
-        html += `</div>`;
       } else if (customerData.allMembers && customerData.allMembers.length > 0) {
         // Show all members if specific member not found
-        html += `<div style="margin-top:10px; padding-top:8px; border-top:1px solid #ccc;">`;
-        html += `<div style="margin-bottom:8px;"><strong>All Members:</strong></div>`;
+        memberHtml += `<div style="margin-bottom:8px;"><strong>All Members:</strong></div>`;
         customerData.allMembers.forEach(m => {
-          html += `<div style="margin-left:10px; margin-bottom:4px;">• ${m.name}`;
-          if (m.title) html += ` (${m.title})`;
-          html += `</div>`;
+          memberHtml += `<div style="margin-left:10px; margin-bottom:4px;">• ${m.name}`;
+          if (m.title) memberHtml += ` (${m.title})`;
+          memberHtml += `</div>`;
         });
-        html += `</div>`;
       }
+
+      // Build customer information (right side)
+      if (customerData.customer) {
+        const c = customerData.customer;
+        customerHtml += `<div style="margin-bottom:8px;"><strong>Company:</strong> ${c.companyName}</div>`;
+        customerHtml += `<div style="margin-bottom:8px;"><strong>Type:</strong> ${c.companyType}</div>`;
+        if (c.companyAddress) {
+          customerHtml += `<div style="margin-bottom:8px;"><strong>Address:</strong> ${c.companyAddress}</div>`;
+        }
+        if (c.companyTel) {
+          customerHtml += `<div style="margin-bottom:8px;"><strong>Tel:</strong> ${c.companyTel}</div>`;
+        }
+        if (c.companyWebsite) {
+          customerHtml += `<div style="margin-bottom:8px;"><strong>Website:</strong> ${c.companyWebsite}</div>`;
+        }
+      }
+
+      // Create 50/50 split layout
+      const html = `
+        <div style="display:flex; gap:15px;">
+          <div style="flex:1; padding-right:15px; border-right:1px solid #ccc;">
+            <div style="font-weight:bold; margin-bottom:8px;">👤 Member</div>
+            ${memberHtml}
+          </div>
+          <div style="flex:1; padding-left:15px;">
+            <div style="font-weight:bold; margin-bottom:8px;">🏢 Company</div>
+            ${customerHtml}
+          </div>
+        </div>
+      `;
 
       customerInfoContent.innerHTML = html;
       customerInfoEl.style.display = 'block';
@@ -3349,6 +3360,9 @@
         const quotationName = btn.textContent;
         console.log('Quotation type selected:', quotationType);
 
+        // Set flag to disable customer fields when opening from email view
+        window.isDummy2Mode = true;
+
         // Open email quotation modal with current email metadata
         openEmailQuotationModal(quotationType, quotationName, currentEmailMeta);
       };
@@ -3359,6 +3373,99 @@
       console.log('Image Lib button clicked');
       // TODO: Implement image library logic
     };
+
+    // Fill quotation form with random data (optionally keeping customer info fixed)
+    function fillDummyQuotationData(keepCustomerInfoFixed = false) {
+      // Random dimensions
+      const widths = ['0.5 inch', '1 inch', '1.5 inches', '2 inches', '2.5 inches', '3 inches'];
+      const lengths = ['1 inch', '1.5 inches', '2 inches', '2.5 inches', '3 inches', '4 inches'];
+
+      // Random color counts
+      const colorCounts = ['1 Color', '2 Colors', '3 Colors', '4 Colors', '5 Colors', '6+ Colors'];
+
+      // Random edge finishes
+      const edgeFinishes = ['Cut Edge', 'Folded Edge', 'Heat Cut', 'Ultrasonic Cut', 'Laser Cut'];
+
+      // Random quantities
+      const quantities = [500, 1000, 2000, 3000, 5000, 10000];
+
+      // Random unit prices
+      const unitPrices = [0.25, 0.35, 0.50, 0.75, 1.00, 1.25, 1.50];
+
+      // Random notes
+      const notes = [
+        'Rush order - need within 2 weeks',
+        'Standard production timeline acceptable',
+        'Please provide sample before full production',
+        'Repeat order - same specifications as last time',
+        'New design - please confirm artwork before production',
+        'Urgent - customer deadline approaching'
+      ];
+
+      // Fill product specifications (NOT customer info)
+      const widthField = document.getElementById('quotationWidth');
+      if (widthField) {
+        widthField.value = widths[Math.floor(Math.random() * widths.length)];
+      }
+
+      const lengthField = document.getElementById('quotationLength');
+      if (lengthField) {
+        lengthField.value = lengths[Math.floor(Math.random() * lengths.length)];
+      }
+
+      const colorCountField = document.getElementById('quotationColorCount');
+      if (colorCountField) {
+        const randomColor = colorCounts[Math.floor(Math.random() * colorCounts.length)];
+        // Set the select dropdown value
+        for (let i = 0; i < colorCountField.options.length; i++) {
+          if (colorCountField.options[i].text === randomColor) {
+            colorCountField.selectedIndex = i;
+            break;
+          }
+        }
+      }
+
+      const edgeFinishField = document.getElementById('quotationEdgeFinish');
+      if (edgeFinishField) {
+        const randomEdge = edgeFinishes[Math.floor(Math.random() * edgeFinishes.length)];
+        // Set the select dropdown value
+        for (let i = 0; i < edgeFinishField.options.length; i++) {
+          if (edgeFinishField.options[i].text === randomEdge) {
+            edgeFinishField.selectedIndex = i;
+            break;
+          }
+        }
+      }
+
+      // Fill quantity and pricing
+      const quantityField = document.getElementById('quotationQuantity');
+      if (quantityField) {
+        quantityField.value = quantities[Math.floor(Math.random() * quantities.length)];
+      }
+
+      const unitPriceField = document.getElementById('quotationUnitPrice');
+      if (unitPriceField) {
+        unitPriceField.value = unitPrices[Math.floor(Math.random() * unitPrices.length)].toFixed(2);
+      }
+
+      // Calculate total
+      if (quantityField && unitPriceField) {
+        const quantity = parseFloat(quantityField.value) || 0;
+        const unitPrice = parseFloat(unitPriceField.value) || 0;
+        const totalField = document.getElementById('quotationTotal');
+        if (totalField) {
+          totalField.value = (quantity * unitPrice).toFixed(2);
+        }
+      }
+
+      // Fill notes
+      const notesField = document.getElementById('quotationNotes');
+      if (notesField) {
+        notesField.value = notes[Math.floor(Math.random() * notes.length)];
+      }
+
+      console.log('Dummy quotation data filled (customer info preserved)');
+    }
 
     // Email Quotation Modal Functions
     function openEmailQuotationModal(quotationType, quotationName, emailMeta = null) {
@@ -3372,8 +3479,8 @@
       const titleElement = modal.querySelector('.email-modal-title');
       titleElement.innerHTML = `📧 Email Quotation - ${quotationName}`;
 
-      // Load quotation form content
-      content.innerHTML = generateQuotationContent(quotationType, quotationName, 'email');
+      // Load quotation form content (pass isDummy2Mode flag)
+      content.innerHTML = generateQuotationContent(quotationType, quotationName, 'email', window.isDummy2Mode || false);
 
       // Show modal
       modal.style.display = 'flex';
@@ -6284,11 +6391,17 @@
       '</div>';
     }
 
-    function generateQuotationContent(tagType, tagName, source = 'non email') {
+    function generateQuotationContent(tagType, tagName, source = 'non email', isDummy2Mode = false) {
       console.log('=== generateQuotationContent called ===');
       console.log('tagType:', tagType);
       console.log('tagName:', tagName);
       console.log('source:', source);
+      console.log('isDummy2Mode:', isDummy2Mode);
+
+      // Determine if customer fields should be disabled
+      const customerFieldsDisabled = isDummy2Mode;
+      const disabledStyle = customerFieldsDisabled ? 'background:#f5f5f5; color:#999; cursor:not-allowed;' : '';
+      const disabledAttr = customerFieldsDisabled ? 'disabled' : '';
 
       // Base form structure with split layout (left: form, right: file uploads)
       return '<div style="display:flex; height:600px;">' +
@@ -6301,13 +6414,13 @@
                 '<div>' +
                   '<label style="display:block; margin-bottom:5px; font-weight:600;">Customer Name *</label>' +
                   '<div class="autocomplete-container">' +
-                    '<input type="text" id="quotationCustomerName" class="autocomplete-input" placeholder="Enter customer name" autocomplete="off">' +
+                    '<input type="text" id="quotationCustomerName" class="autocomplete-input" placeholder="Enter customer name" autocomplete="off" ' + disabledAttr + ' style="width:100%; padding:8px; border:1px solid #000; ' + disabledStyle + '">' +
                     '<div id="customerAutocompleteDropdown" class="autocomplete-dropdown"></div>' +
                   '</div>' +
                 '</div>' +
                 '<div>' +
                   '<label style="display:block; margin-bottom:5px; font-weight:600;">Contact Person</label>' +
-                  '<select id="quotationContactPerson" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">' +
+                  '<select id="quotationContactPerson" style="width:100%; padding:8px; border:1px solid #000; background:#fff; ' + disabledStyle + '" ' + disabledAttr + '>' +
                     '<option value="">Select Contact Person</option>' +
                   '</select>' +
                 '</div>' +
@@ -6315,11 +6428,11 @@
               '<div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">' +
                 '<div>' +
                   '<label style="display:block; margin-bottom:5px; font-weight:600;">Email</label>' +
-                  '<input type="email" id="quotationEmail" style="width:100%; padding:8px; border:1px solid #000;" placeholder="customer@email.com">' +
+                  '<input type="email" id="quotationEmail" style="width:100%; padding:8px; border:1px solid #000; ' + disabledStyle + '" placeholder="customer@email.com" ' + disabledAttr + '>' +
                 '</div>' +
                 '<div>' +
                   '<label style="display:block; margin-bottom:5px; font-weight:600;">Phone</label>' +
-                  '<input type="tel" id="quotationPhone" style="width:100%; padding:8px; border:1px solid #000;" placeholder="+852 1234 5678">' +
+                  '<input type="tel" id="quotationPhone" style="width:100%; padding:8px; border:1px solid #000; ' + disabledStyle + '" placeholder="+852 1234 5678" ' + disabledAttr + '>' +
                 '</div>' +
               '</div>' +
             '</div>' +
@@ -6353,6 +6466,7 @@
             '</div>' +
 
             '<div style="display:flex; gap:10px; justify-content:flex-end;">' +
+              '<button type="button" class="page-btn" onclick="fillDummyQuotationData(true)">Dummy 2</button>' +
               '<button type="button" class="page-btn" onclick="fillDummyQuotationForm()">Dummy Fill</button>' +
               '<button type="button" class="page-btn" onclick="clearQuotationForm()">Clear</button>' +
               '<button type="button" class="page-btn" onclick="console.log(\'Button clicked, calling saveQuotation with:\', \'' + tagType + '\', \'' + source + '\'); saveQuotation(\'' + tagType + '\', \'' + source + '\')">Save Quotation</button>' +
