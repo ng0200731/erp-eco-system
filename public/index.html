@@ -6771,27 +6771,54 @@
     window.clearQuotationForm = function() {
       const form = document.getElementById('quotationForm');
       if (form) {
+        // Save customer field values if they're disabled (from email view)
+        const customerNameField = document.getElementById('quotationCustomerName');
+        const contactField = document.getElementById('quotationContactPerson');
+        const emailField = document.getElementById('quotationEmail');
+        const phoneField = document.getElementById('quotationPhone');
+
+        const customerFieldsDisabled = customerNameField?.disabled || false;
+        const savedCustomerName = customerNameField?.value || '';
+        const savedContactPerson = contactField?.value || '';
+        const savedContactPersonHTML = contactField?.innerHTML || '';
+        const savedEmail = emailField?.value || '';
+        const savedPhone = phoneField?.value || '';
+
+        // Reset the form (clears all fields)
         form.reset();
         document.getElementById('quotationTotal').value = '';
 
-        // Reset contact person dropdown to default state
-        const contactField = document.getElementById('quotationContactPerson');
-        if (contactField) {
-          contactField.innerHTML = '<option value="">Select Contact Person</option>';
-        }
-
-        // Re-enable email and phone fields
-        const emailField = document.getElementById('quotationEmail');
-        const phoneField = document.getElementById('quotationPhone');
-        if (emailField) {
-          emailField.disabled = false;
-          emailField.style.backgroundColor = '#fff';
-          emailField.style.color = '#000';
-        }
-        if (phoneField) {
-          phoneField.disabled = false;
-          phoneField.style.backgroundColor = '#fff';
-          phoneField.style.color = '#000';
+        // If customer fields were disabled (from email view), restore their values and keep them disabled
+        if (customerFieldsDisabled) {
+          if (customerNameField) {
+            customerNameField.value = savedCustomerName;
+            customerNameField.disabled = true;
+            customerNameField.style.backgroundColor = '#f5f5f5';
+            customerNameField.style.color = '#999';
+            customerNameField.style.cursor = 'not-allowed';
+          }
+          if (contactField) {
+            contactField.innerHTML = savedContactPersonHTML;
+            contactField.value = savedContactPerson;
+            contactField.disabled = true;
+            contactField.style.backgroundColor = '#f5f5f5';
+            contactField.style.color = '#999';
+            contactField.style.cursor = 'not-allowed';
+          }
+          if (emailField) {
+            emailField.value = savedEmail;
+            emailField.disabled = true;
+            emailField.style.backgroundColor = '#f5f5f5';
+            emailField.style.color = '#999';
+            emailField.style.cursor = 'not-allowed';
+          }
+          if (phoneField) {
+            phoneField.value = savedPhone;
+            phoneField.disabled = true;
+            phoneField.style.backgroundColor = '#f5f5f5';
+            phoneField.style.color = '#999';
+            phoneField.style.cursor = 'not-allowed';
+          }
         }
 
         // Clear edit mode
