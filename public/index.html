@@ -5594,32 +5594,137 @@
     }
 
     async function editQuotationFromView(quotationId) {
-      // Close the view modal
-      closeQuotationViewModal();
+      // Enable inline editing mode
+      const formContainer = document.getElementById('quotationViewFormContainer');
+      if (!formContainer) return;
 
-      // Switch to create tab and load the quotation for editing
-      ensureTab('quotation', 'Quotation (create)');
-      activateTab('quotation');
+      // Enable all form fields
+      const allInputs = formContainer.querySelectorAll('input, select, textarea');
+      allInputs.forEach(input => {
+        input.disabled = false;
+        input.readOnly = false;
+        input.style.backgroundColor = '#fff';
+        input.style.color = '#000';
+        input.style.cursor = 'text';
+      });
 
-      // Load the quotation data into the form for editing
+      // Update modal actions to show Save and Cancel buttons
+      const actionsDiv = document.querySelector('.modal-actions');
+      if (actionsDiv) {
+        actionsDiv.innerHTML = `
+          <button class="btn" onclick="cancelInlineEdit(${quotationId})">Cancel</button>
+          <button class="btn primary" onclick="saveInlineQuotationEdit(${quotationId})">Save Changes</button>
+        `;
+      }
+
+      // Store original quotation data for cancel functionality
       const quotations = await loadQuotationsFromStorage();
       const quotation = quotations.find(q => q.id === quotationId);
+      window.originalQuotationData = quotation;
+    }
 
-      if (quotation) {
-        // Switch to the appropriate product type tab
-        const quotationButtons = document.querySelectorAll('.quotation-tag-btn');
-        quotationButtons.forEach(button => {
-          if (button.dataset.tag === quotation.productType) {
-            button.click();
-          }
+    window.cancelInlineEdit = async function(quotationId) {
+      // Restore original data and close modal
+      closeQuotationViewModal();
+
+      // Reopen the view with original data
+      await viewQuotationDetails(quotationId);
+    };
+
+    window.saveInlineQuotationEdit = async function(quotationId) {
+      console.log('=== saveInlineQuotationEdit called ===');
+      console.log('Quotation ID:', quotationId);
+
+      try {
+        // Get the original quotation to preserve fields we're not editing
+        const quotations = await loadQuotationsFromStorage();
+        const originalQuotation = quotations.find(q => q.id === quotationId);
+
+        if (!originalQuotation) {
+          throw new Error('Original quotation not found');
+        }
+
+        // Collect updated data from form fields
+        const customerName = document.getElementById('quotationCustomerName')?.value.trim();
+        const contactPerson = document.getElementById('quotationContactPerson')?.value;
+        const email = document.getElementById('quotationEmail')?.value.trim();
+        const phone = document.getElementById('quotationPhone')?.value.trim();
+        const quantity = document.getElementById('quotationQuantity')?.value;
+        const unitPrice = document.getElementById('quotationUnitPrice')?.value;
+        const notes = document.getElementById('quotationNotes')?.value.trim();
+
+        // Validation
+        if (!customerName) {
+          showModal({ title: 'Validation Error', body: 'Customer Name is required.' });
+          return;
+        }
+        if (!quantity || quantity <= 0) {
+          showModal({ title: 'Validation Error', body: 'Quantity must be greater than 0.' });
+          return;
+        }
+
+        // Get product-specific fields
+        let productDetails = {};
+        if (originalQuotation.productType === 'hang-tag') {
+          productDetails = {
+            material: document.getElementById('quotationMaterial')?.value || '',
+            size: document.getElementById('quotationSize')?.value || '',
+            printingMethod: document.getElementById('quotationPrintingMethod')?.value || ''
+          };
+        }
+        // Add other product types as needed
+
+        // Calculate total
+        const total = parseFloat(quantity) * parseFloat(unitPrice || 0);
+
+        // Update quotation object
+        const updatedQuotation = {
+          ...originalQuotation,
+          customerName,
+          contactPerson,
+          email,
+          phone,
+          productDetails,
+          quantity: parseInt(quantity),
+          unitPrice: parseFloat(unitPrice) || 0,
+          total: total,
+          notes
+        };
+
+        console.log('Updated quotation:', updatedQuotation);
+
+        // Save to database
+        const response = await fetch(`/api/quotations/${quotationId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedQuotation)
         });
 
-        // Populate the form with quotation data for editing
-        setTimeout(() => {
-          populateQuotationForEditing(quotation);
-        }, 200);
+        if (!response.ok) {
+          throw new Error('Failed to update quotation');
+        }
+
+        const result = await response.json();
+        console.log('Update result:', result);
+
+        // Show success message
+        showModal({
+          title: 'Success',
+          body: 'Quotation updated successfully!'
+        });
+
+        // Close modal and refresh quotations list
+        closeQuotationViewModal();
+        await displayQuotations();
+
+      } catch (error) {
+        console.error('Error saving quotation:', error);
+        showModal({
+          title: 'Error',
+          body: 'Failed to save quotation changes. Please try again.'
+        });
       }
-    }
+    };
 
     function populateQuotationForEditing(quotation) {
       // Populate customer name
