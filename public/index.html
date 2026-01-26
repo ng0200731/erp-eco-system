@@ -797,19 +797,23 @@
                     <option value="draft">Draft</option>
                     <option value="pending">Pending</option>
                     <option value="send to customer">Send to Customer</option>
-                    <option value="confirm price">Confirm Price</option>
+                    <option value="price confirmed">Price Confirmed</option>
                     <option value="sampling">Sampling</option>
+                    <option value="sample delivered">Sample Delivered</option>
                   </select>
                 </th>
                 <th style="border:1px solid #000; padding:8px; text-align:left;">
                   <div>Date Created</div>
                   <input type="text" id="quotationFilterDate" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
                 </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Action</div>
+                </th>
               </tr>
             </thead>
             <tbody id="quotationsTableBody">
               <tr>
-                <td colspan="8" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+                <td colspan="11" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
                   No quotations saved yet. Create quotations first.
                 </td>
               </tr>
@@ -5287,6 +5291,25 @@
         return `${year}${month}${day}, ${hours}:${minutes}:${seconds}`;
       }
 
+      // Helper function to get action button based on status
+      function getActionButton(quotation) {
+        const status = quotation.status || 'draft';
+        const statusMap = {
+          'pending': { next: 'send to customer', label: 'Send to Customer' },
+          'send to customer': { next: 'price confirmed', label: 'Confirm Price' },
+          'price confirmed': { next: 'sampling', label: 'Start Sampling' },
+          'sampling': { next: 'sample delivered', label: 'Mark Delivered' },
+          'sample delivered': { next: null, label: 'Completed' }
+        };
+
+        const action = statusMap[status];
+        if (!action || !action.next) {
+          return '<span style="color:#999;">-</span>';
+        }
+
+        return `<button class="page-btn" style="padding:4px 8px; font-size:12px;" onclick="event.stopPropagation(); updateQuotationStatus(${quotation.id}, '${action.next}', '${quotation.type || 'non email'}', ${JSON.stringify(quotation).replace(/"/g, '&quot;')})">${action.label}</button>`;
+      }
+
       tbody.innerHTML = filteredQuotations.map(quotation => `
         <tr style="cursor:pointer;" onclick="viewQuotationDetails(${quotation.id})">
           <td style="border:1px solid #000; padding:8px;">${quotation.customerName}</td>
@@ -5299,6 +5322,7 @@
           <td style="border:1px solid #000; padding:8px;">${quotation.type || 'non email'}</td>
           <td style="border:1px solid #000; padding:8px;">${quotation.status || 'draft'}</td>
           <td style="border:1px solid #000; padding:8px;">${formatDate(quotation.dateCreated)}</td>
+          <td style="border:1px solid #000; padding:8px; text-align:center;">${getActionButton(quotation)}</td>
         </tr>
       `).join('');
     }
@@ -5340,6 +5364,86 @@
       };
       return names[type] || type;
     }
+
+    window.updateQuotationStatus = async function(quotationId, newStatus, quotationType, quotationData) {
+      console.log('=== updateQuotationStatus called ===');
+      console.log('Quotation ID:', quotationId);
+      console.log('New Status:', newStatus);
+      console.log('Quotation Type:', quotationType);
+
+      try {
+        // Update the quotation status in the database
+        const response = await fetch(`/api/quotations/${quotationId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...quotationData,
+            status: newStatus
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update quotation status');
+        }
+
+        const result = await response.json();
+        console.log('Status update result:', result);
+
+        // If changing from "pending" to "send to customer", send email
+        if (newStatus === 'send to customer' && quotationType === 'email') {
+          console.log('Sending quotation email to customer...');
+
+          // Get the full quotation data with email metadata
+          const quotations = await loadQuotationsFromStorage();
+          const quotation = quotations.find(q => q.id == quotationId);
+
+          if (quotation && quotation.sourceEmailMessageId) {
+            // Construct email metadata from quotation
+            const emailMeta = {
+              uid: quotation.sourceEmailUid,
+              subject: quotation.sourceEmailSubject,
+              messageId: quotation.sourceEmailMessageId,
+              email: quotation.email
+            };
+
+            try {
+              await sendQuotationEmail(quotation, emailMeta);
+              showModal({
+                title: 'Success',
+                body: `Status updated to "${newStatus}" and quotation email sent to customer successfully!`
+              });
+            } catch (emailError) {
+              console.error('Failed to send quotation email:', emailError);
+              showModal({
+                title: 'Warning',
+                body: `Status updated to "${newStatus}", but failed to send email. You can send it manually later.`
+              });
+            }
+          } else {
+            showModal({
+              title: 'Warning',
+              body: `Status updated to "${newStatus}", but email metadata not found. Cannot send email automatically.`
+            });
+          }
+        } else {
+          // For other status transitions, just show success message
+          showModal({
+            title: 'Success',
+            body: `Status updated to "${newStatus}" successfully!`
+          });
+        }
+
+        // Refresh the quotations list to show updated status
+        await displayQuotations();
+
+      } catch (error) {
+        console.error('Error updating quotation status:', error);
+        showModal({
+          title: 'Error',
+          body: 'Failed to update quotation status. Please try again.'
+        });
+      }
+    };
 
     async function viewQuotationDetails(quotationId) {
       console.log('Viewing quotation with ID:', quotationId);
