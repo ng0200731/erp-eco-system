@@ -535,10 +535,10 @@
   <div id="layout">
     <div id="sidebar">
       <div class="menu-group">
-        <button id="menuEmail" class="page-btn" data-short="E" data-full="Email">E</button>
+        <button id="menuEmail" class="page-btn" data-short="E" data-full="Email" data-testid="menu-email">E</button>
         <div id="emailSubmenu" class="submenu" style="display:none;">
-          <button id="emailReceiveBtn" class="submenu-btn">Receive</button>
-          <button id="emailSendBtn" class="submenu-btn">Send</button>
+          <button id="emailReceiveBtn" class="submenu-btn" data-testid="email-receive-btn">Receive</button>
+          <button id="emailSendBtn" class="submenu-btn" data-testid="email-send-btn">Send</button>
         </div>
       </div>
       <div class="menu-group">
@@ -551,10 +551,10 @@
       <button id="menuTasks" class="page-btn" data-short="T" data-full="Task List">T</button>
       <button id="menuSkills" class="page-btn" data-short="K" data-full="Skills">K</button>
       <div class="menu-group">
-      <button id="menuQuotation" class="page-btn" data-short="Q" data-full="Quotation">Q</button>
+      <button id="menuQuotation" class="page-btn" data-short="Q" data-full="Quotation" data-testid="menu-quotation">Q</button>
         <div id="quotationSubmenu" class="submenu" style="display:none;">
-          <button id="quotationCreateBtn" class="submenu-btn">Create</button>
-          <button id="quotationViewBtn" class="submenu-btn">View</button>
+          <button id="quotationCreateBtn" class="submenu-btn" data-testid="quotation-create-btn">Create</button>
+          <button id="quotationViewBtn" class="submenu-btn" data-testid="quotation-view-btn">View</button>
         </div>
       </div>
       <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
@@ -738,8 +738,12 @@
 
       <!-- Quotation View board -->
       <div id="quotationViewPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
-        <div style="margin-bottom:15px;">
+        <div style="margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap;">
           <button id="refreshQuotationsBtn" class="page-btn">Refresh List</button>
+          <button id="selectAllQuotationsBtn" class="page-btn">Select All</button>
+          <button id="deselectAllQuotationsBtn" class="page-btn">Deselect All</button>
+          <button id="batchDeleteQuotationsBtn" class="page-btn" style="background:#dc3545; color:#fff;">Delete Selected</button>
+          <button id="batchUpdateStatusBtn" class="page-btn">Update Status</button>
         </div>
 
         <!-- Quotation Table -->
@@ -747,6 +751,9 @@
           <table id="quotationsTable" style="width:100%; border-collapse:collapse; border:1px solid #000;">
             <thead>
               <tr style="background:#f8f8f8;">
+                <th style="border:1px solid #000; padding:8px; text-align:center; width:40px;">
+                  <input type="checkbox" id="selectAllCheckbox" style="cursor:pointer;">
+                </th>
                 <th style="border:1px solid #000; padding:8px; text-align:left;">
                   <div>Customer Name</div>
                   <input type="text" id="quotationFilterCustomer" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
@@ -809,11 +816,14 @@
                 <th style="border:1px solid #000; padding:8px; text-align:left;">
                   <div>Action</div>
                 </th>
+                <th style="border:1px solid #000; padding:8px; text-align:center;">
+                  <div>Delete</div>
+                </th>
               </tr>
             </thead>
             <tbody id="quotationsTableBody">
               <tr>
-                <td colspan="11" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+                <td colspan="13" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
                   No quotations saved yet. Create quotations first.
                 </td>
               </tr>
@@ -891,11 +901,11 @@
       <!-- Quotation board -->
       <div id="quotationPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
         <div class="row" style="gap:10px; flex-wrap:wrap; margin-bottom:20px;">
-          <button class="quotation-tag-btn page-btn" id="hangTagBtn" data-tag="hang-tag">Hang Tag</button>
-          <button class="quotation-tag-btn page-btn" id="wovenLabelBtn" data-tag="woven-label">Woven Label</button>
-          <button class="quotation-tag-btn page-btn" id="careLabelBtn" data-tag="care-label">Care Label</button>
-          <button class="quotation-tag-btn page-btn" id="heatTransferBtn" data-tag="heat-transfer">Heat Transfer</button>
-          <button class="quotation-tag-btn page-btn" id="othersBtn" data-tag="others">Others</button>
+          <button class="quotation-tag-btn page-btn" id="hangTagBtn" data-tag="hang-tag" data-testid="hang-tag-btn">Hang Tag</button>
+          <button class="quotation-tag-btn page-btn" id="wovenLabelBtn" data-tag="woven-label" data-testid="woven-label-btn">Woven Label</button>
+          <button class="quotation-tag-btn page-btn" id="careLabelBtn" data-tag="care-label" data-testid="care-label-btn">Care Label</button>
+          <button class="quotation-tag-btn page-btn" id="heatTransferBtn" data-tag="heat-transfer" data-testid="heat-transfer-btn">Heat Transfer</button>
+          <button class="quotation-tag-btn page-btn" id="othersBtn" data-tag="others" data-testid="others-btn">Others</button>
         </div>
 
         <!-- Quotation Sub-board -->
@@ -1050,13 +1060,13 @@
 
             <!-- Right action panel (20%) -->
             <div class="email-modal-actions">
-              <button class="action-btn expandable" id="quotationBtn">Quotation</button>
+              <button class="action-btn expandable" id="quotationBtn" data-testid="email-quotation-btn">Quotation</button>
               <div class="sub-options" id="quotationSubOptions">
-                <button class="sub-option-btn" data-type="hang-tag">Hang Tag</button>
-                <button class="sub-option-btn" data-type="woven-label">Woven Label</button>
-                <button class="sub-option-btn" data-type="care-label">Care Label</button>
-                <button class="sub-option-btn" data-type="transfer">Transfer</button>
-                <button class="sub-option-btn" data-type="other">Other</button>
+                <button class="sub-option-btn" data-type="hang-tag" data-testid="quotation-hang-tag-btn">Hang Tag</button>
+                <button class="sub-option-btn" data-type="woven-label" data-testid="quotation-woven-label-btn">Woven Label</button>
+                <button class="sub-option-btn" data-type="care-label" data-testid="quotation-care-label-btn">Care Label</button>
+                <button class="sub-option-btn" data-type="transfer" data-testid="quotation-transfer-btn">Transfer</button>
+                <button class="sub-option-btn" data-type="other" data-testid="quotation-other-btn">Other</button>
               </div>
               <button class="action-btn" id="imageLibBtn">Image Lib</button>
             </div>
@@ -5234,6 +5244,36 @@
         refreshBtn.onclick = async () => await displayQuotations();
       }
 
+      // Select All button functionality
+      const selectAllBtn = document.getElementById('selectAllQuotationsBtn');
+      if (selectAllBtn) {
+        selectAllBtn.onclick = () => {
+          const checkboxes = document.querySelectorAll('.quotation-checkbox');
+          checkboxes.forEach(cb => cb.checked = true);
+        };
+      }
+
+      // Deselect All button functionality
+      const deselectAllBtn = document.getElementById('deselectAllQuotationsBtn');
+      if (deselectAllBtn) {
+        deselectAllBtn.onclick = () => {
+          const checkboxes = document.querySelectorAll('.quotation-checkbox');
+          checkboxes.forEach(cb => cb.checked = false);
+        };
+      }
+
+      // Batch Delete button functionality
+      const batchDeleteBtn = document.getElementById('batchDeleteQuotationsBtn');
+      if (batchDeleteBtn) {
+        batchDeleteBtn.onclick = async () => await batchDeleteQuotations();
+      }
+
+      // Batch Update Status button functionality
+      const batchUpdateStatusBtn = document.getElementById('batchUpdateStatusBtn');
+      if (batchUpdateStatusBtn) {
+        batchUpdateStatusBtn.onclick = async () => await batchUpdateQuotationStatus();
+      }
+
       // Set up filter event listeners
       const filterInputs = document.querySelectorAll('#quotationViewPanel .filter-input');
       filterInputs.forEach(input => {
@@ -5268,7 +5308,7 @@
       if (filteredQuotations.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="10" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+            <td colspan="13" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
               No quotations match the current filters.
             </td>
           </tr>
@@ -5312,6 +5352,9 @@
 
       tbody.innerHTML = filteredQuotations.map(quotation => `
         <tr style="cursor:pointer;" onclick="viewQuotationDetails(${quotation.id})">
+          <td style="border:1px solid #000; padding:8px; text-align:center;" onclick="event.stopPropagation();">
+            <input type="checkbox" class="quotation-checkbox" data-quotation-id="${quotation.id}" style="cursor:pointer;">
+          </td>
           <td style="border:1px solid #000; padding:8px;">${quotation.customerName}</td>
           <td style="border:1px solid #000; padding:8px;">${quotation.contactPerson || 'N/A'}</td>
           <td style="border:1px solid #000; padding:8px;">${quotation.email || 'N/A'}</td>
@@ -5323,6 +5366,9 @@
           <td style="border:1px solid #000; padding:8px;">${quotation.status || 'draft'}</td>
           <td style="border:1px solid #000; padding:8px;">${formatDate(quotation.dateCreated)}</td>
           <td style="border:1px solid #000; padding:8px; text-align:center;">${getActionButton(quotation)}</td>
+          <td style="border:1px solid #000; padding:8px; text-align:center;">
+            <button class="page-btn" style="padding:4px 8px; font-size:12px; background:#dc3545; color:#fff;" onclick="event.stopPropagation(); deleteQuotation(${quotation.id})">Delete</button>
+          </td>
         </tr>
       `).join('');
     }
@@ -5896,7 +5942,12 @@
 
       try {
         await deleteQuotationFromStorage(quotationId);
-        closeQuotationViewModal();
+
+        // Close modal if it exists (when called from within modal)
+        if (typeof closeQuotationViewModal === 'function') {
+          closeQuotationViewModal();
+        }
+
         await displayQuotations(); // Refresh the table
 
         showModal({
@@ -5909,6 +5960,159 @@
         showModal({
           title: 'Error',
           body: 'Failed to delete quotation. Please try again.',
+          buttons: [{ text: 'OK', action: 'close' }]
+        });
+      }
+    }
+
+    async function batchDeleteQuotations() {
+      const checkboxes = document.querySelectorAll('.quotation-checkbox:checked');
+      const selectedIds = Array.from(checkboxes).map(cb => cb.dataset.quotationId);
+
+      if (selectedIds.length === 0) {
+        showModal({
+          title: 'No Selection',
+          body: 'Please select at least one quotation to delete.',
+          buttons: [{ text: 'OK', action: 'close' }]
+        });
+        return;
+      }
+
+      if (!confirm(`Are you sure you want to delete ${selectedIds.length} quotation(s)? This action cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const id of selectedIds) {
+          try {
+            await deleteQuotationFromStorage(id);
+            successCount++;
+          } catch (error) {
+            console.error(`Failed to delete quotation ${id}:`, error);
+            failCount++;
+          }
+        }
+
+        await displayQuotations(); // Refresh the table
+
+        if (failCount === 0) {
+          showModal({
+            title: 'Success',
+            body: `Successfully deleted ${successCount} quotation(s).`,
+            buttons: [{ text: 'OK', action: 'close' }]
+          });
+        } else {
+          showModal({
+            title: 'Partial Success',
+            body: `Deleted ${successCount} quotation(s). Failed to delete ${failCount} quotation(s).`,
+            buttons: [{ text: 'OK', action: 'close' }]
+          });
+        }
+      } catch (error) {
+        console.error('Error in batch delete:', error);
+        showModal({
+          title: 'Error',
+          body: 'Failed to delete quotations. Please try again.',
+          buttons: [{ text: 'OK', action: 'close' }]
+        });
+      }
+    }
+
+    async function batchUpdateQuotationStatus() {
+      const checkboxes = document.querySelectorAll('.quotation-checkbox:checked');
+      const selectedIds = Array.from(checkboxes).map(cb => cb.dataset.quotationId);
+
+      if (selectedIds.length === 0) {
+        showModal({
+          title: 'No Selection',
+          body: 'Please select at least one quotation to update.',
+          buttons: [{ text: 'OK', action: 'close' }]
+        });
+        return;
+      }
+
+      // Get all quotations to find the selected ones
+      const quotations = await loadQuotationsFromStorage();
+      const selectedQuotations = quotations.filter(q => selectedIds.includes(q.id.toString()));
+
+      // Create status selection modal
+      const statusOptions = [
+        { value: 'draft', label: 'Draft' },
+        { value: 'pending', label: 'Pending' },
+        { value: 'send to customer', label: 'Send to Customer' },
+        { value: 'price confirmed', label: 'Price Confirmed' },
+        { value: 'sampling', label: 'Sampling' },
+        { value: 'sample delivered', label: 'Sample Delivered' }
+      ];
+
+      const optionsHtml = statusOptions.map(opt =>
+        `<option value="${opt.value}">${opt.label}</option>`
+      ).join('');
+
+      const modalHtml = `
+        <div style="margin-bottom:15px;">
+          <label style="display:block; margin-bottom:5px; font-weight:bold;">Select new status for ${selectedIds.length} quotation(s):</label>
+          <select id="batchStatusSelect" style="width:100%; padding:8px; border:1px solid #ccc;">
+            ${optionsHtml}
+          </select>
+        </div>
+      `;
+
+      showModal({
+        title: 'Update Status',
+        body: modalHtml,
+        buttons: [
+          {
+            text: 'Update',
+            action: async () => {
+              const newStatus = document.getElementById('batchStatusSelect').value;
+              await performBatchStatusUpdate(selectedQuotations, newStatus);
+            }
+          },
+          { text: 'Cancel', action: 'close' }
+        ]
+      });
+    }
+
+    async function performBatchStatusUpdate(quotations, newStatus) {
+      try {
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const quotation of quotations) {
+          try {
+            const updatedQuotation = { ...quotation, status: newStatus };
+            await saveQuotationToStorage(updatedQuotation);
+            successCount++;
+          } catch (error) {
+            console.error(`Failed to update quotation ${quotation.id}:`, error);
+            failCount++;
+          }
+        }
+
+        await displayQuotations(); // Refresh the table
+
+        if (failCount === 0) {
+          showModal({
+            title: 'Success',
+            body: `Successfully updated ${successCount} quotation(s) to "${newStatus}".`,
+            buttons: [{ text: 'OK', action: 'close' }]
+          });
+        } else {
+          showModal({
+            title: 'Partial Success',
+            body: `Updated ${successCount} quotation(s). Failed to update ${failCount} quotation(s).`,
+            buttons: [{ text: 'OK', action: 'close' }]
+          });
+        }
+      } catch (error) {
+        console.error('Error in batch status update:', error);
+        showModal({
+          title: 'Error',
+          body: 'Failed to update quotation status. Please try again.',
           buttons: [{ text: 'OK', action: 'close' }]
         });
       }
@@ -7397,11 +7601,23 @@
 
     async function deleteQuotationFromStorage(quotationId) {
       try {
+        console.log('Deleting quotation with ID:', quotationId);
         const response = await fetch(`/api/quotations/${quotationId}`, {
           method: 'DELETE'
         });
 
+        console.log('Delete response status:', response.status);
+        console.log('Delete response ok:', response.ok);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Delete failed with status:', response.status, 'Body:', errorText);
+          throw new Error(`Failed to delete quotation: ${response.status} ${errorText}`);
+        }
+
         const result = await response.json();
+        console.log('Delete result:', result);
+
         if (!result.success) {
           throw new Error(result.error || 'Failed to delete quotation');
         }

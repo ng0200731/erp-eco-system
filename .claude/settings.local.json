@@ -36,7 +36,10 @@
       "Bash(setx CLAUDE_CODE_GIT_BASH_PATH \"D:\\\\Program Files\\\\Git\\\\bin\\\\bash.exe\")",
       "Bash(set CLAUDE_CODE_GIT_BASH_PATH=D:Program FilesGitbinbash.exe)",
       "Bash(node:*)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(npm install:*)",
+      "Bash(npx playwright:*)",
+      "Bash(timeout 60 tail:*)"
     ]
   }
 }

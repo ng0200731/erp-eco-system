@@ -363,9 +363,15 @@ app.use('/api/profiles', profileRoutes);
 const getProfilesMemory = profileRoutes.loadProfiles;
 
 // Try initial IMAP connection now that getProfilesMemory is defined
-connectImap().catch(err => {
-  console.error('Initial IMAP connection failed:', err.message);
-});
+// Skip IMAP connection in test mode
+const isTestMode = process.env.NODE_ENV === 'test' || process.env.PLAYWRIGHT_TEST === 'true';
+if (!isTestMode) {
+  connectImap().catch(err => {
+    console.error('Initial IMAP connection failed:', err.message);
+  });
+} else {
+  console.log('Running in test mode - skipping IMAP connection');
+}
 
 // Customer routes
 const customerRoutes = createCustomerRoutes({

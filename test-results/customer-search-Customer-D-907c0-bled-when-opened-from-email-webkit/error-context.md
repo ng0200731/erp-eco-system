@@ -1,0 +1,56 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - button "Email" [ref=e5] [cursor=pointer]
+    - button "Customer" [ref=e7] [cursor=pointer]
+    - button "Task List" [ref=e8] [cursor=pointer]
+    - button "Skills" [ref=e9] [cursor=pointer]
+    - button "Quotation" [ref=e11] [cursor=pointer]
+    - button "Setting" [ref=e12] [cursor=pointer]
+    - generic [ref=e14]: v1.0.23
+  - generic [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e18] [cursor=pointer]: Welcome
+      - generic [ref=e20] [cursor=pointer]: Email (receive)
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - button "Compose" [ref=e23] [cursor=pointer]
+        - button "Refresh List" [ref=e24] [cursor=pointer]
+        - button "Send Test Email" [ref=e25] [cursor=pointer]
+        - button "Test SMTP Connection" [ref=e26] [cursor=pointer]
+      - table [ref=e27]:
+        - rowgroup [ref=e28]:
+          - row "Date Sender Subject Context Attachment" [ref=e29]:
+            - columnheader "Date" [ref=e30]
+            - columnheader "Sender" [ref=e31]
+            - columnheader "Subject" [ref=e32]
+            - columnheader "Context" [ref=e33]
+            - columnheader "Attachment" [ref=e34]
+          - row [ref=e35]:
+            - columnheader [ref=e36]:
+              - textbox "Search date..." [ref=e37]
+            - columnheader [ref=e38]:
+              - textbox "Search sender..." [ref=e39]
+            - columnheader [ref=e40]:
+              - textbox "Search subject..." [ref=e41]
+            - columnheader [ref=e42]:
+              - textbox "Search content..." [ref=e43]
+            - columnheader [ref=e44]:
+              - textbox "Search attachments..." [ref=e45]
+        - rowgroup [ref=e46]:
+          - row "1/15/2024 06:00 PM 859543169@qq.com Test Email Subject Click to view N/A" [ref=e47] [cursor=pointer]:
+            - cell "1/15/2024 06:00 PM" [ref=e48]
+            - cell "859543169@qq.com" [ref=e49]
+            - cell "Test Email Subject" [ref=e50]
+            - cell "Click to view" [ref=e51]
+            - cell "N/A" [ref=e52]
+          - row "1/16/2024 07:00 PM customer@test.com Another Test Email Click to view N/A" [ref=e53] [cursor=pointer]:
+            - cell "1/16/2024 07:00 PM" [ref=e54]
+            - cell "customer@test.com" [ref=e55]
+            - cell "Another Test Email" [ref=e56]
+            - cell "Click to view" [ref=e57]
+            - cell "N/A" [ref=e58]
+      - text: ▼
+```

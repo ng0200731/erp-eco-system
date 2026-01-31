@@ -1,0 +1,431 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - button "Email" [ref=e5] [cursor=pointer]
+    - button "Customer" [ref=e7] [cursor=pointer]
+    - button "Task List" [ref=e8] [cursor=pointer]
+    - button "Skills" [ref=e9] [cursor=pointer]
+    - button "Quotation" [ref=e11] [cursor=pointer]
+    - button "Setting" [ref=e12] [cursor=pointer]
+    - generic [ref=e14]: v1.0.23
+  - generic [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e18] [cursor=pointer]: Welcome
+      - generic [ref=e20] [cursor=pointer]: Email (send)
+    - text: ▼
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - button "Compose" [ref=e23] [cursor=pointer]
+        - button "Send Test Email" [ref=e24] [cursor=pointer]
+        - button "Test SMTP Connection" [ref=e25] [cursor=pointer]
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - heading "Sent Emails from m.yau.01@longriverlabel.com" [level=3] [ref=e28]
+          - button "Refresh" [ref=e29] [cursor=pointer]
+        - table [ref=e30]:
+          - rowgroup [ref=e31]:
+            - row "Date Sent From To Subject Status Details" [ref=e32]:
+              - columnheader "Date Sent" [ref=e33]
+              - columnheader "From" [ref=e34]
+              - columnheader "To" [ref=e35]
+              - columnheader "Subject" [ref=e36]
+              - columnheader "Status" [ref=e37]
+              - columnheader "Details" [ref=e38]
+            - row "All Status" [ref=e39]:
+              - columnheader [ref=e40]:
+                - textbox "Search date..." [ref=e41]
+              - columnheader [ref=e42]:
+                - textbox "Search sender..." [ref=e43]
+              - columnheader [ref=e44]:
+                - textbox "Search recipient..." [ref=e45]
+              - columnheader [ref=e46]:
+                - textbox "Search subject..." [ref=e47]
+              - columnheader "All Status" [ref=e48]:
+                - combobox [ref=e49]:
+                  - option "All Status" [selected]
+                  - option "Sent"
+                  - option "Failed"
+              - columnheader [ref=e50]:
+                - textbox "Search content..." [ref=e51]
+          - rowgroup [ref=e52]:
+            - 'row "1/27/2026 11:04 PM m.yau.01@longriverlabel.com eric.brilliant@gmail.com Re: Quotation - hang tag - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e53]':
+              - cell "1/27/2026 11:04 PM" [ref=e54]
+              - cell "m.yau.01@longriverlabel.com" [ref=e55]
+              - cell "eric.brilliant@gmail.com" [ref=e56]
+              - 'cell "Re: Quotation - hang tag - Quotation" [ref=e57]'
+              - cell "Sent" [ref=e58]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e59] [cursor=pointer]'
+            - 'row "1/27/2026 11:04 PM m.yau.01@longriverlabel.com eric.brilliant@gmail.com Re: Quotation - hang tag - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e60]':
+              - cell "1/27/2026 11:04 PM" [ref=e61]
+              - cell "m.yau.01@longriverlabel.com" [ref=e62]
+              - cell "eric.brilliant@gmail.com" [ref=e63]
+              - 'cell "Re: Quotation - hang tag - Quotation" [ref=e64]'
+              - cell "Sent" [ref=e65]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e66] [cursor=pointer]'
+            - 'row "1/27/2026 07:06 PM m.yau.01@longriverlabel.com eric.brilliant@gmail.com Re: QUOTTION 780-9PU - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e67]':
+              - cell "1/27/2026 07:06 PM" [ref=e68]
+              - cell "m.yau.01@longriverlabel.com" [ref=e69]
+              - cell "eric.brilliant@gmail.com" [ref=e70]
+              - 'cell "Re: QUOTTION 780-9PU - Quotation" [ref=e71]'
+              - cell "Sent" [ref=e72]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e73] [cursor=pointer]'
+            - 'row "1/26/2026 01:45 PM m.yau.01@longriverlabel.com 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e74]':
+              - cell "1/26/2026 01:45 PM" [ref=e75]
+              - cell "m.yau.01@longriverlabel.com" [ref=e76]
+              - cell "859543169@qq.com" [ref=e77]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e78]'
+              - cell "Sent" [ref=e79]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e80] [cursor=pointer]'
+            - 'row "1/26/2026 01:44 PM m.yau.01@longriverlabel.com 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e81]':
+              - cell "1/26/2026 01:44 PM" [ref=e82]
+              - cell "m.yau.01@longriverlabel.com" [ref=e83]
+              - cell "859543169@qq.com" [ref=e84]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e85]'
+              - cell "Sent" [ref=e86]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e87] [cursor=pointer]'
+            - 'row "1/25/2026 10:12 PM m.yau.01@longriverlabel.com 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e88]':
+              - cell "1/25/2026 10:12 PM" [ref=e89]
+              - cell "m.yau.01@longriverlabel.com" [ref=e90]
+              - cell "859543169@qq.com" [ref=e91]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e92]'
+              - cell "Sent" [ref=e93]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e94] [cursor=pointer]'
+            - 'row "1/25/2026 09:49 PM m.yau.01@longriverlabel.com 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e95]':
+              - cell "1/25/2026 09:49 PM" [ref=e96]
+              - cell "m.yau.01@longriverlabel.com" [ref=e97]
+              - cell "859543169@qq.com" [ref=e98]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e99]'
+              - cell "Sent" [ref=e100]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e101] [cursor=pointer]'
+            - 'row "1/25/2026 09:18 PM m.yau.01@longriverlabel.com 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e102]':
+              - cell "1/25/2026 09:18 PM" [ref=e103]
+              - cell "m.yau.01@longriverlabel.com" [ref=e104]
+              - cell "859543169@qq.com" [ref=e105]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e106]'
+              - cell "Sent" [ref=e107]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e108] [cursor=pointer]'
+            - 'row "1/25/2026 08:21 PM m.yau.01@longriverlabel.com 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e109]':
+              - cell "1/25/2026 08:21 PM" [ref=e110]
+              - cell "m.yau.01@longriverlabel.com" [ref=e111]
+              - cell "859543169@qq.com" [ref=e112]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e113]'
+              - cell "Sent" [ref=e114]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e115] [cursor=pointer]'
+            - 'row "1/25/2026 07:05 PM m.yau.01@longriverlabel.com 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e116]':
+              - cell "1/25/2026 07:05 PM" [ref=e117]
+              - cell "m.yau.01@longriverlabel.com" [ref=e118]
+              - cell "859543169@qq.com" [ref=e119]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e120]'
+              - cell "Sent" [ref=e121]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e122] [cursor=pointer]'
+            - 'row "1/25/2026 07:03 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e123]':
+              - cell "1/25/2026 07:03 PM" [ref=e124]
+              - cell "Unknown" [ref=e125]
+              - cell "859543169@qq.com" [ref=e126]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e127]'
+              - cell "Sent" [ref=e128]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e129] [cursor=pointer]'
+            - 'row "1/25/2026 06:40 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e130]':
+              - cell "1/25/2026 06:40 PM" [ref=e131]
+              - cell "Unknown" [ref=e132]
+              - cell "859543169@qq.com" [ref=e133]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e134]'
+              - cell "Sent" [ref=e135]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e136] [cursor=pointer]'
+            - 'row "1/25/2026 12:45 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e137]':
+              - cell "1/25/2026 12:45 PM" [ref=e138]
+              - cell "Unknown" [ref=e139]
+              - cell "859543169@qq.com" [ref=e140]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e141]'
+              - cell "Sent" [ref=e142]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e143] [cursor=pointer]'
+            - 'row "1/25/2026 12:03 AM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e144]':
+              - cell "1/25/2026 12:03 AM" [ref=e145]
+              - cell "Unknown" [ref=e146]
+              - cell "859543169@qq.com" [ref=e147]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e148]'
+              - cell "Sent" [ref=e149]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e150] [cursor=pointer]'
+            - 'row "1/24/2026 11:50 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e151]':
+              - cell "1/24/2026 11:50 PM" [ref=e152]
+              - cell "Unknown" [ref=e153]
+              - cell "859543169@qq.com" [ref=e154]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e155]'
+              - cell "Sent" [ref=e156]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e157] [cursor=pointer]'
+            - 'row "1/24/2026 11:47 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e158]':
+              - cell "1/24/2026 11:47 PM" [ref=e159]
+              - cell "Unknown" [ref=e160]
+              - cell "859543169@qq.com" [ref=e161]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e162]'
+              - cell "Sent" [ref=e163]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e164] [cursor=pointer]'
+            - 'row "1/24/2026 11:45 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e165]':
+              - cell "1/24/2026 11:45 PM" [ref=e166]
+              - cell "Unknown" [ref=e167]
+              - cell "859543169@qq.com" [ref=e168]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e169]'
+              - cell "Sent" [ref=e170]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e171] [cursor=pointer]'
+            - 'row "1/24/2026 11:42 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e172]':
+              - cell "1/24/2026 11:42 PM" [ref=e173]
+              - cell "Unknown" [ref=e174]
+              - cell "859543169@qq.com" [ref=e175]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e176]'
+              - cell "Sent" [ref=e177]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e178] [cursor=pointer]'
+            - 'row "1/24/2026 11:39 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e179]':
+              - cell "1/24/2026 11:39 PM" [ref=e180]
+              - cell "Unknown" [ref=e181]
+              - cell "859543169@qq.com" [ref=e182]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e183]'
+              - cell "Sent" [ref=e184]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e185] [cursor=pointer]'
+            - 'row "1/24/2026 11:36 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e186]':
+              - cell "1/24/2026 11:36 PM" [ref=e187]
+              - cell "Unknown" [ref=e188]
+              - cell "859543169@qq.com" [ref=e189]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e190]'
+              - cell "Sent" [ref=e191]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e192] [cursor=pointer]'
+            - 'row "1/24/2026 11:33 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e193]':
+              - cell "1/24/2026 11:33 PM" [ref=e194]
+              - cell "Unknown" [ref=e195]
+              - cell "859543169@qq.com" [ref=e196]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e197]'
+              - cell "Sent" [ref=e198]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e199] [cursor=pointer]'
+            - 'row "1/24/2026 11:30 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e200]':
+              - cell "1/24/2026 11:30 PM" [ref=e201]
+              - cell "Unknown" [ref=e202]
+              - cell "859543169@qq.com" [ref=e203]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e204]'
+              - cell "Sent" [ref=e205]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e206] [cursor=pointer]'
+            - 'row "1/24/2026 11:27 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e207]':
+              - cell "1/24/2026 11:27 PM" [ref=e208]
+              - cell "Unknown" [ref=e209]
+              - cell "859543169@qq.com" [ref=e210]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e211]'
+              - cell "Sent" [ref=e212]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e213] [cursor=pointer]'
+            - 'row "1/24/2026 11:19 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e214]':
+              - cell "1/24/2026 11:19 PM" [ref=e215]
+              - cell "Unknown" [ref=e216]
+              - cell "859543169@qq.com" [ref=e217]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e218]'
+              - cell "Sent" [ref=e219]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e220] [cursor=pointer]'
+            - 'row "1/24/2026 11:08 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e221]':
+              - cell "1/24/2026 11:08 PM" [ref=e222]
+              - cell "Unknown" [ref=e223]
+              - cell "859543169@qq.com" [ref=e224]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e225]'
+              - cell "Sent" [ref=e226]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e227] [cursor=pointer]'
+            - 'row "1/24/2026 11:30 AM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e228]':
+              - cell "1/24/2026 11:30 AM" [ref=e229]
+              - cell "Unknown" [ref=e230]
+              - cell "859543169@qq.com" [ref=e231]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e232]'
+              - cell "Sent" [ref=e233]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e234] [cursor=pointer]'
+            - 'row "1/24/2026 10:07 AM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e235]':
+              - cell "1/24/2026 10:07 AM" [ref=e236]
+              - cell "Unknown" [ref=e237]
+              - cell "859543169@qq.com" [ref=e238]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e239]'
+              - cell "Sent" [ref=e240]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e241] [cursor=pointer]'
+            - 'row "1/24/2026 08:52 AM Unknown contact@group.info Re: - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e242]':
+              - cell "1/24/2026 08:52 AM" [ref=e243]
+              - cell "Unknown" [ref=e244]
+              - cell "contact@group.info" [ref=e245]
+              - 'cell "Re: - Quotation" [ref=e246]'
+              - cell "Sent" [ref=e247]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e248] [cursor=pointer]'
+            - row "1/24/2026 08:45 AM Unknown eric.brilliant@gmail.com tes Sent test" [ref=e249]:
+              - cell "1/24/2026 08:45 AM" [ref=e250]
+              - cell "Unknown" [ref=e251]
+              - cell "eric.brilliant@gmail.com" [ref=e252]
+              - cell "tes" [ref=e253]
+              - cell "Sent" [ref=e254]
+              - cell "test" [ref=e255] [cursor=pointer]
+            - 'row "1/23/2026 11:59 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e256]':
+              - cell "1/23/2026 11:59 PM" [ref=e257]
+              - cell "Unknown" [ref=e258]
+              - cell "859543169@qq.com" [ref=e259]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e260]'
+              - cell "Sent" [ref=e261]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e262] [cursor=pointer]'
+            - 'row "1/23/2026 11:50 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e263]':
+              - cell "1/23/2026 11:50 PM" [ref=e264]
+              - cell "Unknown" [ref=e265]
+              - cell "859543169@qq.com" [ref=e266]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e267]'
+              - cell "Sent" [ref=e268]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e269] [cursor=pointer]'
+            - 'row "1/23/2026 11:31 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e270]':
+              - cell "1/23/2026 11:31 PM" [ref=e271]
+              - cell "Unknown" [ref=e272]
+              - cell "859543169@qq.com" [ref=e273]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e274]'
+              - cell "Sent" [ref=e275]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e276] [cursor=pointer]'
+            - row "1/23/2026 11:18 PM Unknown eric.brilliant@gmail.com test Sent test" [ref=e277]:
+              - cell "1/23/2026 11:18 PM" [ref=e278]
+              - cell "Unknown" [ref=e279]
+              - cell "eric.brilliant@gmail.com" [ref=e280]
+              - cell "test" [ref=e281]
+              - cell "Sent" [ref=e282]
+              - cell "test" [ref=e283] [cursor=pointer]
+            - 'row "1/23/2026 10:59 PM Unknown eric.brilliant@gmail.com Re: test from gmail - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e284]':
+              - cell "1/23/2026 10:59 PM" [ref=e285]
+              - cell "Unknown" [ref=e286]
+              - cell "eric.brilliant@gmail.com" [ref=e287]
+              - 'cell "Re: test from gmail - Quotation" [ref=e288]'
+              - cell "Sent" [ref=e289]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e290] [cursor=pointer]'
+            - 'row "1/23/2026 08:36 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e291]':
+              - cell "1/23/2026 08:36 PM" [ref=e292]
+              - cell "Unknown" [ref=e293]
+              - cell "859543169@qq.com" [ref=e294]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e295]'
+              - cell "Sent" [ref=e296]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e297] [cursor=pointer]'
+            - 'row "1/23/2026 07:38 PM Unknown 859543169@qq.com Re: new quotation for RUN - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e298]':
+              - cell "1/23/2026 07:38 PM" [ref=e299]
+              - cell "Unknown" [ref=e300]
+              - cell "859543169@qq.com" [ref=e301]
+              - 'cell "Re: new quotation for RUN - Quotation" [ref=e302]'
+              - cell "Sent" [ref=e303]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e304] [cursor=pointer]'
+            - 'row "1/23/2026 06:55 PM Unknown eric.brilliant@gmail.com Re: test - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e305]':
+              - cell "1/23/2026 06:55 PM" [ref=e306]
+              - cell "Unknown" [ref=e307]
+              - cell "eric.brilliant@gmail.com" [ref=e308]
+              - 'cell "Re: test - Quotation" [ref=e309]'
+              - cell "Sent" [ref=e310]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e311] [cursor=pointer]'
+            - 'row "1/23/2026 06:54 PM Unknown m.yau.01@longriverlabel.com Re: test send box - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e312]':
+              - cell "1/23/2026 06:54 PM" [ref=e313]
+              - cell "Unknown" [ref=e314]
+              - cell "m.yau.01@longriverlabel.com" [ref=e315]
+              - 'cell "Re: test send box - Quotation" [ref=e316]'
+              - cell "Sent" [ref=e317]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e318] [cursor=pointer]'
+            - 'row "1/23/2026 06:08 PM Unknown m.yau.01@longriverlabel.com Re: test from new long river office - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e319]':
+              - cell "1/23/2026 06:08 PM" [ref=e320]
+              - cell "Unknown" [ref=e321]
+              - cell "m.yau.01@longriverlabel.com" [ref=e322]
+              - 'cell "Re: test from new long river office - Quotation" [ref=e323]'
+              - cell "Sent" [ref=e324]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e325] [cursor=pointer]'
+            - 'row "1/23/2026 06:07 PM Unknown m.yau.01@longriverlabel.com Re: m.yau.01@longriverlabel.com - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e326]':
+              - cell "1/23/2026 06:07 PM" [ref=e327]
+              - cell "Unknown" [ref=e328]
+              - cell "m.yau.01@longriverlabel.com" [ref=e329]
+              - 'cell "Re: m.yau.01@longriverlabel.com - Quotation" [ref=e330]'
+              - cell "Sent" [ref=e331]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e332] [cursor=pointer]'
+            - 'row "1/23/2026 05:35 PM Unknown 859543169@qq.com Re: new quotation - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e333]':
+              - cell "1/23/2026 05:35 PM" [ref=e334]
+              - cell "Unknown" [ref=e335]
+              - cell "859543169@qq.com" [ref=e336]
+              - 'cell "Re: new quotation - Quotation" [ref=e337]'
+              - cell "Sent" [ref=e338]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e339] [cursor=pointer]'
+            - 'row "1/23/2026 05:24 PM Unknown m.yau.01@longriverlabel.com Re: m.yau.01@longriverlabel.com - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e340]':
+              - cell "1/23/2026 05:24 PM" [ref=e341]
+              - cell "Unknown" [ref=e342]
+              - cell "m.yau.01@longriverlabel.com" [ref=e343]
+              - 'cell "Re: m.yau.01@longriverlabel.com - Quotation" [ref=e344]'
+              - cell "Sent" [ref=e345]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e346] [cursor=pointer]'
+            - 'row "1/23/2026 12:39 AM Unknown m.yau.01@longriverlabel.com Re: m.yau.01@longriverlabel.com - Quotation Sent body { font-family: Arial, sans-seri..." [ref=e347]':
+              - cell "1/23/2026 12:39 AM" [ref=e348]
+              - cell "Unknown" [ref=e349]
+              - cell "m.yau.01@longriverlabel.com" [ref=e350]
+              - 'cell "Re: m.yau.01@longriverlabel.com - Quotation" [ref=e351]'
+              - cell "Sent" [ref=e352]
+              - 'cell "body { font-family: Arial, sans-seri..." [ref=e353] [cursor=pointer]'
+            - row "1/22/2026 05:55 PM Unknown m.yau.01@longriverlabel.com m.yau.01@longriverlabel.com Sent m.yau.01@longriverlabel.com" [ref=e354]:
+              - cell "1/22/2026 05:55 PM" [ref=e355]
+              - cell "Unknown" [ref=e356]
+              - cell "m.yau.01@longriverlabel.com" [ref=e357]
+              - cell "m.yau.01@longriverlabel.com" [ref=e358]
+              - cell "Sent" [ref=e359]
+              - cell "m.yau.01@longriverlabel.com" [ref=e360] [cursor=pointer]
+            - row "1/22/2026 05:55 PM Unknown 859543169@qq.com 859543169@qq.com Sent 859543169@qq.com" [ref=e361]:
+              - cell "1/22/2026 05:55 PM" [ref=e362]
+              - cell "Unknown" [ref=e363]
+              - cell "859543169@qq.com" [ref=e364]
+              - cell "859543169@qq.com" [ref=e365]
+              - cell "Sent" [ref=e366]
+              - cell "859543169@qq.com" [ref=e367] [cursor=pointer]
+            - row "1/22/2026 01:03 PM Unknown eric.brilliant@gmail.com test Sent tsestsetatate" [ref=e368]:
+              - cell "1/22/2026 01:03 PM" [ref=e369]
+              - cell "Unknown" [ref=e370]
+              - cell "eric.brilliant@gmail.com" [ref=e371]
+              - cell "test" [ref=e372]
+              - cell "Sent" [ref=e373]
+              - cell "tsestsetatate" [ref=e374] [cursor=pointer]
+            - row "1/22/2026 12:57 PM Unknown eric.brilliant@gmail.com test Sent eric.brilliant@gmail.com" [ref=e375]:
+              - cell "1/22/2026 12:57 PM" [ref=e376]
+              - cell "Unknown" [ref=e377]
+              - cell "eric.brilliant@gmail.com" [ref=e378]
+              - cell "test" [ref=e379]
+              - cell "Sent" [ref=e380]
+              - cell "eric.brilliant@gmail.com" [ref=e381] [cursor=pointer]
+            - row "1/22/2026 12:50 PM Unknown m.yau.01@longriverlabel.com m.yau.01@longriverlabel.com Sent m.yau.01@longriverlabel.comm.yau.01@longriverlabel..." [ref=e382]:
+              - cell "1/22/2026 12:50 PM" [ref=e383]
+              - cell "Unknown" [ref=e384]
+              - cell "m.yau.01@longriverlabel.com" [ref=e385]
+              - cell "m.yau.01@longriverlabel.com" [ref=e386]
+              - cell "Sent" [ref=e387]
+              - cell "m.yau.01@longriverlabel.comm.yau.01@longriverlabel..." [ref=e388] [cursor=pointer]
+            - row "1/22/2026 12:40 PM Unknown m.yau.01@longriverlabel.com m.yau.01@longriverlabel.com Sent m.yau.01@longriverlabel.com" [ref=e389]:
+              - cell "1/22/2026 12:40 PM" [ref=e390]
+              - cell "Unknown" [ref=e391]
+              - cell "m.yau.01@longriverlabel.com" [ref=e392]
+              - cell "m.yau.01@longriverlabel.com" [ref=e393]
+              - cell "Sent" [ref=e394]
+              - cell "m.yau.01@longriverlabel.com" [ref=e395] [cursor=pointer]
+            - row "1/21/2026 07:28 PM Unknown 859543169@qq.com test Sent teat" [ref=e396]:
+              - cell "1/21/2026 07:28 PM" [ref=e397]
+              - cell "Unknown" [ref=e398]
+              - cell "859543169@qq.com" [ref=e399]
+              - cell "test" [ref=e400]
+              - cell "Sent" [ref=e401]
+              - cell "teat" [ref=e402] [cursor=pointer]
+            - row "1/19/2026 04:38 PM Unknown 859543169@qq.com m send to qq Sent test qq" [ref=e403]:
+              - cell "1/19/2026 04:38 PM" [ref=e404]
+              - cell "Unknown" [ref=e405]
+              - cell "859543169@qq.com" [ref=e406]
+              - cell "m send to qq" [ref=e407]
+              - cell "Sent" [ref=e408]
+              - cell "test qq" [ref=e409] [cursor=pointer]
+            - row "1/19/2026 04:34 PM Unknown eric.brilliant@gmail.com test from m.01 Sent testt" [ref=e410]:
+              - cell "1/19/2026 04:34 PM" [ref=e411]
+              - cell "Unknown" [ref=e412]
+              - cell "eric.brilliant@gmail.com" [ref=e413]
+              - cell "test from m.01" [ref=e414]
+              - cell "Sent" [ref=e415]
+              - cell "testt" [ref=e416] [cursor=pointer]
+            - row "1/18/2026 09:41 PM Unknown m.yau.01@longriverlabel.com test send box Sent fewaefaewefaewfe" [ref=e417]:
+              - cell "1/18/2026 09:41 PM" [ref=e418]
+              - cell "Unknown" [ref=e419]
+              - cell "m.yau.01@longriverlabel.com" [ref=e420]
+              - cell "test send box" [ref=e421]
+              - cell "Sent" [ref=e422]
+              - cell "fewaefaewefaewfe" [ref=e423] [cursor=pointer]
+            - row "1/18/2026 08:33 PM Unknown m.yau.01@longriverlabel.com testtestfea Sent feawfa" [ref=e424]:
+              - cell "1/18/2026 08:33 PM" [ref=e425]
+              - cell "Unknown" [ref=e426]
+              - cell "m.yau.01@longriverlabel.com" [ref=e427]
+              - cell "testtestfea" [ref=e428]
+              - cell "Sent" [ref=e429]
+              - cell "feawfa" [ref=e430] [cursor=pointer]
+```

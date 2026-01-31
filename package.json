@@ -17,5 +17,8 @@
     "nodemailer": "^6.9.12",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0"
   }
 }
