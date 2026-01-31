@@ -568,11 +568,25 @@
 
       <!-- Welcome / future dashboard -->
       <div id="welcomePanel" style="border:1px solid #000; padding:20px; margin-bottom:20px;">
-        <h3>Welcome</h3>
-        <p class="meta">
-          This board will become the main dashboard: open tasks, follow-ups, and status overview.
-          For now, use the left menu to open <strong>Setting</strong> and configure email profiles.
-        </p>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+          <div>
+            <h3 style="margin:0;">Dashboard</h3>
+            <p class="meta" style="margin:5px 0 0 0;">Quotation Status Overview</p>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button id="viewModePie" class="page-btn" style="padding:8px 12px;" title="Pie Chart">🥧</button>
+            <button id="viewModeBar" class="page-btn" style="padding:8px 12px;" title="Bar Chart">📊</button>
+          </div>
+        </div>
+
+        <!-- Chart Container -->
+        <div id="dashboardChart" style="border:1px solid #000; padding:20px; background:#fff; min-height:400px;">
+          <div style="text-align:center; padding:50px; color:#999;">Loading quotation data...</div>
+        </div>
+
+        <!-- Legend -->
+        <div id="dashboardLegend" style="margin-top:20px; display:flex; flex-wrap:wrap; gap:15px; justify-content:center;">
+        </div>
       </div>
 
       <!-- Profiles list (landing page for settings) -->
@@ -1687,6 +1701,202 @@
       if (id === 'profiles') {
         loadProfilesList().catch(() => {});
       }
+
+      if (id === 'welcome') {
+        loadDashboardQuotations().catch(() => {});
+      }
+    }
+
+    let currentDashboardView = 'pie'; // 'pie' or 'bar'
+    let dashboardData = null;
+
+    async function loadDashboardQuotations() {
+      try {
+        const quotations = await loadQuotationsFromStorage();
+
+        // Group quotations by status and count
+        const statusCounts = {
+          'draft': 0,
+          'pending': 0,
+          'send to customer': 0,
+          'price confirmed': 0,
+          'sampling': 0,
+          'sample delivered': 0
+        };
+
+        quotations.forEach(q => {
+          const status = (q.status || 'draft').toLowerCase();
+          if (statusCounts.hasOwnProperty(status)) {
+            statusCounts[status]++;
+          }
+        });
+
+        // Calculate total and percentages
+        const total = Object.values(statusCounts).reduce((sum, count) => sum + count, 0);
+
+        dashboardData = {
+          statuses: [
+            { name: 'Draft', key: 'draft', count: statusCounts['draft'], color: '#ffc107', icon: '📝' },
+            { name: 'Pending', key: 'pending', count: statusCounts['pending'], color: '#17a2b8', icon: '⏳' },
+            { name: 'Send to Customer', key: 'send to customer', count: statusCounts['send to customer'], color: '#007bff', icon: '📧' },
+            { name: 'Price Confirmed', key: 'price confirmed', count: statusCounts['price confirmed'], color: '#28a745', icon: '✅' },
+            { name: 'Sampling', key: 'sampling', count: statusCounts['sampling'], color: '#6f42c1', icon: '🔬' },
+            { name: 'Sample Delivered', key: 'sample delivered', count: statusCounts['sample delivered'], color: '#20c997', icon: '📦' }
+          ],
+          total: total
+        };
+
+        // Calculate percentages
+        dashboardData.statuses.forEach(status => {
+          status.percentage = total > 0 ? ((status.count / total) * 100).toFixed(1) : 0;
+        });
+
+        // Render based on current view mode
+        renderDashboard();
+
+        // Set up view mode switcher buttons
+        const pieBtn = document.getElementById('viewModePie');
+        const barBtn = document.getElementById('viewModeBar');
+
+        if (pieBtn && barBtn) {
+          pieBtn.onclick = () => {
+            currentDashboardView = 'pie';
+            pieBtn.style.background = '#000';
+            pieBtn.style.color = '#fff';
+            barBtn.style.background = '#fff';
+            barBtn.style.color = '#000';
+            renderDashboard();
+          };
+
+          barBtn.onclick = () => {
+            currentDashboardView = 'bar';
+            barBtn.style.background = '#000';
+            barBtn.style.color = '#fff';
+            pieBtn.style.background = '#fff';
+            pieBtn.style.color = '#000';
+            renderDashboard();
+          };
+
+          // Set initial button states
+          pieBtn.style.background = '#000';
+          pieBtn.style.color = '#fff';
+        }
+
+      } catch (error) {
+        console.error('Error loading dashboard quotations:', error);
+        const chartContainer = document.getElementById('dashboardChart');
+        if (chartContainer) {
+          chartContainer.innerHTML = '<div style="text-align:center; padding:50px; color:#dc3545;">Error loading quotation data</div>';
+        }
+      }
+    }
+
+    function renderDashboard() {
+      if (!dashboardData) return;
+
+      if (currentDashboardView === 'pie') {
+        renderPieChart();
+      } else {
+        renderBarChart();
+      }
+
+      renderLegend();
+    }
+
+    function renderPieChart() {
+      const chartContainer = document.getElementById('dashboardChart');
+      if (!chartContainer) return;
+
+      if (dashboardData.total === 0) {
+        chartContainer.innerHTML = '<div style="text-align:center; padding:50px; color:#999;">No quotations to display</div>';
+        return;
+      }
+
+      const size = 300;
+      const centerX = size / 2;
+      const centerY = size / 2;
+      const radius = size / 2 - 20;
+
+      let currentAngle = -90; // Start from top
+      const paths = [];
+
+      dashboardData.statuses.forEach(status => {
+        if (status.count > 0) {
+          const sliceAngle = (status.count / dashboardData.total) * 360;
+          const startAngle = currentAngle;
+          const endAngle = currentAngle + sliceAngle;
+
+          const startRad = (startAngle * Math.PI) / 180;
+          const endRad = (endAngle * Math.PI) / 180;
+
+          const x1 = centerX + radius * Math.cos(startRad);
+          const y1 = centerY + radius * Math.sin(startRad);
+          const x2 = centerX + radius * Math.cos(endRad);
+          const y2 = centerY + radius * Math.sin(endRad);
+
+          const largeArc = sliceAngle > 180 ? 1 : 0;
+
+          const pathData = `M ${centerX},${centerY} L ${x1},${y1} A ${radius},${radius} 0 ${largeArc},1 ${x2},${y2} Z`;
+
+          paths.push(`<path d="${pathData}" fill="${status.color}" stroke="#fff" stroke-width="2" />`);
+
+          currentAngle = endAngle;
+        }
+      });
+
+      chartContainer.innerHTML = `
+        <div style="display:flex; justify-content:center; align-items:center; min-height:400px;">
+          <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+            ${paths.join('')}
+          </svg>
+        </div>
+      `;
+    }
+
+    function renderBarChart() {
+      const chartContainer = document.getElementById('dashboardChart');
+      if (!chartContainer) return;
+
+      if (dashboardData.total === 0) {
+        chartContainer.innerHTML = '<div style="text-align:center; padding:50px; color:#999;">No quotations to display</div>';
+        return;
+      }
+
+      const maxCount = Math.max(...dashboardData.statuses.map(s => s.count));
+      const bars = dashboardData.statuses.map(status => {
+        const barWidth = maxCount > 0 ? (status.count / maxCount) * 100 : 0;
+        return `
+          <div style="margin-bottom:15px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+              <span style="font-weight:bold;">${status.icon} ${status.name}</span>
+              <span>${status.count} (${status.percentage}%)</span>
+            </div>
+            <div style="background:#f0f0f0; height:30px; border:1px solid #ddd; position:relative;">
+              <div style="background:${status.color}; height:100%; width:${barWidth}%; transition:width 0.3s;"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      chartContainer.innerHTML = `
+        <div style="padding:20px; max-width:600px; margin:0 auto;">
+          ${bars}
+        </div>
+      `;
+    }
+
+    function renderLegend() {
+      const legendContainer = document.getElementById('dashboardLegend');
+      if (!legendContainer) return;
+
+      const legendItems = dashboardData.statuses.map(status => `
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="width:20px; height:20px; background:${status.color}; border:1px solid #000;"></div>
+          <span style="font-size:14px;">${status.icon} ${status.name}: ${status.count} (${status.percentage}%)</span>
+        </div>
+      `).join('');
+
+      legendContainer.innerHTML = legendItems;
     }
 
     // Profiles list functions
