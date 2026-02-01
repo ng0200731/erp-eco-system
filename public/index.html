@@ -569,23 +569,23 @@
       <div id="tabsBar" class="tabs-bar"></div>
 
       <!-- Welcome / future dashboard -->
-      <div id="welcomePanel" style="margin-bottom:20px; overflow:hidden; height:calc(100vh - 100px);">
+      <div id="welcomePanel" style="margin-bottom:20px; overflow:hidden; height:calc(100vh - 120px); display:flex; flex-direction:column;">
         <!-- Dashboard Header -->
-        <div style="border:1px solid #000; padding:20px 28px; margin-bottom:2px; background:#666; color:#fff;">
+        <div style="border:1px solid #000; padding:14px 20px; margin-bottom:2px; background:#666; color:#fff; flex-shrink:0;">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div>
-              <h1 style="margin:0 0 6px 0; font-size:67px; font-weight:300; letter-spacing:-0.03em; line-height:1;">Dashboard</h1>
+              <h1 style="margin:0 0 4px 0; font-size:67px; font-weight:300; letter-spacing:-0.03em; line-height:1;">Dashboard</h1>
               <p style="margin:0; font-size:23px; opacity:0.7; letter-spacing:0.05em; text-transform:uppercase;">Quotation Status Overview</p>
             </div>
             <div style="display:flex; gap:8px; margin-top:4px;">
-              <button id="viewModePie" class="page-btn" style="padding:8px 14px; font-size:21px; letter-spacing:0.1em; text-transform:uppercase;" title="Pie Chart">Pie</button>
-              <button id="viewModeBar" class="page-btn" style="padding:8px 14px; font-size:21px; letter-spacing:0.1em; text-transform:uppercase;" title="Bar Chart">Bar</button>
+              <button id="viewModePie" class="page-btn" style="padding:6px 12px; font-size:21px; letter-spacing:0.1em; text-transform:uppercase;" title="Pie Chart">Pie</button>
+              <button id="viewModeBar" class="page-btn" style="padding:6px 12px; font-size:21px; letter-spacing:0.1em; text-transform:uppercase;" title="Bar Chart">Bar</button>
             </div>
           </div>
         </div>
 
         <!-- 4-Column Grid Layout -->
-        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:2px; height:calc(100% - 90px); overflow:hidden;">
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:2px; flex:1; overflow:hidden; min-height:0;">
 
           <!-- Column 1: Pie Chart -->
           <div style="border:1px solid #000; padding:20px 18px; background:#fff; display:flex; flex-direction:column; overflow:hidden;">
