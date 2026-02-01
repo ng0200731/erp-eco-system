@@ -39,7 +39,11 @@
       "Bash(sqlite3:*)",
       "Bash(npm install:*)",
       "Bash(npx playwright:*)",
-      "Bash(timeout 60 tail:*)"
+      "Bash(timeout 60 tail:*)",
+      "Bash(python test_dashboard.py:*)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "mcp__plugin_playwright_playwright__browser_click"
     ]
   }
 }
