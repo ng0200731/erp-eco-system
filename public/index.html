@@ -571,7 +571,7 @@
       <!-- Welcome / future dashboard -->
       <div id="welcomePanel" style="margin-bottom:20px; overflow:hidden; height:calc(100vh - 100px);">
         <!-- Dashboard Header -->
-        <div style="border:1px solid #000; padding:20px 28px; margin-bottom:2px; background:#000; color:#fff;">
+        <div style="border:1px solid #000; padding:20px 28px; margin-bottom:2px; background:#666; color:#fff;">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div>
               <h1 style="margin:0 0 6px 0; font-size:32px; font-weight:300; letter-spacing:-0.03em; line-height:1;">Dashboard</h1>
@@ -605,7 +605,7 @@
               <h3 style="margin:0 0 4px 0; font-size:10px; letter-spacing:0.15em; text-transform:uppercase; font-weight:600;">Status</h3>
               <div style="width:20px; height:1px; background:#000; margin-top:6px;"></div>
             </div>
-            <div id="dashboardLegend" style="display:flex; flex-direction:column; gap:14px; flex:1; overflow-y:auto; overflow-x:hidden; min-height:0;">
+            <div id="dashboardLegend" style="display:flex; flex-direction:column; gap:8px; flex:1; overflow:hidden; min-height:0;">
             </div>
           </div>
 
@@ -882,7 +882,6 @@
                   <div>Status</div>
                   <select id="quotationFilterStatus" class="filter-input" style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
                     <option value="">All Status</option>
-                    <option value="draft">Draft</option>
                     <option value="pending">Pending</option>
                     <option value="send to customer">Send to Customer</option>
                     <option value="price confirmed">Price Confirmed</option>
@@ -1783,7 +1782,6 @@
 
         // Group quotations by status and count
         const statusCounts = {
-          'draft': 0,
           'pending': 0,
           'send to customer': 0,
           'price confirmed': 0,
@@ -1803,7 +1801,6 @@
 
         dashboardData = {
           statuses: [
-            { name: 'Draft', key: 'draft', count: statusCounts['draft'], color: '#ffc107', icon: '📝' },
             { name: 'Pending', key: 'pending', count: statusCounts['pending'], color: '#17a2b8', icon: '⏳' },
             { name: 'Send to Customer', key: 'send to customer', count: statusCounts['send to customer'], color: '#007bff', icon: '📧' },
             { name: 'Price Confirmed', key: 'price confirmed', count: statusCounts['price confirmed'], color: '#28a745', icon: '✅' },
@@ -2121,12 +2118,12 @@
       const bwColors = ['#000000', '#333333', '#666666', '#999999', '#cccccc', '#e5e5e5'];
 
       const legendItems = dashboardData.statuses.map((status, index) => `
-        <div style="display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid #f0f0f0;">
-          <div style="width:28px; height:28px; background:${bwColors[index]}; border:1px solid #000; flex-shrink:0; margin-top:2px;"></div>
+        <div style="display:flex; align-items:flex-start; gap:8px; padding:6px 0; border-bottom:1px solid #f0f0f0;">
+          <div style="width:24px; height:24px; background:${bwColors[index]}; border:1px solid #000; flex-shrink:0; margin-top:1px;"></div>
           <div style="flex:1;">
-            <div style="font-size:10px; letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin-bottom:3px;">${status.name}</div>
-            <div style="font-size:20px; font-weight:300; letter-spacing:-0.02em; line-height:1; margin-bottom:3px;">${status.count}</div>
-            <div style="font-size:11px; opacity:0.6;">${status.percentage}%</div>
+            <div style="font-size:9px; letter-spacing:0.1em; text-transform:uppercase; font-weight:600; margin-bottom:2px;">${status.name}</div>
+            <div style="font-size:18px; font-weight:300; letter-spacing:-0.02em; line-height:1; margin-bottom:2px;">${status.count}</div>
+            <div style="font-size:10px; opacity:0.6;">${status.percentage}%</div>
           </div>
         </div>
       `).join('');
