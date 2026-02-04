@@ -12,6 +12,8 @@ import {
   createSentEmail, listSentEmails, getSentEmailById, getSentEmailsCount,
   // Customer functions
   getAllCustomers, getCustomerById, createCustomer, updateCustomer, deleteCustomer, createCustomerMember, findCustomerByEmail,
+  // Supplier functions
+  getAllSuppliers, getSupplierById, createSupplier, updateSupplier, deleteSupplier, createSupplierMember, findSupplierByEmail,
   // Quotation functions
   getAllQuotations, getQuotationById, createQuotation, updateQuotation, deleteQuotation,
   // Skills functions
@@ -23,6 +25,7 @@ import { createHealthRoutes } from './routes/health.js';
 import { createTaskRoutes } from './routes/tasks.js';
 import { createProfileRoutes } from './routes/profiles.js';
 import { createCustomerRoutes } from './routes/customers.js';
+import { createSupplierRoutes } from './routes/suppliers.js';
 import { createQuotationRoutes } from './routes/quotations.js';
 import { createSkillRoutes } from './routes/skills.js';
 import { createEmailRoutes } from './routes/emails.js';
@@ -383,6 +386,17 @@ const customerRoutes = createCustomerRoutes({
   createCustomerMember
 });
 app.use('/api/customers', customerRoutes);
+
+// Supplier routes
+const supplierRoutes = createSupplierRoutes({
+  getAllSuppliers,
+  getSupplierById,
+  createSupplier,
+  updateSupplier,
+  deleteSupplier,
+  createSupplierMember
+});
+app.use('/api/suppliers', supplierRoutes);
 
 // Quotation routes
 const quotationRoutes = createQuotationRoutes({

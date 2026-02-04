@@ -146,6 +146,35 @@ async function ensureSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_quotations_dateCreated ON quotations(dateCreated DESC);
     CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name);
     CREATE INDEX IF NOT EXISTS idx_skills_status ON skills(status);
+
+    CREATE TABLE IF NOT EXISTS suppliers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      companyName TEXT NOT NULL,
+      emailDomain TEXT NOT NULL,
+      companyAddress TEXT,
+      companyTel TEXT,
+      companyType TEXT NOT NULL,
+      companyWebsite TEXT,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS supplier_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      supplierId INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      emailPrefix TEXT,
+      title TEXT,
+      tel TEXT,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL,
+      FOREIGN KEY (supplierId) REFERENCES suppliers(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_suppliers_companyName ON suppliers(companyName);
+    CREATE INDEX IF NOT EXISTS idx_suppliers_emailDomain ON suppliers(emailDomain);
+    CREATE INDEX IF NOT EXISTS idx_supplier_members_supplierId ON supplier_members(supplierId);
+    CREATE INDEX IF NOT EXISTS idx_supplier_members_name ON supplier_members(name);
   `);
 
   // Add new columns if they don't exist (for database migration)
@@ -876,6 +905,181 @@ export async function getSkillsStats() {
     inProgress: stats.inProgress || 0,
     planned: stats.planned || 0
   };
+}
+
+// ========== SUPPLIER FUNCTIONS ==========
+
+export async function createSupplier(supplierData) {
+  const db = await getTasksDb();
+  const now = new Date().toISOString();
+
+  const result = await db.run(
+    `
+      INSERT INTO suppliers (companyName, emailDomain, companyAddress, companyTel, companyType, companyWebsite, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      supplierData.companyName,
+      supplierData.emailDomain,
+      supplierData.companyAddress || null,
+      supplierData.companyTel || null,
+      supplierData.companyType,
+      supplierData.companyWebsite || null,
+      now,
+      now
+    ]
+  );
+
+  return result.lastID;
+}
+
+export async function getSupplierById(id) {
+  const db = await getTasksDb();
+  const supplier = await db.get(`SELECT * FROM suppliers WHERE id = ?`, [id]);
+
+  if (supplier) {
+    // Get members
+    const members = await db.all(`SELECT * FROM supplier_members WHERE supplierId = ? ORDER BY name`, [id]);
+    supplier.members = members;
+  }
+
+  return supplier;
+}
+
+export async function getAllSuppliers() {
+  const db = await getTasksDb();
+  const suppliers = await db.all(`SELECT * FROM suppliers ORDER BY companyName`);
+
+  // Get members for each supplier
+  for (const supplier of suppliers) {
+    const members = await db.all(`SELECT * FROM supplier_members WHERE supplierId = ? ORDER BY name`, [supplier.id]);
+    supplier.members = members;
+  }
+
+  return suppliers;
+}
+
+export async function updateSupplier(id, supplierData) {
+  const db = await getTasksDb();
+  const now = new Date().toISOString();
+
+  await db.run(
+    `
+      UPDATE suppliers
+      SET companyName = ?, emailDomain = ?, companyAddress = ?, companyTel = ?, companyType = ?, companyWebsite = ?, updatedAt = ?
+      WHERE id = ?
+    `,
+    [
+      supplierData.companyName,
+      supplierData.emailDomain,
+      supplierData.companyAddress || null,
+      supplierData.companyTel || null,
+      supplierData.companyType,
+      supplierData.companyWebsite || null,
+      now,
+      id
+    ]
+  );
+
+  return true;
+}
+
+export async function deleteSupplier(id) {
+  const db = await getTasksDb();
+  await db.run(`DELETE FROM suppliers WHERE id = ?`, [id]);
+  return true;
+}
+
+export async function createSupplierMember(supplierId, memberData) {
+  const db = await getTasksDb();
+  const now = new Date().toISOString();
+
+  const result = await db.run(
+    `
+      INSERT INTO supplier_members (supplierId, name, emailPrefix, title, tel, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      supplierId,
+      memberData.name,
+      memberData.emailPrefix || null,
+      memberData.title || null,
+      memberData.tel || null,
+      now,
+      now
+    ]
+  );
+
+  return result.lastID;
+}
+
+export async function updateSupplierMember(id, memberData) {
+  const db = await getTasksDb();
+  const now = new Date().toISOString();
+
+  await db.run(
+    `
+      UPDATE supplier_members
+      SET name = ?, emailPrefix = ?, title = ?, tel = ?, updatedAt = ?
+      WHERE id = ?
+    `,
+    [
+      memberData.name,
+      memberData.emailPrefix || null,
+      memberData.title || null,
+      memberData.tel || null,
+      now,
+      id
+    ]
+  );
+
+  return true;
+}
+
+export async function deleteSupplierMember(id) {
+  const db = await getTasksDb();
+  await db.run(`DELETE FROM supplier_members WHERE id = ?`, [id]);
+  return true;
+}
+
+export async function findSupplierByEmail(email) {
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    return null;
+  }
+
+  const db = await getTasksDb();
+  const emailParts = email.split('@');
+  const emailPrefix = emailParts[0];
+  const emailDomain = emailParts[1];
+
+  // Search by domain
+  const supplier = await db.get(
+    `SELECT * FROM suppliers WHERE emailDomain = ?`,
+    [emailDomain]
+  );
+
+  if (supplier) {
+    // Search for specific member by email prefix
+    const member = await db.get(
+      `SELECT * FROM supplier_members
+       WHERE supplierId = ? AND emailPrefix = ?`,
+      [supplier.id, emailPrefix]
+    );
+
+    // Get all members for this supplier
+    const allMembers = await db.all(
+      `SELECT * FROM supplier_members WHERE supplierId = ? ORDER BY name`,
+      [supplier.id]
+    );
+
+    return {
+      supplier,
+      member: member || null,
+      allMembers
+    };
+  }
+
+  return null;
 }
 
 

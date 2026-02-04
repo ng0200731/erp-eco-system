@@ -1,0 +1,1001 @@
+    function initializeSupplierPanel() {
+      // Reset customer data and disable member tab
+      currentSupplierData = null;
+      supplierMembersData = [];
+
+      // Disable member tab initially
+      const memberTab = document.querySelector('[data-tab="member-info"]');
+      memberTab.classList.add('tab-disabled');
+
+      // Tab switching
+      const customerTab = document.querySelector('[data-tab="customer-info"]');
+
+      customerTab.onclick = () => switchSupplierTab('customer');
+      memberTab.onclick = () => switchSupplierTab('member');
+
+      // Start with customer tab active
+      switchSupplierTab('customer');
+
+      // Form elements
+      const dummyInputBtn = document.getElementById('dummyInputBtn');
+      const saveCustomerBtn = document.getElementById('saveCustomerBtn');
+      const addMemberBtn = document.getElementById('addMemberBtn');
+      const dummyMemberBtn = document.getElementById('dummyMemberBtn');
+
+      // Dummy input functionality
+      dummyInputBtn.onclick = () => fillSupplierDummyData();
+
+      // Save customer and continue to members
+      saveCustomerBtn.onclick = () => saveSupplierInfo();
+
+      // Add member functionality
+      addMemberBtn.onclick = () => addNewSupplierMember();
+
+      // Dummy member functionality
+      dummyMemberBtn.onclick = () => addDummySupplierMember();
+
+      // File upload functionality
+      initializeSupplierFileUpload();
+    }
+
+    function switchSupplierTab(tab) {
+      const customerTab = document.querySelector('[data-tab="customer-info"]');
+      const memberTab = document.querySelector('[data-tab="member-info"]');
+
+      // Prevent switching to member tab if it's disabled
+      if (tab === 'member' && memberTab.classList.contains('tab-disabled')) {
+        return; // Do nothing if member tab is disabled
+      }
+
+      const customerInfoTab = document.getElementById('customerInfoTab');
+      const memberInfoTab = document.getElementById('memberInfoTab');
+
+      if (tab === 'customer') {
+        customerTab.classList.add('tab-active');
+        memberTab.classList.remove('tab-active');
+        customerInfoTab.style.display = 'block';
+        memberInfoTab.style.display = 'none';
+      } else {
+        customerTab.classList.remove('tab-active');
+        memberTab.classList.add('tab-active');
+        customerInfoTab.style.display = 'none';
+        memberInfoTab.style.display = 'block';
+      }
+    }
+
+    async function saveSupplierInfo() {
+      const companyName = document.getElementById('companyName').value.trim();
+      const emailDomain = document.getElementById('emailDomain').value.trim();
+      const companyAddress = document.getElementById('companyAddress').value.trim();
+      const companyTel = document.getElementById('companyTel').value.trim();
+      const companyType = document.getElementById('companyType').value;
+      const companyWebsite = document.getElementById('companyWebsite').value.trim();
+
+      // Validation
+      if (!companyName) {
+        showModal({ title: 'Validation Error', body: 'Company Name is required.' });
+        return;
+      }
+      if (!emailDomain) {
+        showModal({ title: 'Validation Error', body: 'Email Domain is required.' });
+        return;
+      }
+      if (!companyType) {
+        showModal({ title: 'Validation Error', body: 'Type is required.' });
+        return;
+      }
+
+      // Validate email domain format
+      const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/;
+      if (!domainRegex.test(emailDomain)) {
+        showModal({ title: 'Validation Error', body: 'Please enter a valid email domain (e.g., example.com).' });
+        return;
+      }
+
+      // Save customer data
+      currentSupplierData = {
+        id: Date.now(), // Simple ID based on timestamp
+        companyName,
+        emailDomain,
+        companyAddress,
+        companyTel,
+        companyType,
+        companyWebsite,
+        members: [] // Will be populated when members are saved
+      };
+
+      // Enable member tab
+      const memberTab = document.querySelector('[data-tab="member-info"]');
+      memberTab.classList.remove('tab-disabled');
+
+      // Switch to member tab
+      switchSupplierTab('member');
+
+      showModal({ title: 'Success', body: 'Customer information saved. Member tab is now enabled.' });
+    }
+
+    function addNewSupplierMember() {
+      if (!currentSupplierData) {
+        showModal({ title: 'Error', body: 'Please complete customer information first.' });
+        return;
+      }
+
+      const memberIndex = supplierMembersData.length;
+      const memberHtml = `
+        <div class="member-item" style="border:1px solid #000; padding:15px; margin-bottom:10px; background:#f9f9f9;">
+          <div class="row" style="margin-bottom:10px;">
+            <div style="flex:1;">
+              <label>Name *</label>
+              <input type="text" class="member-name" placeholder="Full Name" required>
+            </div>
+            <div style="flex:1;">
+              <label>Email *</label>
+              <div style="display:flex;">
+                <input type="text" class="member-email-prefix" placeholder="username" required style="flex:1;">
+                <span style="padding:8px; background:#eee; border:1px solid #000;">@${currentSupplierData.emailDomain}</span>
+              </div>
+            </div>
+          </div>
+          <div class="row" style="margin-bottom:10px;">
+            <div style="flex:1;">
+              <label>Title</label>
+              <input type="text" class="member-title" placeholder="Job Title">
+            </div>
+            <div style="flex:1;">
+              <label>Telephone</label>
+              <input type="tel" class="member-tel" placeholder="Phone Number">
+            </div>
+          </div>
+          <div class="row">
+            <button class="page-btn save-member-btn" data-index="${memberIndex}">Save Member</button>
+            <button class="page-btn delete-member-btn" data-index="${memberIndex}" style="margin-left:10px;">Delete</button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('membersList').insertAdjacentHTML('beforeend', memberHtml);
+
+      // Add event listeners to the new member
+      const memberDiv = document.getElementById('membersList').lastElementChild;
+      const saveBtn = memberDiv.querySelector('.save-member-btn');
+      const deleteBtn = memberDiv.querySelector('.delete-member-btn');
+
+      saveBtn.onclick = () => saveSupplierMember(memberIndex);
+      deleteBtn.onclick = () => deleteSupplierMember(memberIndex);
+
+      // Initialize with empty data
+      supplierMembersData.push({
+        name: '',
+        emailPrefix: '',
+        title: '',
+        tel: ''
+      });
+    }
+
+    async function saveSupplierMember(index) {
+      const memberDiv = document.querySelectorAll('.member-item')[index];
+      const name = memberDiv.querySelector('.member-name').value.trim();
+      const emailPrefix = memberDiv.querySelector('.member-email-prefix').value.trim();
+      const title = memberDiv.querySelector('.member-title').value.trim();
+      const tel = memberDiv.querySelector('.member-tel').value.trim();
+
+      if (!name) {
+        showModal({ title: 'Validation Error', body: 'Member name is required.' });
+        return;
+      }
+      if (!emailPrefix) {
+        showModal({ title: 'Validation Error', body: 'Member email prefix is required.' });
+        return;
+      }
+
+      supplierMembersData[index] = {
+        name,
+        emailPrefix,
+        title,
+        tel
+      };
+
+      // Update current customer with members
+      if (currentSupplierData) {
+        currentSupplierData.members = [...supplierMembersData];
+        // Save to database (this will create or update the customer)
+        await saveSupplierToStorage(currentSupplierData);
+      }
+
+      // Handle save completion with add more prompt
+      handleSupplierMemberSaveComplete(name);
+    }
+
+    function showSupplierAddMoreModal(memberName) {
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = 'Save Complete';
+
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+        content.innerHTML = `
+          Member "${memberName}" saved successfully.<br><br>
+          <strong>Do you want to add more members?</strong>
+        `;
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+
+        const yesBtn = document.createElement('button');
+        yesBtn.className = 'btn primary';
+        yesBtn.textContent = 'Yes, Add More';
+        yesBtn.onclick = () => {
+          document.body.removeChild(overlay);
+          resolve(true);
+        };
+
+        const noBtn = document.createElement('button');
+        noBtn.className = 'btn';
+        noBtn.textContent = 'No, Finish';
+        noBtn.onclick = () => {
+          document.body.removeChild(overlay);
+          resolve(false);
+        };
+
+        actions.appendChild(noBtn);
+        actions.appendChild(yesBtn);
+
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // Handle Escape key
+        const onKey = (e) => {
+          if (e.key === 'Escape') {
+            document.removeEventListener('keydown', onKey);
+            document.body.removeChild(overlay);
+            resolve(false); // Default to No on escape
+          }
+        };
+        document.addEventListener('keydown', onKey);
+      });
+    }
+
+    async function handleSupplierMemberSaveComplete(memberName) {
+      const addMore = await showSupplierAddMoreModal(memberName);
+
+      if (!addMore) {
+        // Clear all data and reset forms
+        clearAllSupplierData();
+      }
+      // If addMore is true, just close the modal and stay on the page
+    }
+
+    function clearAllSupplierData() {
+      // Reset customer data
+      currentSupplierData = null;
+      supplierMembersData = [];
+
+      // Clear customer form
+      document.getElementById('companyName').value = '';
+      document.getElementById('emailDomain').value = '';
+      document.getElementById('companyAddress').value = '';
+      document.getElementById('companyTel').value = '';
+      document.getElementById('companyType').selectedIndex = 0;
+      document.getElementById('companyWebsite').value = '';
+
+      // Clear file input
+      const fileInput = document.getElementById('companyDocs');
+      fileInput.value = '';
+
+      // Clear members list
+      document.getElementById('membersList').innerHTML = '';
+
+      // Disable member tab again
+      const memberTab = document.querySelector('[data-tab="member-info"]');
+      memberTab.classList.add('tab-disabled');
+
+      // Switch back to customer tab
+      switchSupplierTab('customer');
+
+      showModal({ title: 'Cleared', body: 'All customer and member data has been cleared.' });
+    }
+
+    function deleteSupplierMember(index) {
+      if (confirm('Are you sure you want to delete this member?')) {
+        document.querySelectorAll('.member-item')[index].remove();
+        supplierMembersData.splice(index, 1);
+        // Re-index remaining members
+        updateSupplierMemberIndices();
+      }
+    }
+
+    function updateSupplierMemberIndices() {
+      const memberItems = document.querySelectorAll('.member-item');
+      memberItems.forEach((item, index) => {
+        const saveBtn = item.querySelector('.save-member-btn');
+        const deleteBtn = item.querySelector('.delete-member-btn');
+        saveBtn.setAttribute('data-index', index);
+        deleteBtn.setAttribute('data-index', index);
+        saveBtn.onclick = () => saveSupplierMember(index);
+        deleteBtn.onclick = () => deleteSupplierMember(index);
+      });
+    }
+
+    function initializeSupplierFileUpload() {
+      const fileInput = document.getElementById('companyDocs');
+      const dropZone = fileInput.parentElement;
+
+      // Drag and drop functionality
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.background = '#e8f4f8';
+      });
+
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.style.background = '#f9f9f9';
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.background = '#f9f9f9';
+        const files = Array.from(e.dataTransfer.files);
+        handleSupplierFiles(files);
+      });
+
+      // Click to browse
+      dropZone.addEventListener('click', () => {
+        fileInput.click();
+      });
+
+      fileInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        handleSupplierFiles(files);
+      });
+
+      // Paste functionality
+      document.addEventListener('paste', (e) => {
+        if (document.activeElement.closest('#customerPanel')) {
+          const items = Array.from(e.clipboardData.items);
+          const files = items
+            .filter(item => item.kind === 'file')
+            .map(item => item.getAsFile())
+            .filter(file => file);
+          if (files.length > 0) {
+            handleSupplierFiles(files);
+          }
+        }
+      });
+    }
+
+    function handleSupplierFiles(files) {
+      console.log('Files uploaded:', files);
+      // Here you would implement actual file handling logic
+      showModal({
+        title: 'Files Uploaded',
+        body: `${files.length} file(s) uploaded successfully. File handling will be implemented in the backend.`
+      });
+    }
+
+    async function saveSupplierToStorage(customer) {
+      try {
+        let response;
+        let result;
+
+        if (customer.id) {
+          // Try to update first
+          response = await fetch(`/api/customers/${customer.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(customer)
+          });
+
+          // If customer not found (404), try to create instead
+          if (response.status === 404) {
+            console.log('Customer not found, creating new customer instead');
+            response = await fetch('/api/customers', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...customer, id: undefined }) // Remove ID for creation
+            });
+          }
+
+          result = await response.json();
+        } else {
+          // Create new customer
+          response = await fetch('/api/customers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(customer)
+          });
+          result = await response.json();
+        }
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to save customer');
+        }
+
+        // Update customer ID if it was created
+        if (result.customer && result.customer.id && !customer.id) {
+          customer.id = result.customer.id;
+        }
+
+        // Refresh autocomplete if it exists
+        if (window.customerAutocomplete) {
+          window.customerAutocomplete.refreshCustomers();
+        }
+
+        console.log('Customer saved:', result.customer);
+        return result.customer;
+      } catch (error) {
+        console.error('Error saving customer to database:', error);
+        throw error;
+      }
+    }
+
+    async function loadSuppliersFromStorage() {
+      try {
+        const response = await fetch('/api/customers');
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to load customers');
+        }
+        return result.customers || [];
+      } catch (error) {
+        console.error('Error loading customers from database:', error);
+        return [];
+      }
+    }
+
+    async function deleteSupplierFromStorage(customerId) {
+      try {
+        const response = await fetch(`/api/customers/${customerId}`, {
+          method: 'DELETE'
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to delete customer');
+        }
+
+        return true;
+      } catch (error) {
+        console.error('Error deleting customer from database:', error);
+        throw error;
+      }
+    }
+
+    async function displaySuppliers() {
+      const tbody = document.getElementById('customersTableBody');
+      const customers = await loadSuppliersFromStorage();
+
+      if (customers.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+              No customers saved yet. Create customers first.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      // Apply filters
+      const filteredCustomers = applySupplierFilters(customers);
+
+      if (filteredCustomers.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+              No customers match the current filters.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      let html = '';
+      filteredCustomers.forEach((customer, custIndex) => {
+        const membersCount = customer.members ? customer.members.length : 0;
+        const membersTooltip = customer.members && customer.members.length > 0
+          ? customer.members.map(m => `${m.name} (${m.emailPrefix}@${customer.emailDomain})`).join('\n')
+          : 'No members';
+
+        // Main customer row
+        html += `
+          <tr style="border:1px solid #000;" class="customer-row" data-cust-index="${custIndex}">
+            <td style="border:1px solid #000; padding:8px;">${escapeHtml(customer.companyName)}</td>
+            <td style="border:1px solid #000; padding:8px;">${escapeHtml(customer.companyType)}</td>
+            <td style="border:1px solid #000; padding:8px;">${escapeHtml(customer.emailDomain)}</td>
+            <td style="border:1px solid #000; padding:8px;">${escapeHtml(customer.companyTel || 'N/A')}</td>
+            <td style="border:1px solid #000; padding:8px;">${customer.companyWebsite ? `<a href="${escapeHtml(customer.companyWebsite)}" target="_blank">${escapeHtml(customer.companyWebsite)}</a>` : 'N/A'}</td>
+            <td style="border:1px solid #000; padding:8px; text-align:center;">
+              <span style="cursor:pointer;" class="customer-members-cell" title="${escapeHtml(membersTooltip)}">${membersCount}</span>
+            </td>
+            <td style="border:1px solid #000; padding:8px; text-align:right;">
+              <button class="btn" style="padding:4px 8px; font-weight:600;" data-cust-index="${custIndex}" onclick="onEditSupplierButtonClick(event)">Edit</button>
+            </td>
+          </tr>
+        `;
+
+        // Hidden members detail row (initially hidden) — include Edit button per member
+        const membersHtml = (customer.members && customer.members.length > 0) ? customer.members.map((m, mi) => {
+          const email = `${escapeHtml(m.emailPrefix)}@${escapeHtml(customer.emailDomain)}`;
+          return `<div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #eee;">` +
+                 `<div style="flex:1;"><strong>${escapeHtml(m.name)}</strong><br><small>${email}</small></div>` +
+                 `<div style="width:140px;">${escapeHtml(m.title || '')}</div>` +
+                 `<div style="width:120px;">${escapeHtml(m.tel || '')}</div>` +
+                 `<div><button class="btn member-inline-edit-btn" data-cust-index="${custIndex}" data-member-index="${mi}" style="padding:4px 8px;">Edit</button></div>` +
+                 `</div>`;
+        }).join('') : '<div style="color:#666; padding:6px 0;">No members</div>';
+
+        html += `
+          <tr class="customer-members-row" style="display:none;">
+            <td colspan="6" style="border:1px solid #000; padding:8px; background:#fff;">
+              <div style="padding:8px 0;">${membersHtml}</div>
+            </td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+
+      // Add hover effects to table rows
+      document.querySelectorAll('.customer-row').forEach(row => {
+        row.addEventListener('mouseenter', () => {
+          row.style.background = '#000';
+          row.style.color = '#fff';
+        });
+        row.addEventListener('mouseleave', () => {
+          row.style.background = '';
+          row.style.color = '';
+        });
+      });
+
+      // Add click handlers to members count spans to toggle details
+      document.querySelectorAll('.customer-members-cell').forEach((cell) => {
+        cell.addEventListener('click', (e) => {
+          const tr = cell.closest('tr');
+          const detailsRow = tr.nextElementSibling;
+          if (detailsRow && detailsRow.classList.contains('customer-members-row')) {
+            detailsRow.style.display = detailsRow.style.display === 'none' ? 'table-row' : 'none';
+          }
+        });
+      });
+
+      // Bind inline member edit buttons in the expanded member rows
+      document.querySelectorAll('.member-inline-edit-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const custIndex = parseInt(btn.getAttribute('data-cust-index'), 10);
+          const memberIndex = parseInt(btn.getAttribute('data-member-index'), 10);
+          const customers = await loadSuppliersFromStorage();
+          const customer = customers[custIndex];
+          if (!customer) return;
+          await showSupplierMemberEditForm(customer, memberIndex);
+          // refresh storage/UI
+          await displaySuppliers();
+        });
+      });
+
+      // Edit button handlers are wired via inline onclick -> onEditSupplierButtonClick
+    }
+
+    function applySupplierFilters(customers) {
+      const filters = {
+        name: document.getElementById('customerFilterName').value.toLowerCase().trim(),
+        type: document.getElementById('customerFilterType').value,
+        domain: document.getElementById('customerFilterDomain').value.toLowerCase().trim(),
+        phone: document.getElementById('customerFilterPhone').value.toLowerCase().trim(),
+        website: document.getElementById('customerFilterWebsite').value.toLowerCase().trim(),
+        members: document.getElementById('customerFilterMembers').value.toLowerCase().trim()
+      };
+
+      return customers.filter(customer => {
+        if (filters.name && !customer.companyName.toLowerCase().includes(filters.name)) return false;
+        if (filters.type && customer.companyType !== filters.type) return false;
+        if (filters.domain && !customer.emailDomain.toLowerCase().includes(filters.domain)) return false;
+        if (filters.phone && !customer.companyTel?.toLowerCase().includes(filters.phone)) return false;
+        if (filters.website && !customer.companyWebsite?.toLowerCase().includes(filters.website)) return false;
+        if (filters.members && customer.members && customer.members.length > 0) {
+          const memberNames = customer.members.map(m => m.name.toLowerCase()).join(' ');
+          if (!memberNames.includes(filters.members)) return false;
+        } else if (filters.members) {
+          return false; // No members but filter requires members
+        }
+        return true;
+      });
+    }
+
+    // Helper to escape HTML when rendering user-provided text
+    function escapeHtml(str) {
+      if (!str && str !== 0) return '';
+      return String(str).replace(/[&<>"'`=\/]/g, function (s) {
+        switch (s) {
+          case '&': return '&amp;';
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '\"': return '&quot;';
+          case '\'': return '&#39;';
+          case '/': return '&#47;';
+          case '`': return '&#96;';
+          case '=': return '&#61;';
+          default: return s;
+        }
+      });
+    }
+
+    function addDummySupplierMember() {
+      if (!currentSupplierData) {
+        showModal({ title: 'Error', body: 'Please complete customer information first.' });
+        return;
+      }
+
+      // Add a new member first
+      addNewSupplierMember();
+
+      // Get the newly added member
+      const memberItems = document.querySelectorAll('.member-item');
+      const newMember = memberItems[memberItems.length - 1];
+
+      // Fill with dummy data
+      const firstNames = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Lisa', 'Robert', 'Emily', 'James', 'Maria'];
+      const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez'];
+      const titles = ['Manager', 'Director', 'Supervisor', 'Coordinator', 'Specialist', 'Assistant', 'Officer', 'Executive', 'Analyst', 'Administrator'];
+
+      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+      const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+      const fullName = `${firstName} ${lastName}`;
+
+      // Generate username from first initial + last name
+      const username = `${firstName.charAt(0).toLowerCase()}${lastName.toLowerCase()}`;
+
+      const randomTitle = titles[Math.floor(Math.random() * titles.length)];
+
+      // Fill the form
+      newMember.querySelector('.member-name').value = fullName;
+      newMember.querySelector('.member-email-prefix').value = username;
+      newMember.querySelector('.member-title').value = randomTitle;
+
+      // Random phone number
+      const areaCode = Math.floor(Math.random() * 900) + 100;
+      const exchange = Math.floor(Math.random() * 900) + 100;
+      const number = Math.floor(Math.random() * 9000) + 1000;
+      const phoneNumber = `(${areaCode}) ${exchange}-${number}`;
+
+      newMember.querySelector('.member-tel').value = phoneNumber;
+
+      showModal({
+        title: 'Dummy Member Added',
+        body: `Member "${fullName}" with email "${username}@${currentSupplierData.emailDomain}" has been added with dummy data.`
+      });
+    }
+
+    // Choice modal: simple HTML content with option buttons
+    function showChoiceModal(title, htmlBody, options = []) {
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = title;
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+        content.innerHTML = htmlBody;
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+
+        options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.className = 'btn';
+          btn.textContent = opt.label;
+          btn.onclick = () => {
+            try { document.body.removeChild(overlay); } catch {}
+            resolve(opt.value);
+          };
+          actions.appendChild(btn);
+        });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.onclick = () => {
+          try { document.body.removeChild(overlay); } catch {}
+          resolve(null);
+        };
+        actions.appendChild(cancelBtn);
+
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+      });
+    }
+
+    // Inline onclick handler for Edit button in customer table
+    window.onEditSupplierButtonClick = async function (event) {
+      const btn = event.currentTarget;
+      const custIndex = parseInt(btn.getAttribute('data-cust-index'), 10);
+      const customers = await loadSuppliersFromStorage();
+      const customer = customers[custIndex];
+      if (!customer) return;
+
+      const choice = await showChoiceModal('Edit', '<div style=\"margin-bottom:10px;\">Choose what to edit:</div>', [
+        { label: 'Edit Company', value: 'company' },
+        { label: 'Edit Members', value: 'members' }
+      ]);
+
+      if (choice === 'company') {
+        await showSupplierEditForm(custIndex);
+        await displaySuppliers();
+      } else if (choice === 'members') {
+        await showSupplierMembersListModal(custIndex);
+        await displaySuppliers();
+      }
+    };
+
+    // Modal form to edit company details
+    async function showSupplierEditForm(custIndex) {
+      const customers = await loadSuppliersFromStorage();
+      const customer = customers[custIndex];
+      if (!customer) return;
+
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = 'Edit Company';
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+
+        content.innerHTML = `
+          <div style="display:grid; gap:8px;">
+            <label style="font-weight:700;">Company Name</label>
+            <input id="editCompanyName" type="text" value="${escapeHtml(customer.companyName || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Company Type</label>
+            <input id="editCompanyType" type="text" value="${escapeHtml(customer.companyType || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Email Domain</label>
+            <input id="editEmailDomain" type="text" value="${escapeHtml(customer.emailDomain || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Telephone</label>
+            <input id="editCompanyTel" type="text" value="${escapeHtml(customer.companyTel || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Website</label>
+            <input id="editCompanyWebsite" type="text" value="${escapeHtml(customer.companyWebsite || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+          </div>
+        `;
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn';
+        cancelBtn.textContent = 'Cancel';
+        const okBtn = document.createElement('button');
+        okBtn.className = 'btn primary';
+        okBtn.textContent = 'Save';
+
+        cancelBtn.onclick = () => { try { document.body.removeChild(overlay); } catch {} resolve(false); };
+        okBtn.onclick = async () => {
+          customer.companyName = document.getElementById('editCompanyName').value.trim();
+          customer.companyType = document.getElementById('editCompanyType').value.trim();
+          customer.emailDomain = document.getElementById('editEmailDomain').value.trim();
+          customer.companyTel = document.getElementById('editCompanyTel').value.trim();
+          customer.companyWebsite = document.getElementById('editCompanyWebsite').value.trim();
+          try {
+            await saveSupplierToStorage(customer);
+            try { document.body.removeChild(overlay); } catch {}
+            resolve(true);
+          } catch (err) {
+            showModal({ title: 'Error', body: 'Failed to save company: ' + (err.message || err) });
+          }
+        };
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(okBtn);
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+      });
+    }
+
+    // Modal to list members and allow editing individual member
+    async function showSupplierMembersListModal(custIndex) {
+      const customers = await loadSuppliersFromStorage();
+      const customer = customers[custIndex];
+      if (!customer) return;
+
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = 'Edit Members';
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+
+        const listHtml = (customer.members && customer.members.length > 0) ? customer.members.map((m, idx) => {
+          return `<div style="display:flex; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid #eee;">
+                    <div style="flex:1;"><strong>${escapeHtml(m.name)}</strong><br><small>${escapeHtml(m.emailPrefix)}@${escapeHtml(customer.emailDomain)}</small></div>
+                    <div><button class="btn edit-member-btn" data-member-index="${idx}">Edit</button></div>
+                  </div>`;
+        }).join('') : '<div style="color:#666;">No members</div>';
+
+        content.innerHTML = `<div>${listHtml}</div>`;
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'btn';
+        closeBtn.textContent = 'Close';
+        closeBtn.onclick = () => { try { document.body.removeChild(overlay); } catch {} resolve(false); };
+        actions.appendChild(closeBtn);
+
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // attach handlers to edit buttons
+        content.querySelectorAll('.edit-member-btn').forEach(btn => {
+          btn.onclick = async (e) => {
+            const memberIndex = parseInt(btn.getAttribute('data-member-index'), 10);
+            await showSupplierMemberEditForm(customer, memberIndex);
+            // refresh list UI
+            const updatedCustomers = await loadSuppliersFromStorage();
+            const updatedCustomer = updatedCustomers[custIndex];
+            customer.members = updatedCustomer.members || [];
+            content.querySelector('div').innerHTML = (customer.members.length > 0) ? customer.members.map((m, idx) => {
+              return `<div style="display:flex; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid #eee;">
+                        <div style="flex:1;"><strong>${escapeHtml(m.name)}</strong><br><small>${escapeHtml(m.emailPrefix)}@${escapeHtml(customer.emailDomain)}</small></div>
+                        <div><button class="btn edit-member-btn" data-member-index="${idx}">Edit</button></div>
+                      </div>`;
+            }).join('') : '<div style="color:#666;">No members</div>';
+
+            // re-bind new buttons
+            content.querySelectorAll('.edit-member-btn').forEach(btn2 => {
+              btn2.onclick = async () => {
+                const mi = parseInt(btn2.getAttribute('data-member-index'), 10);
+                await showSupplierMemberEditForm(customer, mi);
+                await saveSupplierToStorage(customer);
+              };
+            });
+          };
+        });
+      });
+    }
+
+    // Modal to edit a single member object (in-place)
+    function showSupplierMemberEditForm(customer, memberIndex) {
+      return new Promise((resolve) => {
+        const member = customer.members[memberIndex];
+        if (!member) return resolve(false);
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = 'Edit Member';
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+
+        content.innerHTML = `
+          <div style="display:grid; gap:8px;">
+            <label style="font-weight:700;">Full Name</label>
+            <input id="editMemberName" type="text" value="${escapeHtml(member.name || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Email Prefix</label>
+            <input id="editMemberEmail" type="text" value="${escapeHtml(member.emailPrefix || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Title</label>
+            <input id="editMemberTitle" type="text" value="${escapeHtml(member.title || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Telephone</label>
+            <input id="editMemberTel" type="text" value="${escapeHtml(member.tel || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+          </div>
+        `;
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn';
+        cancelBtn.textContent = 'Cancel';
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'btn primary';
+        saveBtn.textContent = 'Save';
+
+        cancelBtn.onclick = () => { try { document.body.removeChild(overlay); } catch {} resolve(false); };
+        saveBtn.onclick = async () => {
+          member.name = document.getElementById('editMemberName').value.trim();
+          member.emailPrefix = document.getElementById('editMemberEmail').value.trim();
+          member.title = document.getElementById('editMemberTitle').value.trim();
+          member.tel = document.getElementById('editMemberTel').value.trim();
+          try {
+            await saveSupplierToStorage(customer);
+            try { document.body.removeChild(overlay); } catch {}
+            resolve(true);
+          } catch (err) {
+            showModal({ title: 'Error', body: 'Failed to save member: ' + (err.message || err) });
+          }
+        };
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(saveBtn);
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+      });
+    }
+
+    function fillSupplierDummyData() {
+      // Company names
+      const companyNames = [
+        'ABC Corporation', 'Global Industries Ltd', 'Tech Solutions Inc',
+        'Manufacturing Co', 'Trading Company LLC', 'International Group',
+        'Premier Enterprises', 'Quality Products Corp', 'Advanced Systems Ltd'
+      ];
+
+      // Email domains
+      const domains = [
+        'company.com', 'corp.net', 'industries.org', 'solutions.biz',
+        'group.info', 'enterprises.co', 'products.com', 'systems.net'
+      ];
+
+      // Cities for addresses
+      const cities = [
+        'New York, NY', 'Los Angeles, CA', 'Chicago, IL', 'Houston, TX',
+        'Phoenix, AZ', 'Philadelphia, PA', 'San Antonio, TX', 'San Diego, CA',
+        'Dallas, TX', 'San Jose, CA', 'Austin, TX', 'Jacksonville, FL'
+      ];
+
+      // Phone numbers
+      const generatePhone = () => {
+        const areaCode = Math.floor(Math.random() * 900) + 100;
+        const exchange = Math.floor(Math.random() * 900) + 100;
+        const number = Math.floor(Math.random() * 9000) + 1000;
+        return `(${areaCode}) ${exchange}-${number}`;
+      };
+
+      // Websites
+      const websites = [
+        'www.companywebsite.com', 'corporate.site.net', 'business.online.org',
+        'enterprise.web.biz', 'firm.digital.info', 'corp.portal.co'
+      ];
+
+      // Fill form with random data
+      document.getElementById('companyName').value =
+        companyNames[Math.floor(Math.random() * companyNames.length)];
+
+      document.getElementById('emailDomain').value =
+        domains[Math.floor(Math.random() * domains.length)];
+
+      document.getElementById('companyAddress').value =
+        `${Math.floor(Math.random() * 999) + 1} Business St, ${cities[Math.floor(Math.random() * cities.length)]}`;
+
+      document.getElementById('companyTel').value = generatePhone();
+
+      // Random type selection
+      const typeSelect = document.getElementById('companyType');
+      const randomType = Math.random() < 0.5 ? 'buyer' : 'agent';
+      typeSelect.value = randomType;
+
+      document.getElementById('companyWebsite').value =
+        websites[Math.floor(Math.random() * websites.length)];
+
+      showModal({
+        title: 'Dummy Data Filled',
+        body: 'Form has been populated with random test data. You can now save or modify as needed.'
+      });
+    }

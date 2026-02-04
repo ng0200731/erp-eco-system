@@ -550,6 +550,13 @@
           <button id="customerViewBtn" class="submenu-btn">View</button>
         </div>
       </div>
+      <div class="menu-group">
+        <button id="menuSupplier" class="page-btn" data-short="S" data-full="Supplier">S</button>
+        <div id="supplierSubmenu" class="submenu" style="display:none;">
+          <button id="supplierCreateBtn" class="submenu-btn">Create</button>
+          <button id="supplierViewBtn" class="submenu-btn">View</button>
+        </div>
+      </div>
       <button id="menuTasks" class="page-btn" data-short="T" data-full="Task List">T</button>
       <button id="menuSkills" class="page-btn" data-short="K" data-full="Skills">K</button>
       <div class="menu-group">
@@ -569,17 +576,16 @@
       <div id="tabsBar" class="tabs-bar"></div>
 
       <!-- Welcome / future dashboard -->
-      <div id="welcomePanel" style="margin-bottom:20px; overflow:hidden; height:calc(100vh - 120px); display:flex; flex-direction:column;">
+      <div id="welcomePanel" style="overflow:hidden; height:calc(100vh - 80px); display:flex; flex-direction:column;">
         <!-- Dashboard Header -->
-        <div style="border:1px solid #000; padding:14px 20px; margin-bottom:2px; background:#666; color:#fff; flex-shrink:0;">
+        <div style="border:1px solid #000; padding:8px 12px; margin-bottom:2px; background:#666; color:#fff; flex-shrink:0;">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div>
-              <h1 style="margin:0 0 4px 0; font-size:67px; font-weight:300; letter-spacing:-0.03em; line-height:1;">Dashboard</h1>
-              <p style="margin:0; font-size:23px; opacity:0.7; letter-spacing:0.05em; text-transform:uppercase;">Quotation Status Overview</p>
+              <h1 style="margin:0; font-size:36px; font-weight:300; letter-spacing:-0.03em; line-height:1;">Dashboard.hello</h1>
             </div>
-            <div style="display:flex; gap:8px; margin-top:4px;">
-              <button id="viewModePie" class="page-btn" style="padding:6px 12px; font-size:21px; letter-spacing:0.1em; text-transform:uppercase;" title="Pie Chart">Pie</button>
-              <button id="viewModeBar" class="page-btn" style="padding:6px 12px; font-size:21px; letter-spacing:0.1em; text-transform:uppercase;" title="Bar Chart">Bar</button>
+            <div style="display:flex; gap:4px; margin-top:2px;">
+              <button id="viewModePie" class="page-btn" style="padding:4px 8px; font-size:13px; letter-spacing:0.1em; text-transform:uppercase;" title="Pie Chart">Pie</button>
+              <button id="viewModeBar" class="page-btn" style="padding:4px 8px; font-size:13px; letter-spacing:0.1em; text-transform:uppercase;" title="Bar Chart">Bar</button>
             </div>
           </div>
         </div>
@@ -814,6 +820,158 @@
               <tr>
                 <td colspan="7" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
                   No customers saved yet. Create customers first.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Supplier board -->
+      <div id="supplierPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
+        <!-- Supplier Tabs -->
+        <div class="tabs-bar" style="margin-bottom:20px;">
+          <div class="tab tab-active" data-tab="supplier-info">Supplier</div>
+          <div class="tab tab-disabled" data-tab="supplier-member-info">Member</div>
+        </div>
+
+        <!-- Supplier Info Tab -->
+        <div id="supplierInfoTab" style="display:block;">
+          <form id="supplierForm">
+            <div class="row" style="margin-bottom:15px;">
+              <div style="flex:1;">
+                <label for="supplierCompanyName">Company Name *</label>
+                <input id="supplierCompanyName" type="text" required style="width:100%;">
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:15px;">
+              <div style="flex:1;">
+                <label for="supplierEmailDomain">Email Domain *</label>
+                <input id="supplierEmailDomain" type="text" placeholder="example.com" required style="width:100%;">
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:15px;">
+              <div style="flex:1;">
+                <label for="supplierCompanyAddress">Address</label>
+                <textarea id="supplierCompanyAddress" style="width:100%; min-height:60px;"></textarea>
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:15px;">
+              <div style="flex:1;">
+                <label for="supplierCompanyTel">Telephone</label>
+                <input id="supplierCompanyTel" type="tel" style="width:100%;">
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:15px;">
+              <div style="flex:1;">
+                <label for="supplierCompanyType">Type *</label>
+                <select id="supplierCompanyType" required style="width:100%; padding:8px; border:1px solid #000; background:#fff;">
+                  <option value="">Select Type</option>
+                  <option value="hang_tag">Hang Tag</option>
+                  <option value="woven_label">Woven Label</option>
+                  <option value="care_label">Care Label</option>
+                  <option value="transfer">Transfer</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:15px;">
+              <div style="flex:1;">
+                <label for="supplierCompanyWebsite">Website</label>
+                <input id="supplierCompanyWebsite" type="url" placeholder="https://www.example.com" style="width:100%;">
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:15px;">
+              <div style="flex:1;">
+                <label for="supplierCompanyDocs">Documents</label>
+                <div style="border:2px dashed #ccc; padding:20px; text-align:center; background:#f9f9f9;">
+                  <p>Drag & drop files here, or click to browse</p>
+                  <input id="supplierCompanyDocs" type="file" multiple style="margin-top:10px;">
+                  <p style="font-size:0.8em; color:#666; margin-top:10px;">
+                    Support: Browse, Copy & Paste, Drag & Drop
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <button type="button" id="supplierDummyInputBtn" class="page-btn" style="margin-right:10px;">Dummy Input</button>
+              <button type="button" id="saveSupplierBtn" class="page-btn">Save & Continue to Members</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Member Info Tab -->
+        <div id="supplierMemberInfoTab" style="display:none;">
+          <div style="margin-bottom:15px;">
+            <button id="addSupplierMemberBtn" class="page-btn">+ Add Member</button>
+            <button id="dummySupplierMemberBtn" class="page-btn" style="margin-left:10px;">Dummy Input</button>
+          </div>
+
+          <div id="supplierMembersList">
+            <!-- Members will be added here dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Supplier View board -->
+      <div id="supplierViewPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
+        <div style="margin-bottom:15px;">
+          <button id="refreshSuppliersBtn" class="page-btn">Refresh List</button>
+        </div>
+
+
+        <!-- Supplier Table -->
+        <div id="suppliersTableContainer">
+          <table id="suppliersTable" style="width:100%; border-collapse:collapse; border:1px solid #000;">
+            <thead>
+              <tr style="background:#f8f8f8;">
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Company Name</div>
+                  <input type="text" id="supplierFilterName" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Type</div>
+                  <select id="supplierFilterType" class="filter-input" style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                    <option value="">All Types</option>
+                    <option value="hang_tag">Hang Tag</option>
+                    <option value="woven_label">Woven Label</option>
+                    <option value="care_label">Care Label</option>
+                    <option value="transfer">Transfer</option>
+                    <option value="other">Other</option>
+                  </select>
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Email Domain</div>
+                  <input type="text" id="supplierFilterDomain" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Phone</div>
+                  <input type="text" id="supplierFilterPhone" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Website</div>
+                  <input type="text" id="supplierFilterWebsite" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Members</div>
+                  <input type="text" id="supplierFilterMembers" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Action</div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="suppliersTableBody">
+              <tr>
+                <td colspan="7" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+                  No suppliers saved yet. Create suppliers first.
                 </td>
               </tr>
             </tbody>
@@ -1761,6 +1919,8 @@
       document.getElementById('email-send').style.display = id === 'email-send' ? 'block' : 'none';
       document.getElementById('customerPanel').style.display = id === 'customer' ? 'block' : 'none';
       document.getElementById('customerViewPanel').style.display = id === 'customer-view' ? 'block' : 'none';
+      document.getElementById('supplierPanel').style.display = id === 'supplier' ? 'block' : 'none';
+      document.getElementById('supplierViewPanel').style.display = id === 'supplier-view' ? 'block' : 'none';
       document.getElementById('tasksPanel').style.display = id === 'tasks' ? 'block' : 'none';
       document.getElementById('skillsPanel').style.display = id === 'skills' ? 'block' : 'none';
       document.getElementById('quotationPanel').style.display = id === 'quotation' ? 'block' : 'none';
@@ -2466,6 +2626,41 @@
       initializeCustomerViewPanel();
     };
 
+    // Menu click: toggle supplier submenu
+    const menuSupplierBtn = document.getElementById('menuSupplier');
+    menuSupplierBtn.onclick = () => {
+      const submenu = document.getElementById('supplierSubmenu');
+      const isVisible = submenu.style.display !== 'none';
+
+      // Hide all other submenus first
+      document.querySelectorAll('.submenu').forEach(sub => {
+        sub.style.display = 'none';
+      });
+
+      // Toggle this submenu
+      submenu.style.display = isVisible ? 'none' : 'block';
+    };
+
+    // Supplier submenu buttons
+    const supplierCreateBtn = document.getElementById('supplierCreateBtn');
+    const supplierViewBtn = document.getElementById('supplierViewBtn');
+
+    supplierCreateBtn.onclick = () => {
+      // Hide submenu and go to supplier creation
+      document.getElementById('supplierSubmenu').style.display = 'none';
+      ensureTab('supplier', 'Supplier (Create)');
+      activateTab('supplier');
+      initializeSupplierPanel();
+    };
+
+    supplierViewBtn.onclick = () => {
+      // Hide submenu and go to supplier view
+      document.getElementById('supplierSubmenu').style.display = 'none';
+      ensureTab('supplier-view', 'Supplier (View)');
+      activateTab('supplier-view');
+      initializeSupplierViewPanel();
+    };
+
     // Email submenu buttons
     const emailReceiveBtn = document.getElementById('emailReceiveBtn');
     const emailSendBtn = document.getElementById('emailSendBtn');
@@ -2494,6 +2689,7 @@
     sidebar.onmouseenter = () => {
       menuEmailBtn.textContent = menuEmailBtn.dataset.full || 'Email';
       menuCustomerBtn.textContent = menuCustomerBtn.dataset.full || 'Customer';
+      menuSupplierBtn.textContent = menuSupplierBtn.dataset.full || 'Supplier';
       menuSettingsBtn.textContent = menuSettingsBtn.dataset.full || 'Setting';
       menuTasksBtn.textContent = menuTasksBtn.dataset.full || 'Task List';
       menuSkillsBtn.textContent = menuSkillsBtn.dataset.full || 'Skills';
@@ -2502,6 +2698,7 @@
     sidebar.onmouseleave = () => {
       menuEmailBtn.textContent = menuEmailBtn.dataset.short || 'E';
       menuCustomerBtn.textContent = menuCustomerBtn.dataset.short || 'C';
+      menuSupplierBtn.textContent = menuSupplierBtn.dataset.short || 'S';
       menuSettingsBtn.textContent = menuSettingsBtn.dataset.short || 'S';
       menuTasksBtn.textContent = menuTasksBtn.dataset.short || 'T';
       menuSkillsBtn.textContent = menuSkillsBtn.dataset.short || 'K';
@@ -4747,6 +4944,11 @@
     let membersData = [];
     let savedCustomers = []; // Store all saved customers
 
+    // Supplier data storage
+    let currentSupplierData = null;
+    let supplierMembersData = [];
+    let savedSuppliers = []; // Store all saved suppliers
+
     function initializeCustomerPanel() {
       // Reset customer data and disable member tab
       currentCustomerData = null;
@@ -5773,6 +5975,923 @@
       if (fileName.includes('.txt')) return '📄';
       if (fileName.includes('.jpg') || fileName.includes('.jpeg') || fileName.includes('.png') || fileName.includes('.gif')) return '🖼️';
       return '📄';
+    }
+
+    // Supplier Panel Functions
+    function initializeSupplierPanel() {
+      // Reset supplier data and disable member tab
+      currentSupplierData = null;
+      supplierMembersData = [];
+
+      // Disable member tab initially
+      const memberTab = document.querySelector('[data-tab="supplier-member-info"]');
+      memberTab.classList.add('tab-disabled');
+
+      // Tab switching
+      const supplierTab = document.querySelector('[data-tab="supplier-info"]');
+
+      supplierTab.onclick = () => switchSupplierTab('supplier');
+      memberTab.onclick = () => switchSupplierTab('member');
+
+      // Start with supplier tab active
+      switchSupplierTab('supplier');
+
+      // Form elements
+      const dummyInputBtn = document.getElementById('supplierDummyInputBtn');
+      const saveSupplierBtn = document.getElementById('saveSupplierBtn');
+      const addMemberBtn = document.getElementById('addSupplierMemberBtn');
+      const dummyMemberBtn = document.getElementById('dummySupplierMemberBtn');
+
+      // Dummy input functionality
+      dummyInputBtn.onclick = () => fillSupplierDummyData();
+
+      // Save supplier and continue to members
+      saveSupplierBtn.onclick = () => saveSupplierInfo();
+
+      // Add member functionality
+      addMemberBtn.onclick = () => addNewSupplierMember();
+
+      // Dummy member functionality
+      dummyMemberBtn.onclick = () => addDummySupplierMember();
+
+      // File upload functionality
+      initializeSupplierFileUpload();
+    }
+
+    function switchSupplierTab(tab) {
+      const supplierTab = document.querySelector('[data-tab="supplier-info"]');
+      const memberTab = document.querySelector('[data-tab="supplier-member-info"]');
+
+      // Prevent switching to member tab if it's disabled
+      if (tab === 'member' && memberTab.classList.contains('tab-disabled')) {
+        return; // Do nothing if member tab is disabled
+      }
+
+      const supplierInfoTab = document.getElementById('supplierInfoTab');
+      const memberInfoTab = document.getElementById('supplierMemberInfoTab');
+
+      if (tab === 'supplier') {
+        supplierTab.classList.add('tab-active');
+        memberTab.classList.remove('tab-active');
+        supplierInfoTab.style.display = 'block';
+        memberInfoTab.style.display = 'none';
+      } else {
+        supplierTab.classList.remove('tab-active');
+        memberTab.classList.add('tab-active');
+        supplierInfoTab.style.display = 'none';
+        memberInfoTab.style.display = 'block';
+      }
+    }
+
+    function fillSupplierDummyData() {
+      document.getElementById('supplierCompanyName').value = 'SUPPLIER-ABC Manufacturing Co.';
+      document.getElementById('supplierEmailDomain').value = 'abcmfg.com';
+      document.getElementById('supplierCompanyAddress').value = '123 Industrial Park, Shenzhen, China';
+      document.getElementById('supplierCompanyTel').value = '+86-755-12345678';
+      document.getElementById('supplierCompanyType').value = 'hang_tag';
+      document.getElementById('supplierCompanyWebsite').value = 'https://www.abcmfg.com';
+    }
+
+    async function saveSupplierInfo() {
+      const companyName = document.getElementById('supplierCompanyName').value.trim();
+      const emailDomain = document.getElementById('supplierEmailDomain').value.trim();
+      const companyAddress = document.getElementById('supplierCompanyAddress').value.trim();
+      const companyTel = document.getElementById('supplierCompanyTel').value.trim();
+      const companyType = document.getElementById('supplierCompanyType').value;
+      const companyWebsite = document.getElementById('supplierCompanyWebsite').value.trim();
+
+      // Validation
+      if (!companyName) {
+        showModal({ title: 'Validation Error', body: 'Company Name is required.' });
+        return;
+      }
+      if (!emailDomain) {
+        showModal({ title: 'Validation Error', body: 'Email Domain is required.' });
+        return;
+      }
+      if (!companyType) {
+        showModal({ title: 'Validation Error', body: 'Type is required.' });
+        return;
+      }
+
+      // Validate email domain format
+      const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/;
+      if (!domainRegex.test(emailDomain)) {
+        showModal({ title: 'Validation Error', body: 'Please enter a valid email domain (e.g., example.com).' });
+        return;
+      }
+
+      // Save supplier data
+      currentSupplierData = {
+        id: Date.now(), // Simple ID based on timestamp
+        companyName,
+        emailDomain,
+        companyAddress,
+        companyTel,
+        companyType,
+        companyWebsite,
+        members: [] // Will be populated when members are saved
+      };
+
+      // Enable member tab
+      const memberTab = document.querySelector('[data-tab="supplier-member-info"]');
+      memberTab.classList.remove('tab-disabled');
+
+      // Switch to member tab
+      switchSupplierTab('member');
+
+      showModal({ title: 'Success', body: 'Supplier information saved. Member tab is now enabled.' });
+    }
+
+    function addNewSupplierMember() {
+      if (!currentSupplierData) {
+        showModal({ title: 'Error', body: 'Please complete supplier information first.' });
+        return;
+      }
+
+      const memberIndex = supplierMembersData.length;
+      const memberHtml = `
+        <div class="supplier-member-item" style="border:1px solid #000; padding:15px; margin-bottom:10px; background:#f9f9f9;">
+          <div class="row" style="margin-bottom:10px;">
+            <div style="flex:1;">
+              <label>Name *</label>
+              <input type="text" class="supplier-member-name" placeholder="Full Name" required>
+            </div>
+            <div style="flex:1;">
+              <label>Email *</label>
+              <div style="display:flex;">
+                <input type="text" class="supplier-member-email-prefix" placeholder="username" required style="flex:1;">
+                <span style="padding:8px; background:#eee; border:1px solid #000;">@${currentSupplierData.emailDomain}</span>
+              </div>
+            </div>
+          </div>
+          <div class="row" style="margin-bottom:10px;">
+            <div style="flex:1;">
+              <label>Title</label>
+              <input type="text" class="supplier-member-title" placeholder="Job Title">
+            </div>
+            <div style="flex:1;">
+              <label>Telephone</label>
+              <input type="tel" class="supplier-member-tel" placeholder="Phone Number">
+            </div>
+          </div>
+          <div class="row">
+            <button class="page-btn save-supplier-member-btn" data-index="${memberIndex}">Save Member</button>
+            <button class="page-btn delete-supplier-member-btn" data-index="${memberIndex}" style="margin-left:10px;">Delete</button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('supplierMembersList').insertAdjacentHTML('beforeend', memberHtml);
+
+      // Add event listeners to the new member
+      const memberDiv = document.getElementById('supplierMembersList').lastElementChild;
+      const saveBtn = memberDiv.querySelector('.save-supplier-member-btn');
+      const deleteBtn = memberDiv.querySelector('.delete-supplier-member-btn');
+
+      saveBtn.onclick = () => saveSupplierMember(memberIndex);
+      deleteBtn.onclick = () => deleteSupplierMember(memberIndex);
+
+      // Initialize with empty data
+      supplierMembersData.push({
+        name: '',
+        emailPrefix: '',
+        title: '',
+        tel: ''
+      });
+    }
+
+    function addDummySupplierMember() {
+      addNewSupplierMember();
+      const memberDiv = document.getElementById('supplierMembersList').lastElementChild;
+      memberDiv.querySelector('.supplier-member-name').value = 'SUPPLIER-John Smith';
+      memberDiv.querySelector('.supplier-member-email-prefix').value = 'john.smith';
+      memberDiv.querySelector('.supplier-member-title').value = 'Sales Manager';
+      memberDiv.querySelector('.supplier-member-tel').value = '+86-755-87654321';
+    }
+
+    async function saveSupplierMember(index) {
+      const memberDiv = document.querySelectorAll('.supplier-member-item')[index];
+      const name = memberDiv.querySelector('.supplier-member-name').value.trim();
+      const emailPrefix = memberDiv.querySelector('.supplier-member-email-prefix').value.trim();
+      const title = memberDiv.querySelector('.supplier-member-title').value.trim();
+      const tel = memberDiv.querySelector('.supplier-member-tel').value.trim();
+
+      if (!name) {
+        showModal({ title: 'Validation Error', body: 'Member name is required.' });
+        return;
+      }
+      if (!emailPrefix) {
+        showModal({ title: 'Validation Error', body: 'Member email prefix is required.' });
+        return;
+      }
+
+      supplierMembersData[index] = {
+        name,
+        emailPrefix,
+        title,
+        tel
+      };
+
+      // Update current supplier with members
+      if (currentSupplierData) {
+        currentSupplierData.members = [...supplierMembersData];
+        // Save to database (this will create or update the supplier)
+        await saveSupplierToStorage(currentSupplierData);
+      }
+
+      // Handle save completion with add more prompt
+      handleSupplierMemberSaveComplete(name);
+    }
+
+    async function handleSupplierMemberSaveComplete(memberName) {
+      const addMore = await showSupplierAddMoreModal(memberName);
+
+      if (!addMore) {
+        // Clear all data and reset forms
+        clearAllSupplierData();
+      }
+      // If addMore is true, just close the modal and stay on the page
+    }
+
+    function showSupplierAddMoreModal(memberName) {
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = 'Save Complete';
+
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+        content.innerHTML = `
+          Member "${memberName}" saved successfully.<br><br>
+          <strong>Do you want to add more members?</strong>
+        `;
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+
+        const yesBtn = document.createElement('button');
+        yesBtn.className = 'btn primary';
+        yesBtn.textContent = 'Yes, Add More';
+        yesBtn.onclick = () => {
+          document.body.removeChild(overlay);
+          resolve(true);
+        };
+
+        const noBtn = document.createElement('button');
+        noBtn.className = 'btn';
+        noBtn.textContent = 'No, Finish';
+        noBtn.onclick = () => {
+          document.body.removeChild(overlay);
+          resolve(false);
+        };
+
+        actions.appendChild(noBtn);
+        actions.appendChild(yesBtn);
+
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // Handle Escape key
+        const onKey = (e) => {
+          if (e.key === 'Escape') {
+            document.removeEventListener('keydown', onKey);
+            document.body.removeChild(overlay);
+            resolve(false); // Default to No on escape
+          }
+        };
+        document.addEventListener('keydown', onKey);
+      });
+    }
+
+    function clearAllSupplierData() {
+      // Reset supplier data
+      currentSupplierData = null;
+      supplierMembersData = [];
+
+      // Clear supplier form
+      document.getElementById('supplierCompanyName').value = '';
+      document.getElementById('supplierEmailDomain').value = '';
+      document.getElementById('supplierCompanyAddress').value = '';
+      document.getElementById('supplierCompanyTel').value = '';
+      document.getElementById('supplierCompanyType').selectedIndex = 0;
+      document.getElementById('supplierCompanyWebsite').value = '';
+
+      // Clear file input
+      const fileInput = document.getElementById('supplierCompanyDocs');
+      fileInput.value = '';
+
+      // Clear members list
+      document.getElementById('supplierMembersList').innerHTML = '';
+
+      // Disable member tab again
+      const memberTab = document.querySelector('[data-tab="supplier-member-info"]');
+      memberTab.classList.add('tab-disabled');
+
+      // Switch back to supplier tab
+      switchSupplierTab('supplier');
+
+      showModal({ title: 'Cleared', body: 'All supplier and member data has been cleared.' });
+    }
+
+    function deleteSupplierMember(index) {
+      if (confirm('Are you sure you want to delete this member?')) {
+        document.querySelectorAll('.supplier-member-item')[index].remove();
+        supplierMembersData.splice(index, 1);
+        // Re-index remaining members
+        updateSupplierMemberIndices();
+      }
+    }
+
+    function updateSupplierMemberIndices() {
+      const memberItems = document.querySelectorAll('.supplier-member-item');
+      memberItems.forEach((item, index) => {
+        const saveBtn = item.querySelector('.save-supplier-member-btn');
+        const deleteBtn = item.querySelector('.delete-supplier-member-btn');
+        saveBtn.setAttribute('data-index', index);
+        deleteBtn.setAttribute('data-index', index);
+        saveBtn.onclick = () => saveSupplierMember(index);
+        deleteBtn.onclick = () => deleteSupplierMember(index);
+      });
+    }
+
+    function initializeSupplierFileUpload() {
+      const fileInput = document.getElementById('supplierCompanyDocs');
+      const dropZone = fileInput.parentElement;
+
+      // Drag and drop functionality
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.background = '#e8f4f8';
+      });
+
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.style.background = '#f9f9f9';
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.background = '#f9f9f9';
+        const files = Array.from(e.dataTransfer.files);
+        handleSupplierFiles(files);
+      });
+
+      // Click to browse
+      dropZone.addEventListener('click', () => {
+        fileInput.click();
+      });
+
+      fileInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        handleSupplierFiles(files);
+      });
+
+      // Paste functionality
+      document.addEventListener('paste', (e) => {
+        if (document.activeElement.closest('#supplierPanel')) {
+          const items = Array.from(e.clipboardData.items);
+          const files = items
+            .filter(item => item.kind === 'file')
+            .map(item => item.getAsFile())
+            .filter(file => file);
+          if (files.length > 0) {
+            handleSupplierFiles(files);
+          }
+        }
+      });
+    }
+
+    function handleSupplierFiles(files) {
+      console.log('Supplier files uploaded:', files);
+      showModal({
+        title: 'Files Uploaded',
+        body: `${files.length} file(s) uploaded successfully. File handling will be implemented in the backend.`
+      });
+    }
+
+    async function saveSupplierToStorage(supplier) {
+      try {
+        let response;
+        let result;
+
+        // Check if supplier has a real database ID (not a temporary timestamp ID)
+        // Database IDs are typically small integers, timestamp IDs are large numbers (> 1000000000000)
+        const hasRealDbId = supplier.dbId && typeof supplier.dbId === 'number';
+
+        if (hasRealDbId) {
+          // Update existing supplier
+          response = await fetch(`/api/suppliers/${supplier.dbId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...supplier, id: supplier.dbId })
+          });
+
+          // If supplier not found (404), try to create instead
+          if (response.status === 404) {
+            console.log('Supplier not found, creating new supplier instead');
+            response = await fetch('/api/suppliers', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...supplier, id: undefined, dbId: undefined })
+            });
+          }
+
+          result = await response.json();
+        } else {
+          // Create new supplier
+          response = await fetch('/api/suppliers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...supplier, id: undefined })
+          });
+          result = await response.json();
+        }
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to save supplier');
+        }
+
+        // Update supplier with real database ID
+        if (result.supplier && result.supplier.id) {
+          supplier.dbId = result.supplier.id;
+          currentSupplierData.dbId = result.supplier.id;
+        }
+
+        console.log('Supplier saved:', result.supplier);
+        return result.supplier;
+      } catch (error) {
+        console.error('Error saving supplier to database:', error);
+        throw error;
+      }
+    }
+
+    async function loadSuppliersFromStorage() {
+      try {
+        const response = await fetch('/api/suppliers');
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to load suppliers');
+        }
+        return result.suppliers || [];
+      } catch (error) {
+        console.error('Error loading suppliers from database:', error);
+        return [];
+      }
+    }
+
+    async function deleteSupplierFromStorage(supplierId) {
+      try {
+        const response = await fetch(`/api/suppliers/${supplierId}`, {
+          method: 'DELETE'
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to delete supplier');
+        }
+
+        return true;
+      } catch (error) {
+        console.error('Error deleting supplier from database:', error);
+        throw error;
+      }
+    }
+
+    async function initializeSupplierViewPanel() {
+      // Refresh button functionality
+      const refreshBtn = document.getElementById('refreshSuppliersBtn');
+      refreshBtn.onclick = async () => await displaySuppliers();
+
+      // Set up filter event listeners
+      const filterInputs = document.querySelectorAll('#supplierViewPanel .filter-input');
+      filterInputs.forEach(input => {
+        input.addEventListener('input', async () => await displaySuppliers());
+        input.addEventListener('change', async () => await displaySuppliers());
+      });
+
+      // Load suppliers on initialization
+      await displaySuppliers();
+    }
+
+    // Helper function to get supplier type display name
+    function getSupplierTypeDisplayName(type) {
+      const typeMap = {
+        'hang_tag': 'Hang Tag',
+        'woven_label': 'Woven Label',
+        'care_label': 'Care Label',
+        'transfer': 'Transfer',
+        'other': 'Other'
+      };
+      return typeMap[type] || type || 'N/A';
+    }
+
+    async function displaySuppliers() {
+      const tbody = document.getElementById('suppliersTableBody');
+      const suppliers = await loadSuppliersFromStorage();
+
+      if (suppliers.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+              No suppliers saved yet. Create suppliers first.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      // Apply filters
+      const filteredSuppliers = applySupplierFilters(suppliers);
+
+      if (filteredSuppliers.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+              No suppliers match the current filters.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      let html = '';
+      filteredSuppliers.forEach((supplier, suppIndex) => {
+        const membersCount = supplier.members ? supplier.members.length : 0;
+        const membersTooltip = supplier.members && supplier.members.length > 0
+          ? supplier.members.map(m => `${m.name} (${m.emailPrefix}@${supplier.emailDomain})`).join('\n')
+          : 'No members';
+
+        // Main supplier row
+        html += `
+          <tr style="border:1px solid #000;" class="supplier-row" data-supp-index="${suppIndex}">
+            <td style="border:1px solid #000; padding:8px;">${escapeHtml(supplier.companyName)}</td>
+            <td style="border:1px solid #000; padding:8px;">${getSupplierTypeDisplayName(supplier.companyType)}</td>
+            <td style="border:1px solid #000; padding:8px;">${escapeHtml(supplier.emailDomain)}</td>
+            <td style="border:1px solid #000; padding:8px;">${escapeHtml(supplier.companyTel || 'N/A')}</td>
+            <td style="border:1px solid #000; padding:8px;">${supplier.companyWebsite ? `<a href="${escapeHtml(supplier.companyWebsite)}" target="_blank">${escapeHtml(supplier.companyWebsite)}</a>` : 'N/A'}</td>
+            <td style="border:1px solid #000; padding:8px; text-align:center;">
+              <span style="cursor:pointer;" class="supplier-members-cell" title="${escapeHtml(membersTooltip)}">${membersCount}</span>
+            </td>
+            <td style="border:1px solid #000; padding:8px; text-align:right;">
+              <button class="btn" style="padding:4px 8px; font-weight:600;" data-supp-index="${suppIndex}" onclick="onEditSupplierButtonClick(event)">Edit</button>
+            </td>
+          </tr>
+        `;
+
+        // Hidden members detail row (initially hidden) — include Edit button per member
+        const membersHtml = (supplier.members && supplier.members.length > 0) ? supplier.members.map((m, mi) => {
+          const email = `${escapeHtml(m.emailPrefix)}@${escapeHtml(supplier.emailDomain)}`;
+          return `<div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #eee;">` +
+                 `<div style="flex:1;"><strong>${escapeHtml(m.name)}</strong><br><small>${email}</small></div>` +
+                 `<div style="width:140px;">${escapeHtml(m.title || '')}</div>` +
+                 `<div style="width:120px;">${escapeHtml(m.tel || '')}</div>` +
+                 `<div><button class="btn supplier-member-inline-edit-btn" data-supp-index="${suppIndex}" data-member-index="${mi}" style="padding:4px 8px;">Edit</button></div>` +
+                 `</div>`;
+        }).join('') : '<div style="color:#666; padding:6px 0;">No members</div>';
+
+        html += `
+          <tr class="supplier-members-row" style="display:none;">
+            <td colspan="7" style="border:1px solid #000; padding:8px; background:#fff;">
+              <div style="padding:8px 0;">${membersHtml}</div>
+            </td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+
+      // Add hover effects to table rows
+      document.querySelectorAll('.supplier-row').forEach(row => {
+        row.addEventListener('mouseenter', () => {
+          row.style.background = '#f5f5f5';
+        });
+        row.addEventListener('mouseleave', () => {
+          row.style.background = '';
+        });
+      });
+
+      // Add click to expand members
+      document.querySelectorAll('.supplier-members-cell').forEach(cell => {
+        cell.addEventListener('click', (e) => {
+          const row = e.target.closest('tr');
+          const membersRow = row.nextElementSibling;
+          if (membersRow && membersRow.classList.contains('supplier-members-row')) {
+            membersRow.style.display = membersRow.style.display === 'none' ? 'table-row' : 'none';
+          }
+        });
+      });
+
+      // Bind inline supplier member edit buttons in the expanded member rows
+      document.querySelectorAll('.supplier-member-inline-edit-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+
+          // Show immediate feedback
+          const originalText = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = 'Loading...';
+
+          const suppIndex = parseInt(btn.getAttribute('data-supp-index'), 10);
+          const memberIndex = parseInt(btn.getAttribute('data-member-index'), 10);
+          const suppliers = await loadSuppliersFromStorage();
+          const supplier = suppliers[suppIndex];
+
+          if (!supplier) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            return;
+          }
+
+          await showSupplierMemberEditForm(supplier, memberIndex);
+
+          // Reset button state
+          btn.disabled = false;
+          btn.textContent = originalText;
+
+          // Refresh storage/UI
+          await displaySuppliers();
+        });
+      });
+    }
+
+    function applySupplierFilters(suppliers) {
+      const filters = {
+        name: document.getElementById('supplierFilterName').value.toLowerCase().trim(),
+        type: document.getElementById('supplierFilterType').value,
+        domain: document.getElementById('supplierFilterDomain').value.toLowerCase().trim(),
+        phone: document.getElementById('supplierFilterPhone').value.toLowerCase().trim(),
+        website: document.getElementById('supplierFilterWebsite').value.toLowerCase().trim(),
+        members: document.getElementById('supplierFilterMembers').value.toLowerCase().trim()
+      };
+
+      return suppliers.filter(supplier => {
+        if (filters.name && !supplier.companyName.toLowerCase().includes(filters.name)) return false;
+        if (filters.type && supplier.companyType !== filters.type) return false;
+        if (filters.domain && !supplier.emailDomain.toLowerCase().includes(filters.domain)) return false;
+        if (filters.phone && !(supplier.companyTel || '').toLowerCase().includes(filters.phone)) return false;
+        if (filters.website && !(supplier.companyWebsite || '').toLowerCase().includes(filters.website)) return false;
+        if (filters.members) {
+          const membersStr = (supplier.members || []).map(m => m.name).join(' ').toLowerCase();
+          if (!membersStr.includes(filters.members)) return false;
+        }
+        return true;
+      });
+    }
+
+    // Edit supplier button click handler
+    window.onEditSupplierButtonClick = async function (event) {
+      event.stopPropagation();
+      const btn = event.currentTarget;
+      const suppIndex = parseInt(btn.getAttribute('data-supp-index'), 10);
+      const suppliers = await loadSuppliersFromStorage();
+      const supplier = suppliers[suppIndex];
+      if (!supplier) return;
+
+      const choice = await showChoiceModal('Edit', '<div style=\"margin-bottom:10px;\">Choose what to edit:</div>', [
+        { label: 'Edit Company', value: 'company' },
+        { label: 'Edit Members', value: 'members' }
+      ]);
+
+      if (choice === 'company') {
+        await showSupplierEditForm(suppIndex);
+        await displaySuppliers();
+      } else if (choice === 'members') {
+        await showSupplierMembersListModal(suppIndex);
+        await displaySuppliers();
+      }
+    };
+
+    // Modal form to edit supplier company details
+    async function showSupplierEditForm(suppIndex) {
+      const suppliers = await loadSuppliersFromStorage();
+      const supplier = suppliers[suppIndex];
+      if (!supplier) return;
+
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = 'Edit Supplier Company';
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+
+        content.innerHTML = `
+          <div style="display:grid; gap:8px;">
+            <label style="font-weight:700;">Company Name</label>
+            <input id="editSupplierCompanyName" type="text" value="${escapeHtml(supplier.companyName || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Company Type</label>
+            <select id="editSupplierCompanyType" style="width:100%; padding:8px; border:1px solid #000;">
+              <option value="hang_tag" ${supplier.companyType === 'hang_tag' ? 'selected' : ''}>Hang Tag</option>
+              <option value="woven_label" ${supplier.companyType === 'woven_label' ? 'selected' : ''}>Woven Label</option>
+              <option value="care_label" ${supplier.companyType === 'care_label' ? 'selected' : ''}>Care Label</option>
+              <option value="transfer" ${supplier.companyType === 'transfer' ? 'selected' : ''}>Transfer</option>
+              <option value="other" ${supplier.companyType === 'other' ? 'selected' : ''}>Other</option>
+            </select>
+            <label style="font-weight:700;">Email Domain</label>
+            <input id="editSupplierEmailDomain" type="text" value="${escapeHtml(supplier.emailDomain || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Telephone</label>
+            <input id="editSupplierCompanyTel" type="text" value="${escapeHtml(supplier.companyTel || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Website</label>
+            <input id="editSupplierCompanyWebsite" type="text" value="${escapeHtml(supplier.companyWebsite || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+          </div>
+        `;
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn';
+        cancelBtn.textContent = 'Cancel';
+        const okBtn = document.createElement('button');
+        okBtn.className = 'btn primary';
+        okBtn.textContent = 'Save';
+
+        cancelBtn.onclick = () => { try { document.body.removeChild(overlay); } catch {} resolve(false); };
+        okBtn.onclick = async () => {
+          supplier.companyName = document.getElementById('editSupplierCompanyName').value.trim();
+          supplier.companyType = document.getElementById('editSupplierCompanyType').value;
+          supplier.emailDomain = document.getElementById('editSupplierEmailDomain').value.trim();
+          supplier.companyTel = document.getElementById('editSupplierCompanyTel').value.trim();
+          supplier.companyWebsite = document.getElementById('editSupplierCompanyWebsite').value.trim();
+          try {
+            await fetch(`/api/suppliers/${supplier.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(supplier)
+            });
+            try { document.body.removeChild(overlay); } catch {}
+            resolve(true);
+          } catch (err) {
+            showModal({ title: 'Error', body: 'Failed to save supplier: ' + (err.message || err) });
+          }
+        };
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(okBtn);
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+      });
+    }
+
+    // Modal to list supplier members and allow editing individual member
+    async function showSupplierMembersListModal(suppIndex) {
+      const suppliers = await loadSuppliersFromStorage();
+      const supplier = suppliers[suppIndex];
+      if (!supplier) return;
+
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = 'Edit Supplier Members';
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+
+        const listHtml = (supplier.members && supplier.members.length > 0) ? supplier.members.map((m, idx) => {
+          return `<div style="display:flex; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid #eee;">
+                    <div style="flex:1;"><strong>${escapeHtml(m.name)}</strong><br><small>${escapeHtml(m.emailPrefix)}@${escapeHtml(supplier.emailDomain)}</small></div>
+                    <div><button class="btn edit-supplier-member-btn" data-member-index="${idx}">Edit</button></div>
+                  </div>`;
+        }).join('') : '<div style="color:#666;">No members</div>';
+
+        content.innerHTML = `<div>${listHtml}</div>`;
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'btn';
+        closeBtn.textContent = 'Close';
+        closeBtn.onclick = () => { try { document.body.removeChild(overlay); } catch {} resolve(false); };
+        actions.appendChild(closeBtn);
+
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // attach handlers to edit buttons
+        content.querySelectorAll('.edit-supplier-member-btn').forEach(btn => {
+          btn.onclick = async (e) => {
+            const memberIndex = parseInt(btn.getAttribute('data-member-index'), 10);
+            await showSupplierMemberEditForm(supplier, memberIndex);
+            // refresh list UI
+            const updatedSuppliers = await loadSuppliersFromStorage();
+            const updatedSupplier = updatedSuppliers[suppIndex];
+            supplier.members = updatedSupplier.members || [];
+            content.querySelector('div').innerHTML = (supplier.members.length > 0) ? supplier.members.map((m, idx) => {
+              return `<div style="display:flex; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid #eee;">
+                        <div style="flex:1;"><strong>${escapeHtml(m.name)}</strong><br><small>${escapeHtml(m.emailPrefix)}@${escapeHtml(supplier.emailDomain)}</small></div>
+                        <div><button class="btn edit-supplier-member-btn" data-member-index="${idx}">Edit</button></div>
+                      </div>`;
+            }).join('') : '<div style="color:#666;">No members</div>';
+
+            // re-bind new buttons
+            content.querySelectorAll('.edit-supplier-member-btn').forEach(btn2 => {
+              btn2.onclick = async () => {
+                const mi = parseInt(btn2.getAttribute('data-member-index'), 10);
+                await showSupplierMemberEditForm(supplier, mi);
+              };
+            });
+          };
+        });
+      });
+    }
+
+    // Modal to edit a single supplier member object (in-place)
+    function showSupplierMemberEditForm(supplier, memberIndex) {
+      return new Promise((resolve) => {
+        const member = supplier.members[memberIndex];
+        if (!member) return resolve(false);
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        const header = document.createElement('div');
+        header.className = 'modal-header';
+        header.textContent = 'Edit Supplier Member';
+        const content = document.createElement('div');
+        content.className = 'modal-body';
+
+        content.innerHTML = `
+          <div style="display:grid; gap:8px;">
+            <label style="font-weight:700;">Full Name</label>
+            <input id="editSupplierMemberName" type="text" value="${escapeHtml(member.name || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Email Prefix</label>
+            <input id="editSupplierMemberEmail" type="text" value="${escapeHtml(member.emailPrefix || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Title</label>
+            <input id="editSupplierMemberTitle" type="text" value="${escapeHtml(member.title || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+            <label style="font-weight:700;">Telephone</label>
+            <input id="editSupplierMemberTel" type="text" value="${escapeHtml(member.tel || '')}" style="width:100%; padding:8px; border:1px solid #000;">
+          </div>
+        `;
+
+        const actions = document.createElement('div');
+        actions.className = 'modal-actions';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn';
+        cancelBtn.textContent = 'Cancel';
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'btn primary';
+        saveBtn.textContent = 'Save';
+
+        cancelBtn.onclick = () => { try { document.body.removeChild(overlay); } catch {} resolve(false); };
+        saveBtn.onclick = async () => {
+          // Show loading state
+          saveBtn.disabled = true;
+          const originalText = saveBtn.textContent;
+          saveBtn.textContent = 'Saving...';
+
+          member.name = document.getElementById('editSupplierMemberName').value.trim();
+          member.emailPrefix = document.getElementById('editSupplierMemberEmail').value.trim();
+          member.title = document.getElementById('editSupplierMemberTitle').value.trim();
+          member.tel = document.getElementById('editSupplierMemberTel').value.trim();
+          try {
+            await fetch(`/api/suppliers/${supplier.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(supplier)
+            });
+
+            // Show success feedback
+            saveBtn.textContent = '✓ Saved';
+            setTimeout(() => {
+              try { document.body.removeChild(overlay); } catch {}
+              resolve(true);
+            }, 500);
+          } catch (err) {
+            // Reset button state on error
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalText;
+            showModal({ title: 'Error', body: 'Failed to save member: ' + (err.message || err) });
+          }
+        };
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(saveBtn);
+        modal.appendChild(header);
+        modal.appendChild(content);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+      });
     }
 
     async function initializeQuotationViewPanel() {
