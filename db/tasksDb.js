@@ -175,6 +175,19 @@ async function ensureSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_suppliers_emailDomain ON suppliers(emailDomain);
     CREATE INDEX IF NOT EXISTS idx_supplier_members_supplierId ON supplier_members(supplierId);
     CREATE INDEX IF NOT EXISTS idx_supplier_members_name ON supplier_members(name);
+
+    CREATE TABLE IF NOT EXISTS quotation_suppliers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      quotationId INTEGER NOT NULL,
+      supplierId INTEGER NOT NULL,
+      createdAt TEXT NOT NULL,
+      FOREIGN KEY (quotationId) REFERENCES quotations(id) ON DELETE CASCADE,
+      FOREIGN KEY (supplierId) REFERENCES suppliers(id) ON DELETE CASCADE,
+      UNIQUE(quotationId, supplierId)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_quotation_suppliers_quotationId ON quotation_suppliers(quotationId);
+    CREATE INDEX IF NOT EXISTS idx_quotation_suppliers_supplierId ON quotation_suppliers(supplierId);
   `);
 
   // Add new columns if they don't exist (for database migration)
@@ -1080,6 +1093,58 @@ export async function findSupplierByEmail(email) {
   }
 
   return null;
+}
+
+// Quotation-Supplier linking functions
+export async function linkSupplierToQuotation(quotationId, supplierId) {
+  const db = await getTasksDb();
+  const createdAt = new Date().toISOString();
+  const result = await db.run(
+    'INSERT OR IGNORE INTO quotation_suppliers (quotationId, supplierId, createdAt) VALUES (?, ?, ?)',
+    [quotationId, supplierId, createdAt]
+  );
+  return result.lastID;
+}
+
+export async function unlinkSupplierFromQuotation(quotationId, supplierId) {
+  const db = await getTasksDb();
+  await db.run(
+    'DELETE FROM quotation_suppliers WHERE quotationId = ? AND supplierId = ?',
+    [quotationId, supplierId]
+  );
+  return true;
+}
+
+export async function getSuppliersForQuotation(quotationId) {
+  const db = await getTasksDb();
+  const suppliers = await db.all(`
+    SELECT s.*, qs.createdAt as linkedAt
+    FROM suppliers s
+    INNER JOIN quotation_suppliers qs ON s.id = qs.supplierId
+    WHERE qs.quotationId = ?
+    ORDER BY qs.createdAt DESC
+  `, [quotationId]);
+
+  // Load members for each supplier
+  for (const supplier of suppliers) {
+    supplier.members = await db.all(
+      'SELECT * FROM supplier_members WHERE supplierId = ? ORDER BY name',
+      [supplier.id]
+    );
+  }
+
+  return suppliers;
+}
+
+export async function getQuotationsForSupplier(supplierId) {
+  const db = await getTasksDb();
+  return await db.all(`
+    SELECT q.*, qs.createdAt as linkedAt
+    FROM quotations q
+    INNER JOIN quotation_suppliers qs ON q.id = qs.quotationId
+    WHERE qs.supplierId = ?
+    ORDER BY q.dateCreated DESC
+  `, [supplierId]);
 }
 
 

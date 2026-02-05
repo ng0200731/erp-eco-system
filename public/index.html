@@ -504,6 +504,31 @@
       font-style: italic;
     }
 
+    /* Supplier tag styling */
+    .supplier-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: #fff;
+      border: 1px solid #000;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .supplier-tag-remove {
+      cursor: pointer;
+      font-weight: bold;
+      color: #666;
+      margin-left: 4px;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .supplier-tag-remove:hover {
+      color: #000;
+    }
+
     /* Loading spinner overlay */
     .loading-overlay {
       position: fixed;
@@ -1308,7 +1333,7 @@
                 <button class="sub-option-btn" data-type="woven-label" data-testid="quotation-woven-label-btn">Woven Label</button>
                 <button class="sub-option-btn" data-type="care-label" data-testid="quotation-care-label-btn">Care Label</button>
                 <button class="sub-option-btn" data-type="transfer" data-testid="quotation-transfer-btn">Transfer</button>
-                <button class="sub-option-btn" data-type="other" data-testid="quotation-other-btn">Other</button>
+                <button class="sub-option-btn" data-type="outsource" data-testid="quotation-outsource-btn">Outsource</button>
               </div>
               <button class="action-btn" id="imageLibBtn">Image Lib</button>
             </div>
@@ -4386,6 +4411,15 @@
 
           quantityField.addEventListener('input', calculateTotal);
           unitPriceField.addEventListener('input', calculateTotal);
+        }
+
+        // Initialize supplier autocomplete
+        setupSupplierAutocomplete();
+
+        // Set initial visibility of supplier section based on product type
+        const productTypeSelect = document.getElementById('quotationProductType');
+        if (productTypeSelect) {
+          toggleSupplierSection(productTypeSelect.value);
         }
       }, 100);
     }
@@ -8537,8 +8571,32 @@
               '</div>' +
             '</div>' +
 
+            '<div id="supplierSelectionSection" style="margin-bottom:20px; display:none;">' +
+              '<h4>Supplier Selection</h4>' +
+              '<div style="margin-bottom:10px;">' +
+                '<label style="display:block; margin-bottom:5px; font-weight:600;">Select Suppliers</label>' +
+                '<div class="autocomplete-container">' +
+                  '<input type="text" id="quotationSupplierSearch" class="autocomplete-input" placeholder="Search and add suppliers..." autocomplete="off" style="width:100%; padding:8px; border:1px solid #000;">' +
+                  '<div id="supplierAutocompleteDropdown" class="autocomplete-dropdown"></div>' +
+                '</div>' +
+              '</div>' +
+              '<div id="selectedSuppliersList" style="display:flex; flex-wrap:wrap; gap:8px; min-height:40px; padding:10px; border:1px solid #ccc; background:#fafafa;">' +
+                '<div style="color:#999; font-size:14px;">No suppliers selected</div>' +
+              '</div>' +
+            '</div>' +
+
             '<div style="margin-bottom:20px;">' +
               '<h4>Product Specifications</h4>' +
+              '<div style="margin-bottom:15px;">' +
+                '<label style="display:block; margin-bottom:5px; font-weight:600;">Product Type *</label>' +
+                '<select id="quotationProductType" style="width:100%; padding:8px; border:1px solid #000; background:#fff;">' +
+                  '<option value="hang-tag"' + (tagType === 'hang-tag' ? ' selected' : '') + '>Hang Tag</option>' +
+                  '<option value="woven-label"' + (tagType === 'woven-label' ? ' selected' : '') + '>Woven Label</option>' +
+                  '<option value="care-label"' + (tagType === 'care-label' ? ' selected' : '') + '>Care Label</option>' +
+                  '<option value="heat-transfer"' + (tagType === 'heat-transfer' ? ' selected' : '') + '>Heat Transfer</option>' +
+                  '<option value="outsource"' + (tagType === 'outsource' || tagType === 'other' || tagType === 'others' ? ' selected' : '') + '>Outsource</option>' +
+                '</select>' +
+              '</div>' +
               getProductSpecificFields(tagType) +
             '</div>' +
 
@@ -8867,6 +8925,127 @@
       return fields[tagType] || fields['others'];
     }
 
+    // Supplier autocomplete and tag management functions
+    function setupSupplierAutocomplete() {
+      const supplierInput = document.getElementById('quotationSupplierSearch');
+      const dropdown = document.getElementById('supplierAutocompleteDropdown');
+
+      if (!supplierInput || !dropdown) return;
+
+      let allSuppliers = [];
+      let selectedSuppliers = new Set();
+
+      // Load suppliers from API
+      loadSuppliersFromStorage().then(suppliers => {
+        allSuppliers = suppliers;
+      });
+
+      supplierInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase().trim();
+
+        if (searchTerm.length === 0) {
+          dropdown.style.display = 'none';
+          return;
+        }
+
+        // Filter suppliers
+        const matches = allSuppliers.filter(supplier =>
+          !selectedSuppliers.has(supplier.id) &&
+          (supplier.companyName.toLowerCase().includes(searchTerm) ||
+           supplier.emailDomain.toLowerCase().includes(searchTerm))
+        );
+
+        if (matches.length === 0) {
+          dropdown.innerHTML = '<div class="autocomplete-no-results">No suppliers found</div>';
+          dropdown.style.display = 'block';
+          return;
+        }
+
+        // Build dropdown HTML
+        dropdown.innerHTML = matches.slice(0, 10).map(supplier => `
+          <div class="autocomplete-item" data-supplier-id="${supplier.id}">
+            <div style="font-weight:600;">${escapeHtml(supplier.companyName)}</div>
+            <div style="font-size:12px; color:#666;">${escapeHtml(supplier.emailDomain)}</div>
+          </div>
+        `).join('');
+
+        dropdown.style.display = 'block';
+
+        // Add click handlers
+        dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+          item.addEventListener('click', function() {
+            const supplierId = parseInt(this.getAttribute('data-supplier-id'));
+            const supplier = allSuppliers.find(s => s.id === supplierId);
+            if (supplier) {
+              addSupplierTag(supplier);
+              selectedSuppliers.add(supplierId);
+              supplierInput.value = '';
+              dropdown.style.display = 'none';
+            }
+          });
+        });
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', function(e) {
+        if (!supplierInput.contains(e.target) && !dropdown.contains(e.target)) {
+          dropdown.style.display = 'none';
+        }
+      });
+    }
+
+    function addSupplierTag(supplier) {
+      const container = document.getElementById('selectedSuppliersList');
+
+      // Remove "no suppliers" message if present
+      const noSuppliersMsg = container.querySelector('[style*="color:#999"]');
+      if (noSuppliersMsg) {
+        container.innerHTML = '';
+      }
+
+      // Create tag element
+      const tag = document.createElement('div');
+      tag.className = 'supplier-tag';
+      tag.setAttribute('data-supplier-id', supplier.id);
+      tag.innerHTML = `
+        <span>${escapeHtml(supplier.companyName)}</span>
+        <span class="supplier-tag-remove" onclick="removeSupplierTag(${supplier.id})">×</span>
+      `;
+
+      container.appendChild(tag);
+    }
+
+    window.removeSupplierTag = function(supplierId) {
+      const container = document.getElementById('selectedSuppliersList');
+      const tag = container.querySelector(`[data-supplier-id="${supplierId}"]`);
+
+      if (tag) {
+        tag.remove();
+      }
+
+      // Show "no suppliers" message if empty
+      if (container.children.length === 0) {
+        container.innerHTML = '<div style="color:#999; font-size:14px;">No suppliers selected</div>';
+      }
+    };
+
+    function getSelectedSupplierIds() {
+      const container = document.getElementById('selectedSuppliersList');
+      const tags = container.querySelectorAll('.supplier-tag[data-supplier-id]');
+      return Array.from(tags).map(tag => parseInt(tag.getAttribute('data-supplier-id')));
+    }
+
+    function toggleSupplierSection(productType) {
+      const supplierSection = document.getElementById('supplierSelectionSection');
+      if (supplierSection) {
+        if (productType === 'outsource' || productType === 'other' || productType === 'others') {
+          supplierSection.style.display = 'block';
+        } else {
+          supplierSection.style.display = 'none';
+        }
+      }
+    }
+
     // Global functions for quotation form
     window.clearQuotationForm = function() {
       const form = document.getElementById('quotationForm');
@@ -9152,6 +9331,21 @@
           console.log('Final quotation after update:', finalQuotation);
           console.log('Final profileImagePath:', finalQuotation.profileImagePath);
           console.log('Final attachmentPaths:', finalQuotation.attachmentPaths);
+        }
+
+        // Link suppliers to quotation (only if suppliers were selected)
+        const supplierIds = getSelectedSupplierIds();
+        if (supplierIds.length > 0 && quotationId) {
+          console.log('Linking suppliers to quotation:', supplierIds);
+          for (const supplierId of supplierIds) {
+            try {
+              await fetch(`/api/quotations/${quotationId}/suppliers/${supplierId}`, {
+                method: 'POST'
+              });
+            } catch (error) {
+              console.error(`Failed to link supplier ${supplierId}:`, error);
+            }
+          }
         }
 
         // Clear edit mode

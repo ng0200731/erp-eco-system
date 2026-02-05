@@ -16,9 +16,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * @param {Function} deps.deleteQuotation - Delete quotation function
  * @param {Object} deps.upload - Multer upload middleware
  * @param {Function} deps.getNormalizedRelativePath - Path normalization function
+ * @param {Function} deps.getSupplierById - Get supplier by ID function
+ * @param {Function} deps.linkSupplierToQuotation - Link supplier to quotation function
+ * @param {Function} deps.unlinkSupplierFromQuotation - Unlink supplier from quotation function
+ * @param {Function} deps.getSuppliersForQuotation - Get suppliers for quotation function
  */
 export function createQuotationRoutes(deps) {
-  const { getAllQuotations, getQuotationById, createQuotation, updateQuotation, deleteQuotation, upload, getNormalizedRelativePath } = deps;
+  const { getAllQuotations, getQuotationById, createQuotation, updateQuotation, deleteQuotation, upload, getNormalizedRelativePath, getSupplierById, linkSupplierToQuotation, unlinkSupplierFromQuotation, getSuppliersForQuotation } = deps;
 
   // Get all quotations
   router.get('/', async (req, res) => {
@@ -275,6 +279,56 @@ export function createQuotationRoutes(deps) {
     } catch (error) {
       console.error('Error uploading temporary attachments:', error);
       res.status(500).json({ success: false, error: 'Failed to upload attachments' });
+    }
+  });
+
+  // Link supplier to quotation
+  router.post('/:id/suppliers/:supplierId', async (req, res) => {
+    try {
+      const quotationId = Number(req.params.id);
+      const supplierId = Number(req.params.supplierId);
+
+      const quotation = await getQuotationById(quotationId);
+      if (!quotation) {
+        return res.status(404).json({ success: false, error: 'Quotation not found' });
+      }
+
+      const supplier = await getSupplierById(supplierId);
+      if (!supplier) {
+        return res.status(404).json({ success: false, error: 'Supplier not found' });
+      }
+
+      await linkSupplierToQuotation(quotationId, supplierId);
+      res.json({ success: true, message: 'Supplier linked to quotation' });
+    } catch (error) {
+      console.error('Error linking supplier to quotation:', error);
+      res.status(500).json({ success: false, error: 'Failed to link supplier' });
+    }
+  });
+
+  // Unlink supplier from quotation
+  router.delete('/:id/suppliers/:supplierId', async (req, res) => {
+    try {
+      const quotationId = Number(req.params.id);
+      const supplierId = Number(req.params.supplierId);
+
+      await unlinkSupplierFromQuotation(quotationId, supplierId);
+      res.json({ success: true, message: 'Supplier unlinked from quotation' });
+    } catch (error) {
+      console.error('Error unlinking supplier from quotation:', error);
+      res.status(500).json({ success: false, error: 'Failed to unlink supplier' });
+    }
+  });
+
+  // Get suppliers for quotation
+  router.get('/:id/suppliers', async (req, res) => {
+    try {
+      const quotationId = Number(req.params.id);
+      const suppliers = await getSuppliersForQuotation(quotationId);
+      res.json({ success: true, suppliers });
+    } catch (error) {
+      console.error('Error fetching suppliers for quotation:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch suppliers' });
     }
   });
 

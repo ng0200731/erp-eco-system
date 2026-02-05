@@ -16,6 +16,8 @@ import {
   getAllSuppliers, getSupplierById, createSupplier, updateSupplier, deleteSupplier, createSupplierMember, findSupplierByEmail,
   // Quotation functions
   getAllQuotations, getQuotationById, createQuotation, updateQuotation, deleteQuotation,
+  // Quotation-Supplier linking functions
+  linkSupplierToQuotation, unlinkSupplierFromQuotation, getSuppliersForQuotation, getQuotationsForSupplier,
   // Skills functions
   getAllSkills, getSkillsStats, getSkillByName, getSkillById, createSkill, updateSkill, deleteSkill
 } from './db/tasksDb.js';
@@ -406,7 +408,11 @@ const quotationRoutes = createQuotationRoutes({
   updateQuotation,
   deleteQuotation,
   upload,
-  getNormalizedRelativePath
+  getNormalizedRelativePath,
+  getSupplierById,
+  linkSupplierToQuotation,
+  unlinkSupplierFromQuotation,
+  getSuppliersForQuotation
 });
 app.use('/api/quotations', quotationRoutes);
 
