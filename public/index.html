@@ -8571,20 +8571,6 @@
               '</div>' +
             '</div>' +
 
-            '<div id="supplierSelectionSection" style="margin-bottom:20px; display:none;">' +
-              '<h4>Supplier Selection</h4>' +
-              '<div style="margin-bottom:10px;">' +
-                '<label style="display:block; margin-bottom:5px; font-weight:600;">Select Suppliers</label>' +
-                '<div class="autocomplete-container">' +
-                  '<input type="text" id="quotationSupplierSearch" class="autocomplete-input" placeholder="Search and add suppliers..." autocomplete="off" style="width:100%; padding:8px; border:1px solid #000;">' +
-                  '<div id="supplierAutocompleteDropdown" class="autocomplete-dropdown"></div>' +
-                '</div>' +
-              '</div>' +
-              '<div id="selectedSuppliersList" style="display:flex; flex-wrap:wrap; gap:8px; min-height:40px; padding:10px; border:1px solid #ccc; background:#fafafa;">' +
-                '<div style="color:#999; font-size:14px;">No suppliers selected</div>' +
-              '</div>' +
-            '</div>' +
-
             '<div style="margin-bottom:20px;">' +
               '<h4>Product Specifications</h4>' +
               '<div style="margin-bottom:15px;">' +
@@ -8598,6 +8584,20 @@
                 '</select>' +
               '</div>' +
               getProductSpecificFields(tagType) +
+            '</div>' +
+
+            '<div id="supplierSelectionSection" style="margin-bottom:20px; display:none;">' +
+              '<h4>Supplier Selection</h4>' +
+              '<div style="margin-bottom:10px;">' +
+                '<label style="display:block; margin-bottom:5px; font-weight:600;">Select Suppliers</label>' +
+                '<div class="autocomplete-container">' +
+                  '<input type="text" id="quotationSupplierSearch" class="autocomplete-input" placeholder="Search and add suppliers..." autocomplete="off" style="width:100%; padding:8px; border:1px solid #000;">' +
+                  '<div id="supplierAutocompleteDropdown" class="autocomplete-dropdown"></div>' +
+                '</div>' +
+              '</div>' +
+              '<div id="selectedSuppliersList" style="display:flex; flex-wrap:wrap; gap:8px; min-height:40px; padding:10px; border:1px solid #ccc; background:#fafafa;">' +
+                '<div style="color:#999; font-size:14px;">No suppliers selected</div>' +
+              '</div>' +
             '</div>' +
 
             '<div style="margin-bottom:20px;">' +
@@ -9108,10 +9108,47 @@
       }
     };
 
-    window.fillDummyQuotationForm = function() {
+    window.fillDummyQuotationForm = async function() {
       const form = document.getElementById('quotationForm');
       if (form) {
         fillDummyForm(form);
+
+        // Check if supplier selection section is visible (for Outsource product type)
+        const supplierSection = document.getElementById('supplierSelectionSection');
+        if (supplierSection && supplierSection.style.display !== 'none') {
+          // Clear existing selected suppliers
+          const container = document.getElementById('selectedSuppliersList');
+          if (container) {
+            container.innerHTML = '<div style="color:#999; font-size:14px;">No suppliers selected</div>';
+          }
+
+          // Load suppliers from database and select random ones
+          try {
+            const suppliers = await loadSuppliersFromStorage();
+            if (suppliers && suppliers.length > 0) {
+              // Randomly select 1-3 suppliers
+              const numSuppliersToSelect = Math.floor(Math.random() * 3) + 1; // 1 to 3 suppliers
+              const selectedSuppliers = [];
+
+              // Create a copy of suppliers array to avoid modifying original
+              const availableSuppliers = [...suppliers];
+
+              // Randomly select suppliers
+              for (let i = 0; i < Math.min(numSuppliersToSelect, availableSuppliers.length); i++) {
+                const randomIndex = Math.floor(Math.random() * availableSuppliers.length);
+                selectedSuppliers.push(availableSuppliers[randomIndex]);
+                availableSuppliers.splice(randomIndex, 1); // Remove selected supplier to avoid duplicates
+              }
+
+              // Add selected suppliers as tags
+              selectedSuppliers.forEach(supplier => {
+                addSupplierTag(supplier);
+              });
+            }
+          } catch (error) {
+            console.error('Failed to load suppliers for dummy data:', error);
+          }
+        }
       }
     };
 
