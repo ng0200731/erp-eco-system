@@ -1158,6 +1158,9 @@
                   <select id="outsourcingFilterStatus" class="filter-input" style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
                     <option value="">All Status</option>
                     <option value="pending">Pending</option>
+                    <option value="send to outsourcing supplier">Send to Outsourcing Supplier</option>
+                    <option value="await quotation">Await Quotation</option>
+                    <option value="compare quotation">Compare Quotation</option>
                     <option value="send to customer">Send to Customer</option>
                     <option value="price confirmed">Price Confirmed</option>
                     <option value="sampling">Sampling</option>
@@ -7256,6 +7259,28 @@
         return `${year}${month}${day}, ${hours}:${minutes}:${seconds}`;
       }
 
+      // Helper function to get outsourcing action button based on status
+      function getOutsourcingActionButton(quotation, supplier = null) {
+        const status = quotation.status || 'pending';
+        const statusMap = {
+          'pending': { next: 'send to outsourcing supplier', label: 'Send to Supplier' },
+          'send to outsourcing supplier': { next: 'await quotation', label: 'Await Quotation' },
+          'await quotation': { next: 'compare quotation', label: 'Compare Quotation' },
+          'compare quotation': { next: 'send to customer', label: 'Send to Customer' },
+          'send to customer': { next: 'price confirmed', label: 'Confirm Price' },
+          'price confirmed': { next: 'sampling', label: 'Start Sampling' },
+          'sampling': { next: 'sample delivered', label: 'Mark Delivered' },
+          'sample delivered': { next: null, label: 'Completed' }
+        };
+
+        const action = statusMap[status];
+        if (!action || !action.next) {
+          return '<span style="color:#999;">Completed</span>';
+        }
+
+        return `<button class="page-btn" style="padding:4px 8px; font-size:12px;" onclick="event.stopPropagation(); updateOutsourcingStatus(${quotation.id}, '${action.next}')">${action.label}</button>`;
+      }
+
       // Fetch suppliers for each quotation and build the rows
       const rows = [];
       for (const quotation of filteredQuotations) {
@@ -7279,7 +7304,7 @@
               <td style="border:1px solid #000; padding:8px; text-align:right;">${quotation.quantity.toLocaleString()}</td>
               <td style="border:1px solid #000; padding:8px; text-align:right;">${quotation.total.toFixed(2)}</td>
               <td style="border:1px solid #000; padding:8px;">${quotation.type || 'non email'}</td>
-              <td style="border:1px solid #000; padding:8px;">${quotation.status || 'draft'}</td>
+              <td style="border:1px solid #000; padding:8px;">${quotation.status || 'pending'}</td>
               <td style="border:1px solid #000; padding:8px;">${formatDate(quotation.dateCreated)}</td>
               <td style="border:1px solid #000; padding:8px; color:#999;">No supplier</td>
               <td style="border:1px solid #000; padding:8px; text-align:center;">
@@ -7311,14 +7336,14 @@
                   <td style="border:1px solid #000; padding:8px; text-align:right;" rowspan="${suppliers.length}">${quotation.quantity.toLocaleString()}</td>
                   <td style="border:1px solid #000; padding:8px; text-align:right;" rowspan="${suppliers.length}">${quotation.total.toFixed(2)}</td>
                   <td style="border:1px solid #000; padding:8px;" rowspan="${suppliers.length}">${quotation.type || 'non email'}</td>
-                  <td style="border:1px solid #000; padding:8px;" rowspan="${suppliers.length}">${quotation.status || 'draft'}</td>
+                  <td style="border:1px solid #000; padding:8px;" rowspan="${suppliers.length}">${quotation.status || 'pending'}</td>
                   <td style="border:1px solid #000; padding:8px;" rowspan="${suppliers.length}">${formatDate(quotation.dateCreated)}</td>
                   <td style="border:1px solid #000; padding:8px;">
                     <strong>${supplier.name}</strong><br>
                     <span style="font-size:12px; color:#666;">${memberNames}</span>
                   </td>
-                  <td style="border:1px solid #000; padding:8px; text-align:center;">
-                    <button class="page-btn" style="padding:4px 8px; font-size:12px;" onclick="event.stopPropagation(); sendToSupplier(${quotation.id}, ${supplier.id})">Send</button>
+                  <td style="border:1px solid #000; padding:8px; text-align:center;" rowspan="${suppliers.length}">
+                    ${getOutsourcingActionButton(quotation, supplier)}
                   </td>
                   <td style="border:1px solid #000; padding:8px; text-align:center;" rowspan="${suppliers.length}">
                     <button class="page-btn" style="padding:4px 8px; font-size:12px; background:#dc3545; color:#fff;" onclick="event.stopPropagation(); deleteQuotation(${quotation.id})">Delete</button>
@@ -7333,9 +7358,6 @@
                     <strong>${supplier.name}</strong><br>
                     <span style="font-size:12px; color:#666;">${memberNames}</span>
                   </td>
-                  <td style="border:1px solid #000; padding:8px; text-align:center;">
-                    <button class="page-btn" style="padding:4px 8px; font-size:12px;" onclick="event.stopPropagation(); sendToSupplier(${quotation.id}, ${supplier.id})">Send</button>
-                  </td>
                 </tr>
               `);
             }
@@ -7345,6 +7367,51 @@
 
       tbody.innerHTML = rows.join('');
     }
+
+    // Update outsourcing quotation status
+    window.updateOutsourcingStatus = async function(quotationId, newStatus) {
+      console.log('updateOutsourcingStatus called:', quotationId, newStatus);
+      try {
+        // Get current quotation data
+        const response = await fetch(`/api/quotations/${quotationId}`);
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error('Failed to get quotation');
+        }
+
+        const quotation = result.quotation;
+
+        // Update the status
+        const updateResponse = await fetch(`/api/quotations/${quotationId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...quotation,
+            status: newStatus
+          })
+        });
+
+        if (!updateResponse.ok) {
+          throw new Error('Failed to update status');
+        }
+
+        showModal({
+          title: 'Success',
+          body: `Status updated to "${newStatus}" successfully!`,
+          buttons: [{ text: 'OK', action: 'close' }]
+        });
+
+        // Refresh the outsourcing list
+        await displayOutsourcingQuotations();
+      } catch (error) {
+        console.error('Error updating outsourcing status:', error);
+        showModal({
+          title: 'Error',
+          body: 'Failed to update status. Please try again.',
+          buttons: [{ text: 'OK', action: 'close' }]
+        });
+      }
+    };
 
     // Apply filters for outsourcing quotations
     function applyOutsourcingFilters(quotations) {
