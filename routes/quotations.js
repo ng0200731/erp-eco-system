@@ -35,6 +35,18 @@ export function createQuotationRoutes(deps) {
     }
   });
 
+  // Get outsourcing quotations (only 'other' type)
+  router.get('/outsourcing', async (req, res) => {
+    try {
+      const allQuotations = await getAllQuotations();
+      const outsourcingQuotations = allQuotations.filter(q => q.productType === 'other');
+      res.json({ success: true, quotations: outsourcingQuotations });
+    } catch (error) {
+      console.error('Error fetching outsourcing quotations:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch outsourcing quotations' });
+    }
+  });
+
   // Get quotation by ID
   router.get('/:id', async (req, res) => {
     try {

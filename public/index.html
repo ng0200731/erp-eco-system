@@ -587,8 +587,11 @@
       <div class="menu-group">
       <button id="menuQuotation" class="page-btn" data-short="Q" data-full="Quotation" data-testid="menu-quotation">Q</button>
         <div id="quotationSubmenu" class="submenu" style="display:none;">
-          <button id="quotationCreateBtn" class="submenu-btn" data-testid="quotation-create-btn">Create</button>
-          <button id="quotationViewBtn" class="submenu-btn" data-testid="quotation-view-btn">View</button>
+          <button id="quotationCreateBtn" class="submenu-btn" data-testid="quotation-create-btn">Quotation Create</button>
+          <button id="quotationViewBtn" class="submenu-btn" data-testid="quotation-view-btn">Quotation View</button>
+          <div style="border-top:1px solid #ccc; margin:4px 0;"></div>
+          <button id="outsourcingCreateBtn" class="submenu-btn">Outsourcing Create</button>
+          <button id="outsourcingViewBtn" class="submenu-btn">Outsourcing View</button>
         </div>
       </div>
       <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
@@ -1948,8 +1951,8 @@
       document.getElementById('supplierViewPanel').style.display = id === 'supplier-view' ? 'block' : 'none';
       document.getElementById('tasksPanel').style.display = id === 'tasks' ? 'block' : 'none';
       document.getElementById('skillsPanel').style.display = id === 'skills' ? 'block' : 'none';
-      document.getElementById('quotationPanel').style.display = id === 'quotation' ? 'block' : 'none';
-      document.getElementById('quotationViewPanel').style.display = id === 'quotation-view' ? 'block' : 'none';
+      document.getElementById('quotationPanel').style.display = (id === 'quotation' || id === 'outsourcing') ? 'block' : 'none';
+      document.getElementById('quotationViewPanel').style.display = (id === 'quotation-view' || id === 'outsourcing-view') ? 'block' : 'none';
       // settingsPanel is shown inline within profiles when a profile is clicked
       settingsPanel.style.display = 'none';
 
@@ -2771,6 +2774,26 @@
       ensureTab('quotation-view', 'Quotation (View)');
       activateTab('quotation-view');
       initializeQuotationViewPanel();
+    };
+
+    // Outsourcing submenu buttons
+    const outsourcingCreateBtn = document.getElementById('outsourcingCreateBtn');
+    const outsourcingViewBtn = document.getElementById('outsourcingViewBtn');
+
+    outsourcingCreateBtn.onclick = () => {
+      // Hide submenu and go to outsourcing creation board
+      document.getElementById('quotationSubmenu').style.display = 'none';
+      ensureTab('outsourcing', 'Outsourcing (create)');
+      activateTab('outsourcing');
+      initializeOutsourcingPanel();
+    };
+
+    outsourcingViewBtn.onclick = () => {
+      // Hide submenu and go to outsourcing view
+      document.getElementById('quotationSubmenu').style.display = 'none';
+      ensureTab('outsourcing-view', 'Outsourcing (View)');
+      activateTab('outsourcing-view');
+      initializeOutsourcingViewPanel();
     };
 
     // Add profile button
@@ -6980,6 +7003,215 @@
       await displayQuotations();
     }
 
+    // Initialize Outsourcing View Panel
+    async function initializeOutsourcingViewPanel() {
+      console.log('initializeOutsourcingViewPanel called');
+      // Reuse the same quotation view panel but display only outsourcing quotations
+      await displayOutsourcingQuotations();
+
+      // Refresh button functionality
+      const refreshBtn = document.getElementById('refreshQuotationsBtn');
+      if (refreshBtn) {
+        refreshBtn.onclick = async () => await displayOutsourcingQuotations();
+      }
+
+      // Select All button functionality
+      const selectAllBtn = document.getElementById('selectAllQuotationsBtn');
+      if (selectAllBtn) {
+        selectAllBtn.onclick = () => {
+          const checkboxes = document.querySelectorAll('.quotation-checkbox');
+          checkboxes.forEach(cb => cb.checked = true);
+        };
+      }
+
+      // Deselect All button functionality
+      const deselectAllBtn = document.getElementById('deselectAllQuotationsBtn');
+      if (deselectAllBtn) {
+        deselectAllBtn.onclick = () => {
+          const checkboxes = document.querySelectorAll('.quotation-checkbox');
+          checkboxes.forEach(cb => cb.checked = false);
+        };
+      }
+
+      // Batch Delete button functionality
+      const batchDeleteBtn = document.getElementById('batchDeleteQuotationsBtn');
+      if (batchDeleteBtn) {
+        batchDeleteBtn.onclick = async () => await batchDeleteQuotations();
+      }
+
+      // Set up filter event listeners
+      const filterInputs = document.querySelectorAll('#quotationViewPanel .filter-input');
+      filterInputs.forEach(input => {
+        input.addEventListener('input', async () => await displayOutsourcingQuotations());
+        input.addEventListener('change', async () => await displayOutsourcingQuotations());
+      });
+
+      // Load outsourcing quotations on initialization
+      await displayOutsourcingQuotations();
+    }
+
+    // Initialize Outsourcing Panel (for creating outsourcing quotations)
+    function initializeOutsourcingPanel() {
+      console.log('initializeOutsourcingPanel called');
+      // Auto-select "other" product type for outsourcing
+      const quotationButtons = document.querySelectorAll('.quotation-tag-btn');
+      let otherButton = null;
+
+      quotationButtons.forEach(button => {
+        if (button.dataset.tag === 'other') {
+          otherButton = button;
+        }
+      });
+
+      // Automatically click the "other" button to show outsourcing form
+      if (otherButton) {
+        setTimeout(() => {
+          otherButton.click();
+        }, 100);
+      }
+    }
+
+    // Display outsourcing quotations (only 'other' type)
+    async function displayOutsourcingQuotations() {
+      console.log('displayOutsourcingQuotations called');
+      const tbody = document.getElementById('quotationsTableBody');
+
+      // Load only 'other' type quotations from separate API endpoint
+      const quotations = await loadOutsourcingQuotationsFromStorage();
+
+      console.log('Loaded outsourcing quotations:', quotations);
+
+      if (quotations.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="14" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+              No outsourcing quotations saved yet. Create outsourcing quotations first.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      // Apply filters
+      const filteredQuotations = applyQuotationFilters(quotations);
+
+      if (filteredQuotations.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="14" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+              No outsourcing quotations match the current filters.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      // Sort by date created (newest first)
+      filteredQuotations.sort((a, b) => new Date(b.dateCreated) - new Date(a.dateCreated));
+
+      // Helper function to format date as yyyymmdd, hh:mm:ss
+      function formatDate(dateString) {
+        const date = new Date(dateString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}${month}${day}, ${hours}:${minutes}:${seconds}`;
+      }
+
+      // Fetch suppliers for each quotation and build the rows
+      const rows = [];
+      for (const quotation of filteredQuotations) {
+        // Fetch linked suppliers
+        const suppliersResponse = await fetch(`/api/quotations/${quotation.id}/suppliers`);
+        const suppliersData = await suppliersResponse.json();
+        const suppliers = suppliersData.success ? suppliersData.suppliers : [];
+
+        if (suppliers.length === 0) {
+          // No suppliers linked - show single row with "No supplier" message
+          rows.push(`
+            <tr style="cursor:pointer;" onclick="viewQuotationDetails(${quotation.id})">
+              <td style="border:1px solid #000; padding:8px; text-align:center;" onclick="event.stopPropagation();">
+                <input type="checkbox" class="quotation-checkbox" data-quotation-id="${quotation.id}" style="cursor:pointer;">
+              </td>
+              <td style="border:1px solid #000; padding:8px;">${quotation.customerName}</td>
+              <td style="border:1px solid #000; padding:8px;">${quotation.contactPerson || 'N/A'}</td>
+              <td style="border:1px solid #000; padding:8px;">${quotation.email || 'N/A'}</td>
+              <td style="border:1px solid #000; padding:8px;">${quotation.phone || 'N/A'}</td>
+              <td style="border:1px solid #000; padding:8px;">${getProductTypeDisplayName(quotation.productType)}</td>
+              <td style="border:1px solid #000; padding:8px; text-align:right;">${quotation.quantity.toLocaleString()}</td>
+              <td style="border:1px solid #000; padding:8px; text-align:right;">${quotation.total.toFixed(2)}</td>
+              <td style="border:1px solid #000; padding:8px;">${quotation.type || 'non email'}</td>
+              <td style="border:1px solid #000; padding:8px;">${quotation.status || 'draft'}</td>
+              <td style="border:1px solid #000; padding:8px;">${formatDate(quotation.dateCreated)}</td>
+              <td style="border:1px solid #000; padding:8px; color:#999;">No supplier</td>
+              <td style="border:1px solid #000; padding:8px; text-align:center;">
+                <button class="page-btn" style="padding:4px 8px; font-size:12px;" onclick="event.stopPropagation(); openLinkSupplierModal(${quotation.id})">Link Supplier</button>
+              </td>
+              <td style="border:1px solid #000; padding:8px; text-align:center;">
+                <button class="page-btn" style="padding:4px 8px; font-size:12px; background:#dc3545; color:#fff;" onclick="event.stopPropagation(); deleteQuotation(${quotation.id})">Delete</button>
+              </td>
+            </tr>
+          `);
+        } else {
+          // Has suppliers - show row for each supplier with rowspan on quotation fields
+          suppliers.forEach((supplier, index) => {
+            const supplierMembers = supplier.members || [];
+            const memberNames = supplierMembers.map(m => m.name).join(', ') || 'No members';
+
+            if (index === 0) {
+              // First row - include all quotation fields with rowspan
+              rows.push(`
+                <tr style="cursor:pointer;" onclick="viewQuotationDetails(${quotation.id})">
+                  <td style="border:1px solid #000; padding:8px; text-align:center;" rowspan="${suppliers.length}" onclick="event.stopPropagation();">
+                    <input type="checkbox" class="quotation-checkbox" data-quotation-id="${quotation.id}" style="cursor:pointer;">
+                  </td>
+                  <td style="border:1px solid #000; padding:8px;" rowspan="${suppliers.length}">${quotation.customerName}</td>
+                  <td style="border:1px solid #000; padding:8px;" rowspan="${suppliers.length}">${quotation.contactPerson || 'N/A'}</td>
+                  <td style="border:1px solid #000; padding:8px;" rowspan="${suppliers.length}">${quotation.email || 'N/A'}</td>
+                  <td style="border:1px solid #000; padding:8px;" rowspan="${suppliers.length}">${quotation.phone || 'N/A'}</td>
+                  <td style="border:1px solid #000; padding:8px;" rowspan="${suppliers.length}">${getProductTypeDisplayName(quotation.productType)}</td>
+                  <td style="border:1px solid #000; padding:8px; text-align:right;" rowspan="${suppliers.length}">${quotation.quantity.toLocaleString()}</td>
+                  <td style="border:1px solid #000; padding:8px; text-align:right;" rowspan="${suppliers.length}">${quotation.total.toFixed(2)}</td>
+                  <td style="border:1px solid #000; padding:8px;" rowspan="${suppliers.length}">${quotation.type || 'non email'}</td>
+                  <td style="border:1px solid #000; padding:8px;" rowspan="${suppliers.length}">${quotation.status || 'draft'}</td>
+                  <td style="border:1px solid #000; padding:8px;" rowspan="${suppliers.length}">${formatDate(quotation.dateCreated)}</td>
+                  <td style="border:1px solid #000; padding:8px;">
+                    <strong>${supplier.name}</strong><br>
+                    <span style="font-size:12px; color:#666;">${memberNames}</span>
+                  </td>
+                  <td style="border:1px solid #000; padding:8px; text-align:center;">
+                    <button class="page-btn" style="padding:4px 8px; font-size:12px;" onclick="event.stopPropagation(); sendToSupplier(${quotation.id}, ${supplier.id})">Send</button>
+                  </td>
+                  <td style="border:1px solid #000; padding:8px; text-align:center;" rowspan="${suppliers.length}">
+                    <button class="page-btn" style="padding:4px 8px; font-size:12px; background:#dc3545; color:#fff;" onclick="event.stopPropagation(); deleteQuotation(${quotation.id})">Delete</button>
+                  </td>
+                </tr>
+              `);
+            } else {
+              // Subsequent rows - only supplier field
+              rows.push(`
+                <tr style="cursor:pointer;" onclick="viewQuotationDetails(${quotation.id})">
+                  <td style="border:1px solid #000; padding:8px;">
+                    <strong>${supplier.name}</strong><br>
+                    <span style="font-size:12px; color:#666;">${memberNames}</span>
+                  </td>
+                  <td style="border:1px solid #000; padding:8px; text-align:center;">
+                    <button class="page-btn" style="padding:4px 8px; font-size:12px;" onclick="event.stopPropagation(); sendToSupplier(${quotation.id}, ${supplier.id})">Send</button>
+                  </td>
+                </tr>
+              `);
+            }
+          });
+        }
+      }
+
+      tbody.innerHTML = rows.join('');
+    }
+
+    // Display all quotations
     async function displayQuotations() {
       console.log('displayQuotations called');
       const tbody = document.getElementById('quotationsTableBody');
@@ -6989,7 +7221,7 @@
       if (quotations.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="10" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+            <td colspan="13" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
               No quotations saved yet. Create quotations first.
             </td>
           </tr>
@@ -9487,6 +9719,21 @@
         return result.quotations || [];
       } catch (error) {
         console.error('Error loading quotations from database:', error);
+        return [];
+      }
+    }
+
+    // Load outsourcing quotations from separate API (only 'other' type)
+    async function loadOutsourcingQuotationsFromStorage() {
+      try {
+        const response = await fetch('/api/quotations/outsourcing');
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to load outsourcing quotations');
+        }
+        return result.quotations || [];
+      } catch (error) {
+        console.error('Error loading outsourcing quotations from database:', error);
         return [];
       }
     }
