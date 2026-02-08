@@ -587,11 +587,15 @@
       <div class="menu-group">
       <button id="menuQuotation" class="page-btn" data-short="Q" data-full="Quotation" data-testid="menu-quotation">Q</button>
         <div id="quotationSubmenu" class="submenu" style="display:none;">
-          <button id="quotationCreateBtn" class="submenu-btn" data-testid="quotation-create-btn">Quotation Create</button>
-          <button id="quotationViewBtn" class="submenu-btn" data-testid="quotation-view-btn">Quotation View</button>
-          <div style="border-top:1px solid #ccc; margin:4px 0;"></div>
-          <button id="outsourcingCreateBtn" class="submenu-btn">Outsourcing Create</button>
-          <button id="outsourcingViewBtn" class="submenu-btn">Outsourcing View</button>
+          <button id="quotationCreateBtn" class="submenu-btn" data-testid="quotation-create-btn">Create</button>
+          <button id="quotationViewBtn" class="submenu-btn" data-testid="quotation-view-btn">View</button>
+        </div>
+      </div>
+      <div class="menu-group">
+        <button id="menuOutsourcing" class="page-btn" data-short="O" data-full="Outsourcing">O</button>
+        <div id="outsourcingSubmenu" class="submenu" style="display:none;">
+          <button id="outsourcingCreateBtn" class="submenu-btn">Create</button>
+          <button id="outsourcingViewBtn" class="submenu-btn">View</button>
         </div>
       </div>
       <button id="menuSettings" class="page-btn" data-short="S" data-full="Setting">S</button>
@@ -1435,6 +1439,7 @@
     const menuTasksBtn = document.getElementById('menuTasks');
     const menuSkillsBtn = document.getElementById('menuSkills');
     const menuQuotationBtn = document.getElementById('menuQuotation');
+    const menuOutsourcingBtn = document.getElementById('menuOutsourcing');
     const addProfileBtn = document.getElementById('addProfileBtn');
     const profilesListEl = document.getElementById('profilesList');
     const settingsNoteEl = document.getElementById('settingsNote');
@@ -2634,6 +2639,20 @@
       submenu.style.display = isVisible ? 'none' : 'block';
     };
 
+    // Menu click: toggle outsourcing submenu
+    menuOutsourcingBtn.onclick = () => {
+      const submenu = document.getElementById('outsourcingSubmenu');
+      const isVisible = submenu.style.display !== 'none';
+
+      // Hide all other submenus first
+      document.querySelectorAll('.submenu').forEach(sub => {
+        sub.style.display = 'none';
+      });
+
+      // Toggle this submenu
+      submenu.style.display = isVisible ? 'none' : 'block';
+    };
+
     // Customer submenu buttons
     const customerCreateBtn = document.getElementById('customerCreateBtn');
     const customerViewBtn = document.getElementById('customerViewBtn');
@@ -2782,7 +2801,7 @@
 
     outsourcingCreateBtn.onclick = () => {
       // Hide submenu and go to outsourcing creation board
-      document.getElementById('quotationSubmenu').style.display = 'none';
+      document.getElementById('outsourcingSubmenu').style.display = 'none';
       ensureTab('outsourcing', 'Outsourcing (create)');
       activateTab('outsourcing');
       initializeOutsourcingPanel();
@@ -2790,7 +2809,7 @@
 
     outsourcingViewBtn.onclick = () => {
       // Hide submenu and go to outsourcing view
-      document.getElementById('quotationSubmenu').style.display = 'none';
+      document.getElementById('outsourcingSubmenu').style.display = 'none';
       ensureTab('outsourcing-view', 'Outsourcing (View)');
       activateTab('outsourcing-view');
       initializeOutsourcingViewPanel();
