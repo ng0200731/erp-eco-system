@@ -1106,6 +1106,90 @@
         </div>
       </div>
 
+      <!-- Outsourcing View board -->
+      <div id="outsourcingViewPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
+        <div style="margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap;">
+          <button id="refreshOutsourcingBtn" class="page-btn">Refresh List</button>
+          <button id="selectAllOutsourcingBtn" class="page-btn">Select All</button>
+          <button id="deselectAllOutsourcingBtn" class="page-btn">Deselect All</button>
+          <button id="batchDeleteOutsourcingBtn" class="page-btn" style="background:#dc3545; color:#fff;">Delete Selected</button>
+        </div>
+
+        <!-- Outsourcing Table -->
+        <div id="outsourcingTableContainer">
+          <table id="outsourcingTable" style="width:100%; border-collapse:collapse; border:1px solid #000;">
+            <thead>
+              <tr style="background:#f8f8f8;">
+                <th style="border:1px solid #000; padding:8px; text-align:center; width:40px;">
+                  <input type="checkbox" id="selectAllOutsourcingCheckbox" style="cursor:pointer;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Customer Name</div>
+                  <input type="text" id="outsourcingFilterCustomer" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Contact Person</div>
+                  <input type="text" id="outsourcingFilterContact" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Email</div>
+                  <input type="text" id="outsourcingFilterEmail" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Phone</div>
+                  <input type="text" id="outsourcingFilterPhone" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Product Type</div>
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Quantity</div>
+                  <input type="text" id="outsourcingFilterQuantity" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Total (HKD)</div>
+                  <input type="text" id="outsourcingFilterTotal" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Type</div>
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Status</div>
+                  <select id="outsourcingFilterStatus" class="filter-input" style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                    <option value="">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="send to customer">Send to Customer</option>
+                    <option value="price confirmed">Price Confirmed</option>
+                    <option value="sampling">Sampling</option>
+                    <option value="sample delivered">Sample Delivered</option>
+                  </select>
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Date Created</div>
+                  <input type="text" id="outsourcingFilterDate" class="filter-input" placeholder="Filter..." style="width:100%; margin-top:4px; padding:4px; font-size:12px; border:1px solid #ccc;">
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">
+                  <div>Supplier</div>
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:center;">
+                  <div>Action</div>
+                </th>
+                <th style="border:1px solid #000; padding:8px; text-align:center;">
+                  <div>Delete</div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="outsourcingTableBody">
+              <tr>
+                <td colspan="14" style="border:1px solid #000; padding:20px; text-align:center; color:#666;">
+                  No outsourcing quotations saved yet. Create outsourcing quotations first.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Agent Skills board -->
       <div id="skillsPanel" style="border:1px solid #000; padding:20px; margin-bottom:20px; display:none;">
         <div style="margin-bottom:15px;">
@@ -1957,7 +2041,8 @@
       document.getElementById('tasksPanel').style.display = id === 'tasks' ? 'block' : 'none';
       document.getElementById('skillsPanel').style.display = id === 'skills' ? 'block' : 'none';
       document.getElementById('quotationPanel').style.display = (id === 'quotation' || id === 'outsourcing') ? 'block' : 'none';
-      document.getElementById('quotationViewPanel').style.display = (id === 'quotation-view' || id === 'outsourcing-view') ? 'block' : 'none';
+      document.getElementById('quotationViewPanel').style.display = id === 'quotation-view' ? 'block' : 'none';
+      document.getElementById('outsourcingViewPanel').style.display = id === 'outsourcing-view' ? 'block' : 'none';
       // settingsPanel is shown inline within profiles when a profile is clicked
       settingsPanel.style.display = 'none';
 
@@ -2741,6 +2826,7 @@
       menuTasksBtn.textContent = menuTasksBtn.dataset.full || 'Task List';
       menuSkillsBtn.textContent = menuSkillsBtn.dataset.full || 'Skills';
       menuQuotationBtn.textContent = menuQuotationBtn.dataset.full || 'Quotation';
+      menuOutsourcingBtn.textContent = menuOutsourcingBtn.dataset.full || 'Outsourcing';
     };
     sidebar.onmouseleave = () => {
       menuEmailBtn.textContent = menuEmailBtn.dataset.short || 'E';
@@ -2750,6 +2836,7 @@
       menuTasksBtn.textContent = menuTasksBtn.dataset.short || 'T';
       menuSkillsBtn.textContent = menuSkillsBtn.dataset.short || 'K';
       menuQuotationBtn.textContent = menuQuotationBtn.dataset.short || 'Q';
+      menuOutsourcingBtn.textContent = menuOutsourcingBtn.dataset.short || 'O';
       // Hide submenus on mouse leave
       document.querySelectorAll('.submenu').forEach(sub => {
         sub.style.display = 'none';
@@ -7025,41 +7112,41 @@
     // Initialize Outsourcing View Panel
     async function initializeOutsourcingViewPanel() {
       console.log('initializeOutsourcingViewPanel called');
-      // Reuse the same quotation view panel but display only outsourcing quotations
+      // Display outsourcing quotations in separate panel
       await displayOutsourcingQuotations();
 
       // Refresh button functionality
-      const refreshBtn = document.getElementById('refreshQuotationsBtn');
+      const refreshBtn = document.getElementById('refreshOutsourcingBtn');
       if (refreshBtn) {
         refreshBtn.onclick = async () => await displayOutsourcingQuotations();
       }
 
       // Select All button functionality
-      const selectAllBtn = document.getElementById('selectAllQuotationsBtn');
+      const selectAllBtn = document.getElementById('selectAllOutsourcingBtn');
       if (selectAllBtn) {
         selectAllBtn.onclick = () => {
-          const checkboxes = document.querySelectorAll('.quotation-checkbox');
+          const checkboxes = document.querySelectorAll('.outsourcing-checkbox');
           checkboxes.forEach(cb => cb.checked = true);
         };
       }
 
       // Deselect All button functionality
-      const deselectAllBtn = document.getElementById('deselectAllQuotationsBtn');
+      const deselectAllBtn = document.getElementById('deselectAllOutsourcingBtn');
       if (deselectAllBtn) {
         deselectAllBtn.onclick = () => {
-          const checkboxes = document.querySelectorAll('.quotation-checkbox');
+          const checkboxes = document.querySelectorAll('.outsourcing-checkbox');
           checkboxes.forEach(cb => cb.checked = false);
         };
       }
 
       // Batch Delete button functionality
-      const batchDeleteBtn = document.getElementById('batchDeleteQuotationsBtn');
+      const batchDeleteBtn = document.getElementById('batchDeleteOutsourcingBtn');
       if (batchDeleteBtn) {
-        batchDeleteBtn.onclick = async () => await batchDeleteQuotations();
+        batchDeleteBtn.onclick = async () => await batchDeleteOutsourcingQuotations();
       }
 
       // Set up filter event listeners
-      const filterInputs = document.querySelectorAll('#quotationViewPanel .filter-input');
+      const filterInputs = document.querySelectorAll('#outsourcingViewPanel .filter-input');
       filterInputs.forEach(input => {
         input.addEventListener('input', async () => await displayOutsourcingQuotations());
         input.addEventListener('change', async () => await displayOutsourcingQuotations());
@@ -7067,6 +7154,35 @@
 
       // Load outsourcing quotations on initialization
       await displayOutsourcingQuotations();
+    }
+
+    // Batch delete outsourcing quotations
+    async function batchDeleteOutsourcingQuotations() {
+      const checkboxes = document.querySelectorAll('.outsourcing-checkbox:checked');
+      const selectedIds = Array.from(checkboxes).map(cb => cb.dataset.quotationId);
+
+      if (selectedIds.length === 0) {
+        showModal({
+          title: 'No Selection',
+          body: 'Please select at least one quotation to delete.',
+          buttons: [{ text: 'OK', action: 'close' }]
+        });
+        return;
+      }
+
+      showModal({
+        title: 'Confirm Delete',
+        body: `Are you sure you want to delete ${selectedIds.length} quotation(s)?`,
+        buttons: [
+          { text: 'Cancel', action: 'close' },
+          { text: 'Delete', action: async () => {
+            for (const id of selectedIds) {
+              await deleteQuotationFromStorage(id);
+            }
+            await displayOutsourcingQuotations();
+          }}
+        ]
+      });
     }
 
     // Initialize Outsourcing Panel (for creating outsourcing quotations)
@@ -7093,7 +7209,7 @@
     // Display outsourcing quotations (only 'other' type)
     async function displayOutsourcingQuotations() {
       console.log('displayOutsourcingQuotations called');
-      const tbody = document.getElementById('quotationsTableBody');
+      const tbody = document.getElementById('outsourcingTableBody');
 
       // Load only 'other' type quotations from separate API endpoint
       const quotations = await loadOutsourcingQuotationsFromStorage();
@@ -7112,7 +7228,7 @@
       }
 
       // Apply filters
-      const filteredQuotations = applyQuotationFilters(quotations);
+      const filteredQuotations = applyOutsourcingFilters(quotations);
 
       if (filteredQuotations.length === 0) {
         tbody.innerHTML = `
@@ -7153,7 +7269,7 @@
           rows.push(`
             <tr style="cursor:pointer;" onclick="viewQuotationDetails(${quotation.id})">
               <td style="border:1px solid #000; padding:8px; text-align:center;" onclick="event.stopPropagation();">
-                <input type="checkbox" class="quotation-checkbox" data-quotation-id="${quotation.id}" style="cursor:pointer;">
+                <input type="checkbox" class="outsourcing-checkbox" data-quotation-id="${quotation.id}" style="cursor:pointer;">
               </td>
               <td style="border:1px solid #000; padding:8px;">${quotation.customerName}</td>
               <td style="border:1px solid #000; padding:8px;">${quotation.contactPerson || 'N/A'}</td>
@@ -7185,7 +7301,7 @@
               rows.push(`
                 <tr style="cursor:pointer;" onclick="viewQuotationDetails(${quotation.id})">
                   <td style="border:1px solid #000; padding:8px; text-align:center;" rowspan="${suppliers.length}" onclick="event.stopPropagation();">
-                    <input type="checkbox" class="quotation-checkbox" data-quotation-id="${quotation.id}" style="cursor:pointer;">
+                    <input type="checkbox" class="outsourcing-checkbox" data-quotation-id="${quotation.id}" style="cursor:pointer;">
                   </td>
                   <td style="border:1px solid #000; padding:8px;" rowspan="${suppliers.length}">${quotation.customerName}</td>
                   <td style="border:1px solid #000; padding:8px;" rowspan="${suppliers.length}">${quotation.contactPerson || 'N/A'}</td>
@@ -7228,6 +7344,32 @@
       }
 
       tbody.innerHTML = rows.join('');
+    }
+
+    // Apply filters for outsourcing quotations
+    function applyOutsourcingFilters(quotations) {
+      const filters = {
+        customer: document.getElementById('outsourcingFilterCustomer')?.value.toLowerCase().trim() || '',
+        contact: document.getElementById('outsourcingFilterContact')?.value.toLowerCase().trim() || '',
+        email: document.getElementById('outsourcingFilterEmail')?.value.toLowerCase().trim() || '',
+        phone: document.getElementById('outsourcingFilterPhone')?.value.toLowerCase().trim() || '',
+        quantity: document.getElementById('outsourcingFilterQuantity')?.value.toLowerCase().trim() || '',
+        total: document.getElementById('outsourcingFilterTotal')?.value.toLowerCase().trim() || '',
+        status: document.getElementById('outsourcingFilterStatus')?.value || '',
+        date: document.getElementById('outsourcingFilterDate')?.value.toLowerCase().trim() || ''
+      };
+
+      return quotations.filter(quotation => {
+        if (filters.customer && !quotation.customerName.toLowerCase().includes(filters.customer)) return false;
+        if (filters.contact && !quotation.contactPerson?.toLowerCase().includes(filters.contact)) return false;
+        if (filters.email && !quotation.email?.toLowerCase().includes(filters.email)) return false;
+        if (filters.phone && !quotation.phone?.toLowerCase().includes(filters.phone)) return false;
+        if (filters.quantity && !quotation.quantity.toString().includes(filters.quantity)) return false;
+        if (filters.total && !quotation.total.toString().includes(filters.total)) return false;
+        if (filters.status && quotation.status !== filters.status) return false;
+        if (filters.date && !new Date(quotation.dateCreated).toLocaleDateString().toLowerCase().includes(filters.date)) return false;
+        return true;
+      });
     }
 
     // Display all quotations
