@@ -2225,6 +2225,7 @@
             barBtn.style.background = '#fff';
             barBtn.style.color = '#000';
             renderDashboard();
+            renderOutsourcingDashboard();
           };
 
           barBtn.onclick = () => {
@@ -2234,6 +2235,7 @@
             pieBtn.style.background = '#fff';
             pieBtn.style.color = '#000';
             renderDashboard();
+            renderOutsourcingDashboard();
           };
 
           // Set initial button states
@@ -2694,7 +2696,13 @@
 
     function renderOutsourcingDashboard() {
       if (!outsourcingDashboardData) return;
-      renderOutsourcingPieChart();
+
+      if (currentDashboardView === 'pie') {
+        renderOutsourcingPieChart();
+      } else {
+        renderOutsourcingBarChart();
+      }
+
       renderOutsourcingLegend();
     }
 
@@ -2805,6 +2813,114 @@
             ctx.save();
           }
         }]
+      });
+    }
+
+    function renderOutsourcingBarChart() {
+      const canvas = document.getElementById('outsourcingChartCanvas');
+      const loading = document.getElementById('outsourcingChartLoading');
+      if (!canvas) return;
+
+      if (outsourcingDashboardData.total === 0) {
+        canvas.style.display = 'none';
+        if (loading) {
+          loading.style.display = 'block';
+          loading.innerHTML = '<div style="text-align:center; padding:50px; color:#999;">No outsourcing to display</div>';
+        }
+        return;
+      }
+
+      canvas.style.display = 'block';
+      if (loading) loading.style.display = 'none';
+
+      if (outsourcingChartInstance) {
+        outsourcingChartInstance.destroy();
+      }
+
+      const labels = outsourcingDashboardData.statuses.map(s => s.name);
+      const data = outsourcingDashboardData.statuses.map(s => s.count);
+
+      // Black and white gradient shades (8 shades for 8 statuses)
+      const bwColors = ['#000000', '#1a1a1a', '#333333', '#4d4d4d', '#666666', '#808080', '#999999', '#b3b3b3'];
+
+      const ctx = canvas.getContext('2d');
+      outsourcingChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Outsourcing',
+            data: data,
+            backgroundColor: bwColors.slice(0, data.length),
+            borderColor: '#000',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 1.8,
+          layout: {
+            padding: {
+              top: 20,
+              bottom: 20,
+              left: 20,
+              right: 20
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: '#000',
+              titleColor: '#fff',
+              bodyColor: '#fff',
+              borderColor: '#000',
+              borderWidth: 1,
+              padding: 12,
+              callbacks: {
+                label: function(context) {
+                  const value = context.parsed.x || 0;
+                  const percentage = ((value / outsourcingDashboardData.total) * 100).toFixed(1);
+                  return `${context.dataset.label}: ${value} (${percentage}%)`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: {
+                color: '#000',
+                font: {
+                  size: 12,
+                  family: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                }
+              },
+              grid: {
+                color: '#e0e0e0',
+                drawBorder: true,
+                borderColor: '#000'
+              }
+            },
+            y: {
+              ticks: {
+                color: '#000',
+                font: {
+                  size: 13,
+                  family: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                }
+              },
+              grid: {
+                display: false,
+                drawBorder: true,
+                borderColor: '#000'
+              }
+            }
+          }
+        }
       });
     }
 
